@@ -1,0 +1,53 @@
+{
+  "123456": {
+    "balance": 1.6330391300808542,
+    "trades": [
+      {
+        "name": "Token6702",
+        "symbol": "TKN11",
+        "mint": "j6k8b11y9xosiab2o7k45ec4geetgf61",
+        "entry": 3635016.549672072,
+        "exit": 4011896.190679657,
+        "yield": 10.368030952749981,
+        "timestamp": "2025-05-08T13:58:28.987187"
+      },
+      {
+        "name": "Token6275",
+        "symbol": "TKN90",
+        "mint": "y542zbqxv4m5q7s2wjgakdub2iq9tc1c",
+        "entry": 2321723.288217885,
+        "exit": 2558582.6221808153,
+        "yield": 10.20187613075713,
+        "timestamp": "2025-05-08T13:58:28.979819"
+      },
+      {
+        "name": "Token5425",
+        "symbol": "TKN61",
+        "mint": "7u0a13qfvyazsaxi5bjhh5c536hqfurf",
+        "entry": 3569075.0110335955,
+        "exit": 3947811.792429294,
+        "yield": 10.611622905790858,
+        "timestamp": "2025-05-08T13:58:28.968681"
+      },
+      {
+        "name": "Token3217",
+        "symbol": "TKN35",
+        "mint": "w9es09n86l1si9tw1nx2wc16stc968ch",
+        "entry": 2441387.7617085967,
+        "exit": 2702709.2027863427,
+        "yield": 10.703807284380783,
+        "timestamp": "2025-05-08T13:58:28.960471"
+      },
+      {
+        "name": "Token9006",
+        "symbol": "TKN81",
+        "mint": "xyl0k86pxgpcv6qafw5jt2fjrtiqgc9x",
+        "entry": 3512343.5176346274,
+        "exit": 3851216.83591136,
+        "yield": 9.648068777308715,
+        "timestamp": "2025-05-08T13:58:28.949518"
+      }
+    ],
+    "page": 0
+  }
+}

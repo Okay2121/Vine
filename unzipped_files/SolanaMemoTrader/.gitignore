@@ -1,0 +1,36 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local development
+.vscode/
+.idea/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*.cover
+
+# Logs
+logs/
+*.log
+
+# IMPORTANT: DO NOT exclude .env so it's included in git repos
+# .env is INTENTIONALLY tracked for easy deployment
+
+# Database
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
