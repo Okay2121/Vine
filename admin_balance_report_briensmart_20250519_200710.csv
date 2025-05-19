@@ -1,0 +1,6 @@
+ID,Date,Username,Telegram ID,Type,Amount,Reason
+13,2025-05-19 19:28:20,briensmart,5488280696,admin_debit,0.5,Testing balance deduction
+12,2025-05-19 19:27:42,briensmart,5488280696,admin_credit,1.5,Testing new balance system
+11,2025-05-19 19:21:17,briensmart,5488280696,admin_credit,2.0,Admin adjustment via direct tool
+10,2025-05-19 19:16:40,briensmart,5488280696,admin_credit,0.5,Testing balance adjustment
+1,2025-05-19 19:06:56,briensmart,5488280696,admin_credit,10.0,Test Deposit

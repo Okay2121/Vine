@@ -1974,7 +1974,10 @@ def admin_adjust_balance_user_id_handler(update, chat_id, text):
             try:
                 # Try as telegram_id (number)
                 user = User.query.filter_by(telegram_id=text).first()
-            except:
+            except Exception as e:
+                # Log the error but continue with other search methods
+                import logging
+                logging.error(f"Error searching by telegram_id: {e}")
                 pass
                 
             # Import function for case-insensitive search
@@ -1987,6 +1990,15 @@ def admin_adjust_balance_user_id_handler(update, chat_id, text):
             elif not user:
                 # Try with username anyway (in case they forgot the @)
                 user = User.query.filter(func.lower(User.username) == func.lower(text)).first()
+            
+            if not user:
+                # Try using admin_balance_manager method which has a robust search
+                try:
+                    import admin_balance_manager
+                    user = admin_balance_manager.find_user(text)
+                except Exception as e:
+                    import logging
+                    logging.error(f"Error using admin_balance_manager.find_user: {e}")
             
             if not user:
                 bot.send_message(
