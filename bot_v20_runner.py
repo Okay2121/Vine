@@ -2241,26 +2241,8 @@ def admin_confirm_adjustment_handler(update, chat_id):
                     ])
                 )
                 
-                # Send notification to user with updated balance and dashboard update
-                user_notification = (
-                    f"💰 *Balance Update*\n\n"
-                    f"Your balance has been updated:\n"
-                    f"New Balance: *{user.balance:.4f} SOL*\n"
-                    f"{'Added' if admin_adjustment_amount > 0 else 'Deducted'}: *{abs(admin_adjustment_amount):.4f} SOL*\n\n"
-                )
-                
-                # Send notification to the user with updated dashboard button
-                try:
-                    bot.send_message(
-                        user.telegram_id,
-                        user_notification,
-                        parse_mode="Markdown",
-                        reply_markup=bot.create_inline_keyboard([
-                            [{"text": "View Updated Dashboard", "callback_data": "view_dashboard"}]
-                        ])
-                    )
-                except Exception as notify_error:
-                    logging.error(f"Failed to notify user {user.telegram_id}: {notify_error}")
+                # User notification has been completely removed as requested
+                # This ensures balance adjustments happen silently without user notification
             except Exception as db_error:
                 # Handle database errors
                 db.session.rollback()
