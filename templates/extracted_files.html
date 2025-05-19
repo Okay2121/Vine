@@ -1,0 +1,100 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-folder-open me-2"></i>Extracted Files</h2>
+            <div class="btn-group">
+                {% if zip_info %}
+                <a href="{{ url_for('delete_zip') }}" class="btn btn-outline-warning" onclick="return confirm('Are you sure you want to delete the ZIP file?')">
+                    <i class="fas fa-trash-alt me-2"></i>Delete ZIP Only
+                </a>
+                {% endif %}
+                <a href="{{ url_for('delete_all') }}" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to delete all files?')">
+                    <i class="fas fa-trash-alt me-2"></i>Delete All Files
+                </a>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-upload me-2"></i>Upload Another
+                </a>
+            </div>
+        </div>
+
+        {% if zip_info %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-archive me-2"></i>Source ZIP Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Filename:</strong> {{ zip_info.name }}</p>
+                        <p><strong>Size:</strong> {{ zip_info.size_formatted }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Last Modified:</strong> {{ zip_info.modified }}</p>
+                        <p><strong>File Count:</strong> {{ zip_info.file_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-folder-open me-2"></i>Extracted Files ({{ files|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if files %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Name</th>
+                                <th>Path</th>
+                                <th>Size</th>
+                                <th>Last Modified</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in files %}
+                            <tr>
+                                <td>
+                                    {% if file.is_directory %}
+                                    <i class="fas fa-folder text-warning"></i>
+                                    {% else %}
+                                    <i class="fas fa-file text-primary"></i>
+                                    {% endif %}
+                                </td>
+                                <td>{{ file.name }}</td>
+                                <td>{{ file.path }}</td>
+                                <td>{{ file.size_formatted }}</td>
+                                <td>{{ file.modified }}</td>
+                                <td>
+                                    {% if not file.is_directory %}
+                                    <a href="{{ url_for('download_file', extraction_id=extraction_id, filename=file.path) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-download me-1"></i> Download
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No files found in the extracted directory.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

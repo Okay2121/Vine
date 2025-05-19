@@ -1,0 +1,38 @@
+/* Custom CSS Styles */
+
+/* File Upload Area */
+.border-dashed {
+    border-style: dashed !important;
+}
+
+.upload-area {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-area:hover {
+    background-color: var(--bs-dark-bg-subtle);
+}
+
+.upload-area.drag-over {
+    background-color: var(--bs-dark-bg-subtle);
+    border-color: var(--bs-primary) !important;
+}
+
+/* File Icons */
+.fa-file-archive {
+    color: var(--bs-warning);
+}
+
+.fa-folder {
+    color: var(--bs-warning);
+}
+
+.fa-file {
+    color: var(--bs-info);
+}
+
+/* Additional spacing */
+.features .row .col-md-6 {
+    margin-bottom: 1.5rem;
+}
