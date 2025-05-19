@@ -1977,13 +1977,16 @@ def admin_adjust_balance_user_id_handler(update, chat_id, text):
             except:
                 pass
                 
-            # If not found, try by username
+            # Import function for case-insensitive search
+            from sqlalchemy import func
+            
+            # If not found, try by username (case-insensitive)
             if not user and text.startswith('@'):
                 username = text[1:]  # Remove @ prefix
-                user = User.query.filter_by(username=username).first()
+                user = User.query.filter(func.lower(User.username) == func.lower(username)).first()
             elif not user:
                 # Try with username anyway (in case they forgot the @)
-                user = User.query.filter_by(username=text).first()
+                user = User.query.filter(func.lower(User.username) == func.lower(text)).first()
             
             if not user:
                 bot.send_message(
