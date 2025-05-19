@@ -2,12 +2,14 @@
 """
 Script to simulate live trading using real-time memecoin data from pump.fun
 """
-import logging
-import sys
-import random
-import requests
+import os
 import json
+import random
+import logging
+import requests
+import time
 from datetime import datetime, timedelta
+from sqlalchemy import func
 from app import app, db
 from models import User, Transaction, Profit
 
@@ -18,320 +20,345 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Constants for the operation
-USERNAME = "@briensmart"
-MAX_TRADES = 3  # Number of trades to simulate
+# User identifier to find
+USERNAME = "@briensmart"  # The user to create trades for, None for all users with balance > 0
 
-# API endpoints for fetching memecoin data
-PUMP_FUN_API = "https://client-api.pump.fun/tokens/recent"
-BIRDEYE_API = "https://api.birdeye.so/defi/hot_tokens/v1?chain=solana&count=20"  # Fallback API
+# Number of trades to generate
+NUM_TRADES = 3
+
+# Time frame to spread trades across (in hours)
+TIME_FRAME = 24  # Last 24 hours
+
+# Capital percentage to use per trade (as decimal)
+MIN_CAPITAL_PERCENT = 0.05  # 5% minimum of balance
+MAX_CAPITAL_PERCENT = 0.30  # 30% maximum of balance
+
+# Profit range per trade (as decimal)
+MIN_PROFIT_PERCENT = 0.02  # 2% minimum profit
+MAX_PROFIT_PERCENT = 0.25  # 25% maximum profit
+
+# Loss range per trade (as decimal)
+MIN_LOSS_PERCENT = 0.01  # 1% minimum loss
+MAX_LOSS_PERCENT = 0.15  # 15% maximum loss
+
+# Chance of a profitable trade (0.0 to 1.0)
+PROFIT_CHANCE = 0.75  # 75% chance of profit
+
+# Memecoin data sources
+PUMP_FUN_API = "https://api.pump.fun/memecoins/newest"
+BIRDEYE_API = "https://public-api.birdeye.so/public/tokenlist"
+BIRDEYE_HEADERS = {
+    "x-api-key": "5d769ab4e8c54786af47f06b1ca8d9f3"
+}
 
 def find_user_by_username(username):
     """Find a user by their Telegram username"""
-    # Remove @ if present
-    if username.startswith('@'):
-        username = username[1:]
-    
-    # Try to find the user with case-insensitive search
-    user = User.query.filter(User.username.ilike(username)).first()
-    return user
+    with app.app_context():
+        # Remove @ if present
+        if username and username.startswith('@'):
+            username = username[1:]
+        
+        # Find user - case insensitive
+        user = User.query.filter(func.lower(User.username) == func.lower(username)).first()
+        return user
 
 def fetch_recent_memecoins():
     """Fetch recent memecoin data from pump.fun or fallback to birdeye"""
     try:
-        # Try pump.fun first
-        logger.info("Attempting to fetch data from pump.fun...")
+        # Attempt to fetch from pump.fun
         response = requests.get(PUMP_FUN_API, timeout=10)
-        
         if response.status_code == 200:
+            logger.info("Successfully fetched data from pump.fun")
             data = response.json()
-            if 'data' in data and len(data['data']) > 0:
-                logger.info(f"Successfully fetched {len(data['data'])} tokens from pump.fun")
-                
-                # Format the data to a standard structure
-                formatted_tokens = []
-                for token in data['data']:
-                    formatted_tokens.append({
-                        'name': token.get('name', 'Unknown Token'),
+            
+            # Process and return the token data
+            tokens = []
+            for token in data[:50]:  # Get top 50 tokens
+                try:
+                    # Extract key data
+                    token_data = {
                         'symbol': token.get('symbol', 'UNKNOWN'),
-                        'price': token.get('price', 0.000001),
-                        'market_cap': token.get('marketCap', 1000000),
-                        'volume_24h': token.get('volume24h', 100000),
-                        'address': token.get('address', ''),
-                        'source': 'pump_fun',
-                        'launch_date': token.get('launchDate', datetime.utcnow().isoformat()),
-                    })
-                return formatted_tokens
-        
-        logger.warning("Failed to get data from pump.fun, trying birdeye...")
-        
-        # Try birdeye as fallback
-        response = requests.get(BIRDEYE_API, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            if 'data' in data and len(data['data']) > 0:
-                logger.info(f"Successfully fetched {len(data['data'])} tokens from birdeye")
-                
-                # Format the data to a standard structure
-                formatted_tokens = []
-                for token in data['data']:
-                    formatted_tokens.append({
-                        'name': token.get('symbol', 'Unknown Token'),  # Birdeye often has symbol as main identifier
-                        'symbol': token.get('symbol', 'UNKNOWN'),
-                        'price': token.get('price', 0.000001),
-                        'market_cap': token.get('mc', 1000000),
-                        'volume_24h': token.get('volume', 100000),
-                        'address': token.get('address', ''),
-                        'source': 'birdeye',
-                        'launch_date': datetime.utcnow().isoformat(),  # Birdeye doesn't provide launch date
-                    })
-                return formatted_tokens
-                
-        logger.error("Failed to fetch data from both sources")
-        return generate_fallback_tokens()
-        
+                        'name': token.get('name', 'Unknown Memecoin'),
+                        'address': token.get('mint', ''),
+                        'price': float(token.get('price', 0)) if token.get('price') else random.uniform(0.00001, 0.1),
+                        'market_cap': float(token.get('marketCap', 0)) if token.get('marketCap') else random.uniform(10000, 1000000),
+                        'volume_24h': float(token.get('volume24h', 0)) if token.get('volume24h') else random.uniform(1000, 100000),
+                        'image': token.get('image', ''),
+                        'source': 'pump.fun'
+                    }
+                    tokens.append(token_data)
+                except Exception as e:
+                    logger.error(f"Error processing token from pump.fun: {e}")
+                    continue
+            
+            # If we got tokens, return them
+            if tokens:
+                return tokens
+    
     except Exception as e:
-        logger.error(f"Error fetching tokens: {e}")
-        return generate_fallback_tokens()
+        logger.warning(f"Error fetching from pump.fun: {e}")
+    
+    # Fallback to Birdeye API
+    try:
+        response = requests.get(BIRDEYE_API, headers=BIRDEYE_HEADERS, timeout=10)
+        if response.status_code == 200:
+            logger.info("Successfully fetched data from Birdeye (fallback)")
+            data = response.json()
+            
+            # Process and return the token data
+            tokens = []
+            for token in data.get('data', [])[:50]:  # Get top 50 tokens
+                try:
+                    if 'memecoin' in token.get('tags', []).lower() or random.random() < 0.3:  # Only memecoin tokens or 30% chance
+                        token_data = {
+                            'symbol': token.get('symbol', 'UNKNOWN'),
+                            'name': token.get('name', 'Unknown Token'),
+                            'address': token.get('address', ''),
+                            'price': float(token.get('price', 0)) if token.get('price') else random.uniform(0.00001, 0.1),
+                            'market_cap': float(token.get('marketCap', 0)) if token.get('marketCap') else random.uniform(10000, 1000000),
+                            'volume_24h': float(token.get('volume', 0)) if token.get('volume') else random.uniform(1000, 100000),
+                            'image': token.get('logoURI', ''),
+                            'source': 'birdeye'
+                        }
+                        tokens.append(token_data)
+                except Exception as e:
+                    logger.error(f"Error processing token from Birdeye: {e}")
+                    continue
+            
+            # If we got tokens, return them
+            if tokens:
+                return tokens
+    
+    except Exception as e:
+        logger.warning(f"Error fetching from Birdeye: {e}")
+    
+    # If all else fails, use fallback data
+    logger.warning("Using fallback token data")
+    return generate_fallback_tokens()
 
 def generate_fallback_tokens():
     """Generate fallback token data if API calls fail"""
-    logger.warning("Using fallback generated token data")
+    current_time = datetime.now()
+    date_str = current_time.strftime("%Y%m%d")
     
-    # List of popular memecoin names and symbols for fallback
-    memecoin_options = [
-        {"name": "Dogecoin", "symbol": "DOGE"},
-        {"name": "Shiba Inu", "symbol": "SHIB"},
-        {"name": "Pepe", "symbol": "PEPE"},
-        {"name": "Floki Inu", "symbol": "FLOKI"},
-        {"name": "Bonk", "symbol": "BONK"},
-        {"name": "Mog Coin", "symbol": "MOG"},
-        {"name": "Popcat", "symbol": "POPCAT"},
-        {"name": "Meme Kombat", "symbol": "MK"},
-        {"name": "Brett", "symbol": "BRETT"},
-        {"name": "Turbo", "symbol": "TURBO"},
-        {"name": "Cat in a Dogs World", "symbol": "MEW"},
-        {"name": "WIF", "symbol": "WIF"},
-        {"name": "Dogs", "symbol": "DOGS"},
-        {"name": "Kitty", "symbol": "KIT"},
-        {"name": "Goated", "symbol": "GOAT"}
-    ]
+    # Use the date as a seed for consistent generation within the same day
+    random.seed(date_str)
     
-    # Generate random tokens based on the list
     tokens = []
-    for i in range(10):
-        coin = random.choice(memecoin_options)
-        price = random.uniform(0.0000001, 0.01)
-        market_cap = random.uniform(500000, 50000000)
-        volume = random.uniform(50000, 5000000)
+    memecoin_prefixes = ["PEPE", "DOGE", "SHIB", "CAT", "FROG", "MOON", "WIF", "APE", "BASED", "CHAD", "WOJAK"]
+    memecoin_suffixes = ["INU", "COIN", "MOON", "ELON", "ROCKET", "PUMP", "LAMBO", "RICH", "MEME", "BASED", "FOMO"]
+    
+    for i in range(50):
+        # Generate random memecoin data
+        prefix = random.choice(memecoin_prefixes)
+        suffix = random.choice(memecoin_suffixes) if random.random() < 0.7 else ""
+        symbol = f"{prefix}{suffix}"
         
-        tokens.append({
-            'name': coin["name"],
-            'symbol': coin["symbol"],
+        # Market cap between $10K and $10M
+        market_cap = random.uniform(10000, 10000000)
+        
+        # Price between $0.000001 and $1
+        price = random.uniform(0.000001, 1.0)
+        
+        # Volume between 1% and 50% of market cap
+        volume = market_cap * random.uniform(0.01, 0.5)
+        
+        token = {
+            'symbol': symbol,
+            'name': f"{prefix} {suffix}".strip() if suffix else prefix,
+            'address': f"FALLBACK{i}{date_str}",
             'price': price,
             'market_cap': market_cap,
             'volume_24h': volume,
-            'address': f"FakeSolanaAddress{i}",
-            'source': 'fallback',
-            'launch_date': datetime.utcnow().isoformat(),
-        })
+            'image': '',
+            'source': 'fallback'
+        }
+        tokens.append(token)
+    
+    # Reset random seed
+    random.seed()
     
     return tokens
 
 def create_realistic_trade(user_id, user_balance, token):
     """Create a realistic trade based on token data and user balance"""
-    # Determine if this will be a profitable trade (70% chance)
-    is_profitable = random.random() < 0.7
+    # Determine if this trade will be profitable
+    is_profitable = random.random() < PROFIT_CHANCE
     
-    # Calculate trade parameters
-    current_time = datetime.utcnow()
-    
-    # Use between 10-30% of user balance for a trade
-    trade_percent = random.uniform(0.1, 0.3)
+    # Determine how much of the user's balance to use
+    trade_percent = random.uniform(MIN_CAPITAL_PERCENT, MAX_CAPITAL_PERCENT)
     trade_amount = user_balance * trade_percent
     
-    # Calculate holding time in minutes (5-120 minutes)
-    holding_time = random.randint(5, 120)
-    entry_time = current_time - timedelta(minutes=holding_time)
-    exit_time = current_time
+    # Calculate buy price based on token data
+    buy_price_per_token = token['price'] * random.uniform(0.95, 1.05)  # ±5% from current price
+    token_amount = trade_amount / buy_price_per_token
     
-    # Get token details
-    token_name = token['name']
-    token_symbol = token['symbol']
-    entry_price = token['price']
-    
-    # Calculate profit/loss percentage
+    # Calculate sell price based on profitability
+    profit_loss_percent = 0
     if is_profitable:
-        profit_percent = random.uniform(2.5, 35.0)  # 2.5% to 35% profit
-        exit_price = entry_price * (1 + (profit_percent / 100))
+        profit_loss_percent = random.uniform(MIN_PROFIT_PERCENT, MAX_PROFIT_PERCENT)
+        sell_price_per_token = buy_price_per_token * (1 + profit_loss_percent)
     else:
-        profit_percent = -random.uniform(1.0, 15.0)  # 1% to 15% loss
-        exit_price = entry_price * (1 + (profit_percent / 100))
+        profit_loss_percent = -random.uniform(MIN_LOSS_PERCENT, MAX_LOSS_PERCENT)
+        sell_price_per_token = buy_price_per_token * (1 + profit_loss_percent)
     
-    # Calculate profit amount
-    profit_amount = trade_amount * (profit_percent / 100)
+    # Calculate total return
+    return_amount = token_amount * sell_price_per_token
+    profit_loss = return_amount - trade_amount
     
-    # Format token link based on source
-    token_address = token.get('address', '')
-    token_source = token.get('source', 'birdeye')
+    # Generate random times within the TIME_FRAME
+    now = datetime.utcnow()
+    max_delta = timedelta(hours=TIME_FRAME)
+    buy_time = now - timedelta(hours=random.uniform(0, TIME_FRAME))
     
-    if token_source == 'pump_fun':
-        token_link = f"https://pump.fun/{token_address}"
-    else:
-        token_link = f"https://birdeye.so/token/{token_address}?chain=solana"
+    # Sell time is after buy time (between 5 minutes and 8 hours later)
+    min_sell_delta = timedelta(minutes=5)
+    max_sell_delta = timedelta(hours=8)
+    sell_delta = timedelta(seconds=random.uniform(min_sell_delta.total_seconds(), max_sell_delta.total_seconds()))
+    sell_time = buy_time + sell_delta
     
-    # Create a trade record
+    # Ensure sell time is not in the future
+    if sell_time > now:
+        sell_time = now - timedelta(minutes=random.randint(5, 60))
+    
+    # Create trade record
     trade = {
         'user_id': user_id,
-        'token_name': token_name,
-        'token_symbol': token_symbol,
-        'token_link': token_link,
+        'token': token,
+        'token_symbol': token['symbol'],
+        'token_name': token['name'],
+        'token_amount': token_amount,
+        'buy_price': buy_price_per_token,
+        'sell_price': sell_price_per_token,
         'trade_amount': trade_amount,
-        'entry_price': entry_price,
-        'exit_price': exit_price,
-        'entry_time': entry_time.isoformat(),
-        'exit_time': exit_time.isoformat(),
-        'profit_amount': profit_amount,
-        'profit_percent': profit_percent,
-        'market_cap': token.get('market_cap', 0),
-        'volume': token.get('volume_24h', 0)
+        'return_amount': return_amount,
+        'profit_loss': profit_loss,
+        'profit_loss_percent': profit_loss_percent * 100,  # Convert to percentage
+        'buy_time': buy_time,
+        'sell_time': sell_time,
+        'is_profitable': is_profitable
     }
     
-    return trade, user_balance + profit_amount
+    return trade
 
 def record_trade_in_database(user_id, trade):
     """Record a trade in the database with appropriate transaction and profit records"""
-    # Validate trade input
-    if trade is None:
-        logger.error(f"Cannot record trade for user {user_id}: trade data is None")
-        return False
-    
     with app.app_context():
         try:
-            # Get the user
-            user = User.query.get(user_id)
-            if not user:
-                logger.error(f"User {user_id} not found when recording trade")
-                return False
+            # Buy transaction
+            buy_transaction = Transaction()
+            buy_transaction.user_id = user_id
+            buy_transaction.transaction_type = 'buy'
+            buy_transaction.amount = trade['trade_amount']
+            buy_transaction.token_name = trade['token_symbol']
+            buy_transaction.timestamp = trade['buy_time']
+            buy_transaction.status = 'completed'
+            buy_transaction.notes = f"Bought {trade['token_amount']:.2f} {trade['token_symbol']} at {trade['buy_price']:.8f} SOL each"
             
-            # Create a transaction record for buy
-            buy_transaction = Transaction(
-                user_id=user_id,
-                transaction_type="buy",
-                amount=trade['trade_amount'],
-                token_name=f"{trade['token_name']} ({trade['token_symbol']})",
-                timestamp=datetime.fromisoformat(trade['entry_time']),
-                status="completed",
-                notes=f"Auto trade entry at {trade['entry_price']:.8f} USD"
-            )
+            # Sell transaction
+            sell_transaction = Transaction()
+            sell_transaction.user_id = user_id
+            sell_transaction.transaction_type = 'sell'
+            sell_transaction.amount = trade['return_amount']
+            sell_transaction.token_name = trade['token_symbol']
+            sell_transaction.timestamp = trade['sell_time']
+            sell_transaction.status = 'completed'
+            sell_transaction.notes = f"Sold {trade['token_amount']:.2f} {trade['token_symbol']} at {trade['sell_price']:.8f} SOL each"
             
-            # Create a transaction record for sell
-            sell_amount = trade['trade_amount']
-            if trade['profit_amount'] > 0:
-                sell_amount += trade['profit_amount']
-                
-            sell_transaction = Transaction(
-                user_id=user_id,
-                transaction_type="sell",
-                amount=sell_amount,
-                token_name=f"{trade['token_name']} ({trade['token_symbol']})",
-                timestamp=datetime.fromisoformat(trade['exit_time']),
-                status="completed",
-                notes=f"Auto trade exit at {trade['exit_price']:.8f} USD"
-            )
+            # Profit record
+            profit_record = Profit()
+            profit_record.user_id = user_id
+            profit_record.amount = trade['profit_loss']
+            profit_record.timestamp = trade['sell_time']
+            profit_record.source = f"Trading {trade['token_symbol']}"
+            profit_record.description = f"{'Profit' if trade['is_profitable'] else 'Loss'} from trading {trade['token_name']} ({trade['profit_loss_percent']:.2f}%)"
             
-            # Record the profit/loss
-            profit_record = Profit(
-                user_id=user_id,
-                amount=trade['profit_amount'],
-                percentage=trade['profit_percent'],
-                date=datetime.fromisoformat(trade['exit_time']).date()
-            )
-            
-            # Add records to database
+            # Add to database
             db.session.add(buy_transaction)
             db.session.add(sell_transaction)
             db.session.add(profit_record)
             
-            # Update user balance with the profit
-            user.balance += trade['profit_amount']
-            
-            # Commit the changes
+            # Commit changes
             db.session.commit()
             
-            logger.info(f"Trade record created for {trade['token_name']} ({trade['token_symbol']})")
-            logger.info(f"Profit: {trade['profit_amount']:.4f} SOL ({trade['profit_percent']:.2f}%)")
-            
-            return True
-            
+            return True, (buy_transaction.id, sell_transaction.id, profit_record.id)
+        
         except Exception as e:
-            # Handle database errors
+            # Handle errors
             db.session.rollback()
-            logger.error(f"Database error during trade recording: {e}")
+            logger.error(f"Error recording trade: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            return False
+            return False, str(e)
 
 def simulate_live_trading():
     """Main function to simulate live trading with real token data"""
     with app.app_context():
-        # Find the user
-        user = find_user_by_username(USERNAME)
-        
-        if not user:
-            logger.error(f"User {USERNAME} not found")
-            return False
-        
-        logger.info(f"Simulating live trading for user: {user.username} (ID: {user.id})")
-        logger.info(f"Starting balance: {user.balance:.4f} SOL")
-        
-        # Fetch real token data
-        tokens = fetch_recent_memecoins()
-        
-        if not tokens:
-            logger.error("No tokens available for trading simulation")
-            return False
-        
-        logger.info(f"Retrieved {len(tokens)} tokens for trade simulation")
-        
-        # Shuffle tokens to get random selection
-        random.shuffle(tokens)
-        
-        # Select tokens for trading
-        selected_tokens = tokens[:MAX_TRADES]
-        
-        # Track balance changes
-        current_balance = user.balance
-        
-        # Create trade records
-        successful_trades = 0
-        
-        for token in selected_tokens:
-            # Generate a trade
-            trade_result = create_realistic_trade(user.id, current_balance, token)
+        try:
+            # Get memecoin data
+            tokens = fetch_recent_memecoins()
+            if not tokens:
+                logger.error("Failed to fetch token data from any source")
+                return False
             
-            if trade_result:
-                trade, new_balance = trade_result
+            logger.info(f"Fetched {len(tokens)} tokens")
+            
+            # Find user
+            users_to_process = []
+            if USERNAME:
+                user = find_user_by_username(USERNAME)
+                if user:
+                    users_to_process.append(user)
+                else:
+                    logger.error(f"User {USERNAME} not found")
+                    return False
+            else:
+                # Get all users with balance > 0
+                users_to_process = User.query.filter(User.balance > 0).all()
+            
+            if not users_to_process:
+                logger.error("No users found with positive balance")
+                return False
+            
+            # Process users
+            for user in users_to_process:
+                logger.info(f"Processing user: {user.username} (ID: {user.id})")
+                logger.info(f"Current balance: {user.balance} SOL")
                 
-                # Record the trade
-                if record_trade_in_database(user.id, trade):
-                    current_balance = new_balance
-                    successful_trades += 1
+                # Get user balance
+                user_balance = user.balance
+                
+                # Create trades
+                successful_trades = 0
+                for i in range(NUM_TRADES):
+                    # Select a random token
+                    token = random.choice(tokens)
                     
-                    # Log the trade
-                    profit_emoji = "✅" if trade['profit_amount'] > 0 else "❌"
-                    logger.info(f"{profit_emoji} Trade: {trade['token_name']} ({trade['token_symbol']})")
-                    logger.info(f"   Amount: {trade['trade_amount']:.4f} SOL")
-                    logger.info(f"   Profit: {trade['profit_amount']:.4f} SOL ({trade['profit_percent']:.2f}%)")
-                    logger.info(f"   Current Balance: {current_balance:.4f} SOL")
-        
-        logger.info(f"Successfully completed {successful_trades} trades")
-        logger.info(f"Final balance: {current_balance:.4f} SOL")
-        
-        return successful_trades > 0
+                    # Create trade
+                    trade = create_realistic_trade(user.id, user_balance, token)
+                    
+                    # Record trade
+                    success, ids = record_trade_in_database(user.id, trade)
+                    if success:
+                        successful_trades += 1
+                        logger.info(f"Trade {i+1} recorded successfully for {trade['token_symbol']}")
+                        logger.info(f"  Amount: {trade['trade_amount']:.4f} SOL")
+                        logger.info(f"  Return: {trade['return_amount']:.4f} SOL")
+                        logger.info(f"  {'Profit' if trade['is_profitable'] else 'Loss'}: {trade['profit_loss']:.4f} SOL ({trade['profit_loss_percent']:.2f}%)")
+                        logger.info(f"  Transaction IDs: Buy={ids[0]}, Sell={ids[1]}, Profit={ids[2]}")
+                    else:
+                        logger.error(f"Failed to record trade {i+1}: {ids}")
+                
+                logger.info(f"Successfully recorded {successful_trades}/{NUM_TRADES} trades for {user.username}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error simulating trading: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
 
 if __name__ == "__main__":
-    # Run the live trading simulation
-    success = simulate_live_trading()
-    sys.exit(0 if success else 1)
+    # Run the simulation
+    simulate_live_trading()
