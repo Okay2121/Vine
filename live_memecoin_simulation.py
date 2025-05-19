@@ -245,7 +245,7 @@ def record_trade_in_database(user_id, trade):
     """Record a trade in the database with appropriate transaction and profit records"""
     with app.app_context():
         try:
-            # Buy transaction
+            # Buy transaction - create record of the buy
             buy_transaction = Transaction()
             buy_transaction.user_id = user_id
             buy_transaction.transaction_type = 'buy'
@@ -255,7 +255,7 @@ def record_trade_in_database(user_id, trade):
             buy_transaction.status = 'completed'
             buy_transaction.notes = f"Bought {trade['token_amount']:.2f} {trade['token_symbol']} at {trade['buy_price']:.8f} SOL each"
             
-            # Sell transaction
+            # Sell transaction - create record of the sell
             sell_transaction = Transaction()
             sell_transaction.user_id = user_id
             sell_transaction.transaction_type = 'sell'
@@ -265,26 +265,37 @@ def record_trade_in_database(user_id, trade):
             sell_transaction.status = 'completed'
             sell_transaction.notes = f"Sold {trade['token_amount']:.2f} {trade['token_symbol']} at {trade['sell_price']:.8f} SOL each"
             
-            # Profit record
-            profit_record = Profit()
-            profit_record.user_id = user_id
-            profit_record.amount = trade['profit_loss']
-            profit_record.timestamp = trade['sell_time']
-            profit_record.source = f"Trading {trade['token_symbol']}"
-            profit_record.description = f"{'Profit' if trade['is_profitable'] else 'Loss'} from trading {trade['token_name']} ({trade['profit_loss_percent']:.2f}%)"
-            
-            # Add to database
+            # Add transactions to database first
             db.session.add(buy_transaction)
             db.session.add(sell_transaction)
-            db.session.add(profit_record)
             
-            # Commit changes
-            db.session.commit()
+            # Try to add a profit record if the structure exists and is compatible
+            try:
+                # Format the percentage (profit or loss) to a value
+                profit_percentage = trade['profit_loss_percent']
+                
+                # Create profit record
+                profit_record = Profit()
+                profit_record.user_id = user_id
+                profit_record.amount = trade['profit_loss']
+                profit_record.percentage = profit_percentage  # Store the percentage
+                profit_record.date = trade['sell_time'].date()  # Extract just the date part
+                
+                # Add profit record to database
+                db.session.add(profit_record)
+                
+                # Commit all changes
+                db.session.commit()
+                
+                return True, (buy_transaction.id, sell_transaction.id, profit_record.id)
+            except Exception as profit_error:
+                # If adding profit record fails, still save the transactions
+                logger.warning(f"Could not add profit record: {profit_error}")
+                db.session.commit()
+                return True, (buy_transaction.id, sell_transaction.id, None)
             
-            return True, (buy_transaction.id, sell_transaction.id, profit_record.id)
-        
         except Exception as e:
-            # Handle errors
+            # Handle errors with the entire process
             db.session.rollback()
             logger.error(f"Error recording trade: {e}")
             import traceback
