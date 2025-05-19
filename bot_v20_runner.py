@@ -2062,8 +2062,26 @@ def admin_adjust_balance_amount_handler(update, chat_id, text):
             global admin_adjustment_reason
             admin_adjustment_reason = "Bonus"  # Set a simple default reason
             
-            # Proceed directly to processing the adjustment
-            admin_confirm_adjustment_handler(update, chat_id)
+            # Show confirmation with just the amount, then proceed to confirmation
+            confirmation_message = (
+                f"💰 *Confirm Balance Adjustment*\n\n"
+                f"Amount: {'➕' if adjustment > 0 else '➖'} {abs(adjustment):.4f} SOL\n\n"
+                f"Click confirm to process this adjustment."
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "✅ Confirm", "callback_data": "admin_confirm_adjustment"},
+                    {"text": "❌ Cancel", "callback_data": "admin_back"}
+                ]
+            ])
+            
+            bot.send_message(
+                chat_id,
+                confirmation_message,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
             
             # Remove current listener
             bot.remove_listener(chat_id)
