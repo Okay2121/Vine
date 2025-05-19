@@ -2243,7 +2243,7 @@ def admin_confirm_adjustment_handler(update, chat_id):
                     f"New Balance: {user.balance:.4f} SOL\n"
                     f"Change: {'➕' if admin_adjustment_amount > 0 else '➖'} {abs(admin_adjustment_amount):.4f} SOL\n"
                     f"Transaction ID: {new_transaction.id}\n\n"
-                    f"The user has been notified of this adjustment."
+                    f"No notification was sent to the user."
                 )
                 
                 # Send success message to admin
