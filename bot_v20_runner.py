@@ -4720,7 +4720,7 @@ def run_polling():
     
     # Additional admin handlers from the original codebase
     bot.add_callback_handler("admin_send_message", lambda update, chat_id: bot.send_message(chat_id, "Direct message sending requires conversation handler from python-telegram-bot."))
-    bot.add_callback_handler("admin_adjust_user_balance", lambda update, chat_id: bot.send_message(chat_id, "User balance adjustment requires conversation handler from python-telegram-bot."))
+    bot.add_callback_handler("admin_adjust_user_balance", admin_adjust_balance_handler)  # Use the actual handler function
     bot.add_callback_handler("admin_process_withdrawal", lambda update, chat_id: bot.send_message(chat_id, "Withdrawal processing feature coming soon."))
     bot.add_callback_handler("admin_process_tickets", lambda update, chat_id: bot.send_message(chat_id, "Ticket processing feature requires conversation handler from python-telegram-bot."))
     bot.add_callback_handler("admin_export_referrals", admin_export_referrals_handler)
