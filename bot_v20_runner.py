@@ -2058,28 +2058,15 @@ def admin_adjust_balance_amount_handler(update, chat_id, text):
             global admin_adjustment_amount
             admin_adjustment_amount = adjustment
             
-            # Ask for reason
-            message = (
-                "📝 *Enter Adjustment Reason*\n\n"
-                f"Amount to {'add' if adjustment > 0 else 'subtract'}: {abs(adjustment):.4f} SOL\n\n"
-                "Please enter a reason for this adjustment (e.g. refund, bonus, penalty).\n"
-                "This will be visible to the user."
-            )
+            # Set a default reason and proceed directly to confirmation
+            global admin_adjustment_reason
+            admin_adjustment_reason = "Bonus"  # Set a simple default reason
             
-            keyboard = bot.create_inline_keyboard([
-                [{"text": "Cancel", "callback_data": "admin_back"}]
-            ])
+            # Proceed directly to processing the adjustment
+            admin_confirm_adjustment_handler(update, chat_id)
             
-            bot.send_message(
-                chat_id,
-                message,
-                parse_mode="Markdown",
-                reply_markup=keyboard
-            )
-            
-            # Remove current listener and add listener for the reason
+            # Remove current listener
             bot.remove_listener(chat_id)
-            bot.add_message_listener(chat_id, "text", admin_adjust_balance_reason_handler)
             
         except ValueError:
             # Invalid amount format
@@ -2254,7 +2241,26 @@ def admin_confirm_adjustment_handler(update, chat_id):
                     ])
                 )
                 
-                # Balance adjustment notification removed as requested
+                # Send notification to user with updated balance and dashboard update
+                user_notification = (
+                    f"💰 *Balance Update*\n\n"
+                    f"Your balance has been updated:\n"
+                    f"New Balance: *{user.balance:.4f} SOL*\n"
+                    f"{'Added' if admin_adjustment_amount > 0 else 'Deducted'}: *{abs(admin_adjustment_amount):.4f} SOL*\n\n"
+                )
+                
+                # Send notification to the user with updated dashboard button
+                try:
+                    bot.send_message(
+                        user.telegram_id,
+                        user_notification,
+                        parse_mode="Markdown",
+                        reply_markup=bot.create_inline_keyboard([
+                            [{"text": "View Updated Dashboard", "callback_data": "view_dashboard"}]
+                        ])
+                    )
+                except Exception as notify_error:
+                    logging.error(f"Failed to notify user {user.telegram_id}: {notify_error}")
             except Exception as db_error:
                 # Handle database errors
                 db.session.rollback()
