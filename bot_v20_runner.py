@@ -3807,6 +3807,76 @@ def is_admin(telegram_id):
     # Check if the user ID is in the admins list
     return telegram_id in ADMIN_IDS
     
+def add_trade_to_history(user_id, token_name, entry_price, exit_price, profit_amount, tx_hash):
+    """
+    Add a trade to the user's trading history in yield_data.json
+    so it appears in their trade history page.
+    
+    Args:
+        user_id (int): Database ID of the user
+        token_name (str): Name/symbol of the token
+        entry_price (float): Entry price
+        exit_price (float): Exit price
+        profit_amount (float): Profit amount in SOL
+        tx_hash (str): Transaction hash
+    """
+    try:
+        # Set up file path
+        data_file = 'yield_data.json'
+        
+        # Load existing data
+        try:
+            with open(data_file, 'r') as f:
+                yield_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            yield_data = {}
+        
+        # Convert user_id to string (JSON keys are strings)
+        user_id_str = str(user_id)
+        
+        # Create user entry if it doesn't exist
+        if user_id_str not in yield_data:
+            yield_data[user_id_str] = {
+                "balance": 0.0,
+                "trades": [],
+                "page": 0
+            }
+        
+        # Calculate yield percentage
+        if entry_price > 0:
+            yield_percentage = ((exit_price / entry_price) - 1) * 100
+        else:
+            yield_percentage = 0
+            
+        # Create trade entry
+        new_trade = {
+            "name": token_name.replace('$', ''),
+            "symbol": token_name.replace('$', ''),
+            "mint": tx_hash[:32] if len(tx_hash) >= 32 else tx_hash,
+            "entry": entry_price,
+            "exit": exit_price,
+            "yield": yield_percentage,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # Add to user's trades
+        yield_data[user_id_str]["trades"].insert(0, new_trade)  # Add to the beginning
+        
+        # Update user's balance
+        yield_data[user_id_str]["balance"] = profit_amount
+        
+        # Save back to file
+        with open(data_file, 'w') as f:
+            json.dump(yield_data, f, indent=2)
+            
+        return True
+    except Exception as e:
+        import logging
+        logging.error(f"Error adding trade to history: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return False
+
 def admin_trade_post_handler(update, chat_id):
     """
     Handle individual trade posting for a specific user.
@@ -3908,6 +3978,16 @@ def admin_trade_post_handler(update, chat_id):
             
             # Commit the changes
             db.session.commit()
+            
+            # Add trade to user's history page
+            add_trade_to_history(
+                user_id=user.id, 
+                token_name=token_name,
+                entry_price=entry_price, 
+                exit_price=exit_price,
+                profit_amount=profit_amount,
+                tx_hash=tx_hash
+            )
             
             # Create personalized message for the user
             user_message = (
@@ -4135,6 +4215,16 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                         date=today
                     )
                     db.session.add(new_profit)
+                    
+                    # Add trade to user's history page
+                    add_trade_to_history(
+                        user_id=user.id, 
+                        token_name=token,
+                        entry_price=entry, 
+                        exit_price=exit_price,
+                        profit_amount=profit_amount,
+                        tx_hash=tx_link
+                    )
                     
                     # Create personalized message for each user
                     message = (
