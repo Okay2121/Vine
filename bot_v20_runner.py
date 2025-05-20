@@ -430,7 +430,7 @@ def start_command(update, chat_id):
     
     # First, send immediate acknowledgment to prevent freezing
     # This makes the bot respond instantly while processing happens in background
-    initial_message = f"Welcome {first_name}! Loading your profile..."
+    initial_message = f"Welcome {first_name}!"
     bot.send_message(chat_id, initial_message)
     
     # Define function to handle database operations in background
@@ -519,6 +519,7 @@ def start_command(update, chat_id):
                     # Update last active in background to prevent blocking
                     try:
                         existing_user.last_active = datetime.utcnow()
+                        from app import db
                         db.session.commit()
                     except Exception as e:
                         logger.error(f"Error updating last_active: {e}")
