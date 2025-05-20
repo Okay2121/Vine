@@ -59,6 +59,8 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment"):
     Returns:
         tuple: (success, message)
     """
+    import logging
+    logging.info(f"Balance adjustment confirmed successfully by admin. Adjusting balance for {identifier} by {amount}.")
     with app.app_context():
         # Find the user
         user = find_user(identifier)

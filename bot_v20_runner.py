@@ -2252,6 +2252,11 @@ def admin_confirm_adjustment_handler(update, chat_id):
                                     f"No notification was sent to the user."
                                 )
                                 
+                                # Log success for monitoring
+                                logging.info("Balance adjustment confirmed successfully by admin.")
+                                logging.info(f"User dashboard updated. User ID: {fresh_user.telegram_id}, New Balance: {fresh_user.balance:.4f}")
+                                logging.info("Bot is fully responsive.")
+                                
                                 # Send success message to admin
                                 bot.send_message(
                                     chat_id,
