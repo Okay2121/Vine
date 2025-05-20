@@ -2338,8 +2338,6 @@ def admin_confirm_adjustment_handler(update, chat_id):
                     )
                     
                     # Clear the global variables used for this adjustment
-                    global admin_target_user_id, admin_adjust_telegram_id, admin_adjust_current_balance
-                    global admin_adjustment_amount, admin_adjustment_reason
                     admin_target_user_id = None
                     admin_adjust_telegram_id = None
                     admin_adjust_current_balance = None
