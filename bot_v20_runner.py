@@ -1306,36 +1306,35 @@ def dashboard_command(update, chat_id):
             days_active = roi_metrics['days_elapsed'] if has_active_cycle else min(7, (datetime.utcnow().date() - user.joined_at.date()).days)
             days_left = roi_metrics['days_remaining'] if has_active_cycle else max(0, 7 - days_active)
             
-            # Calculate progress towards 2x goal
-            goal_progress = roi_metrics['progress_percentage'] if has_active_cycle else min(100, (total_profit_percentage / 100.0) * 100)
+            # Calculate next milestone target - 10% of initial deposit or minimum 0.05 SOL
+            milestone_target = max(user.initial_deposit * 0.1, 0.05)
+            
+            # Calculate progress towards next milestone
+            goal_progress = min(100, (total_profit_amount / milestone_target) * 100) if milestone_target > 0 else 0
             progress_blocks = int(min(14, goal_progress / (100/14)))
             progress_bar = f"[{'▓' * progress_blocks}{'░' * (14 - progress_blocks)}]"
             
-            # Get target and current amounts
-            if has_active_cycle:
-                target_amount = roi_metrics['target_balance']
-                current_amount = roi_metrics['current_balance']
-            else:
-                # Fall back to standard calculation
-                target_amount = user.initial_deposit * 2
-                current_amount = user.balance + total_profit_amount
-                
-            amount_progress = min(100, (current_amount / target_amount) * 100) if target_amount > 0 else 0
+            # Current amount is actual balance including profits
+            current_amount = user.balance
+            
+            # Days active calculation based on join date
+            days_active = min(30, (datetime.utcnow().date() - user.joined_at.date()).days)
+            days_left = max(0, 30 - days_active)
             
             # Format the dashboard message
             current_balance = user.balance + total_profit_amount
             
             dashboard_message = (
-                "📊 *Profit Dashboard*\n\n"
+                "📊 *Autopilot Dashboard*\n\n"
                 f"• *Balance:* {current_balance:.2f} SOL _(Initial {user.initial_deposit:.2f} SOL + {total_profit_amount:.2f} SOL profit)_\n"
                 f"• *Today's Profit:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}% of balance)\n"
-                f"• *Total Profit:* {total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
+                f"• *Total Profit:* +{total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
             )
             
             # Add streak with fire emoji for gamification
             if streak > 0:
                 fire_emojis = "🔥" * min(3, streak)
-                dashboard_message += f"• *Profit Streak:* {streak} days {fire_emojis}\n"
+                dashboard_message += f"• *Profit Streak:* {streak}-Day Green Streak! {fire_emojis}\n"
             else:
                 dashboard_message += "• *Profit Streak:* Start your streak today!\n"
                 
@@ -1346,21 +1345,19 @@ def dashboard_command(update, chat_id):
             # Add progress toward next milestone
             dashboard_message += "• *Progress Toward Next Milestone:*\n"
             dashboard_message += f"⏳ {progress_bar} {goal_progress:.0f}% Complete\n"
-            dashboard_message += "Thrive is scanning, entering, and exiting trades automatically\n"
+            dashboard_message += "Thrive is trading real, newly launched memecoins on Solana — your portfolio updates hourly.\n"
             dashboard_message += "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
             
             # Add goal completion tracker
             dashboard_message += "• *Goal Completion Tracker:*\n"
-            milestone_target = max(user.initial_deposit * 0.1, 0.05) # 10% of initial deposit or minimum 0.05 SOL
-            dashboard_message += f"🎯 *Next Milestone:* {milestone_target:.2f} SOL (from {total_profit_amount:.2f} SOL)\n"
-            dashboard_message += f"Current Balance: {current_balance:.2f} SOL\n"
-            dashboard_message += "Autopilot is continuously trading to reach this milestone\n"
+            dashboard_message += f"🎯 *Target:* {milestone_target:.2f} SOL (from {user.initial_deposit:.2f} SOL)\n"
+            dashboard_message += f"Current: {current_balance:.2f} SOL\n"
             
             # Calculate progress bars using Unicode blocks for visual appeal
-            progress_to_milestone = min(100, (total_profit_amount / milestone_target) * 100) if milestone_target > 0 else 0
-            milestone_blocks = int(min(10, progress_to_milestone / 10))
-            milestone_bar = f"{'░' * 10} {progress_to_milestone:.1f}% to next milestone\n\n"
-            dashboard_message += milestone_bar
+            progress_to_goal = min(100, (total_profit_amount / (milestone_target - user.initial_deposit)) * 100) if (milestone_target - user.initial_deposit) > 0 else 0
+            goal_blocks = int(min(10, progress_to_goal / 10))
+            goal_bar = f"{'█' * goal_blocks}{'░' * (10 - goal_blocks)} {progress_to_goal:.1f}% to goal\n\n"
+            dashboard_message += goal_bar
             
             import random
             from config import MIN_DEPOSIT
@@ -1368,19 +1365,19 @@ def dashboard_command(update, chat_id):
             # Add a trust-building reminder message - different messages based on deposit status
             if user.status == UserStatus.ACTIVE and user.balance >= MIN_DEPOSIT:
                 tips_message = random.choice([
-                    "Your bot is working 24/7 to find the best trading opportunities for you.",
-                    "THRIVE automatically buys low and sells high, you just watch your profits grow.",
-                    "Trading happens automatically - we do the work, you keep the profits.",
-                    "Every day brings new opportunities in the Solana memecoin market.",
-                    "Your funds remain secure while THRIVE trades the market for you."
+                    "Thrive is trading real, newly launched memecoins on Solana to grow your portfolio.",
+                    "Your Autopilot system is working 24/7 to find and execute trading opportunities.",
+                    "Thrive's trading engine targets consistent daily profits when market conditions allow.",
+                    "Every day brings new memecoin opportunities that your Autopilot can discover.",
+                    "Thrive automatically manages your portfolio to optimize profit and reduce risk."
                 ])
             else:
                 tips_message = random.choice([
-                    "Add funds to start trading with the smartest Solana memecoin bot.",
-                    "Make a deposit to begin your automated trading journey.",
-                    "Solana memecoin trading can start as soon as you deposit SOL.",
-                    "Your dashboard is ready - add SOL to see it in action!",
-                    "Your full trading dashboard is activated - deposit anytime to start earning."
+                    "Add funds to activate your Autopilot trading system for Solana memecoins.",
+                    "Make a deposit to begin your automated trading journey with real memecoins.",
+                    "Your Autopilot dashboard is ready - add SOL to begin trading real coins.",
+                    "Deposit SOL to unlock the full power of your Autopilot trading system.",
+                    "Thrive trades newly launched memecoins - deposit any amount to begin."
                 ])
             
             dashboard_message += f"_💡 {tips_message}_"
