@@ -412,7 +412,10 @@ def display_welcome_message(chat_id):
 
 # Command handlers
 def start_command(update, chat_id):
-    """Handle the /start command."""
+    """Handle the /start command with non-blocking database operations."""
+    import threading
+    
+    # Extract user information immediately
     first_name = update['message']['from'].get('first_name', 'there')
     user_id = str(update['message']['from']['id'])
     username = update['message']['from'].get('username', '')
@@ -425,96 +428,115 @@ def start_command(update, chat_id):
         if ' ' in text:  # Check if there's a parameter after /start
             start_parameter = text.split(' ', 1)[1]
     
-    # Store user in database if not exists
-    with app.app_context():
-        try:
-            existing_user = User.query.filter_by(telegram_id=user_id).first()
-            
-            if not existing_user:
-                logger.info(f"New user registered: {user_id} - {username}")
+    # First, send immediate acknowledgment to prevent freezing
+    # This makes the bot respond instantly while processing happens in background
+    initial_message = f"Welcome {first_name}! Loading your profile..."
+    bot.send_message(chat_id, initial_message)
+    
+    # Define function to handle database operations in background
+    def process_start_command_in_background():
+        with app.app_context():
+            try:
+                existing_user = User.query.filter_by(telegram_id=user_id).first()
                 
-                # Create a new user record
-                from app import db
-                new_user = User(
-                    telegram_id=user_id,
-                    username=username,
-                    first_name=first_name,
-                    last_name=last_name,
-                    joined_at=datetime.utcnow(),
-                    status=UserStatus.ONBOARDING
-                )
-                
-                # Generate a referral code for the new user
-                new_referral_code = ReferralCode(
-                    user_id=None,  # Temporary placeholder, will update after user is committed
-                    code=ReferralCode.generate_code(),
-                    created_at=datetime.utcnow(),
-                    is_active=True
-                )
-                
-                db.session.add(new_user)
-                db.session.flush()  # Flush to get the user ID
-                
-                # Update the referral code with the new user ID
-                new_referral_code.user_id = new_user.id
-                db.session.add(new_referral_code)
-                
-                # Process referral if applicable
-                if start_parameter and start_parameter.startswith('ref_'):
-                    try:
-                        # Extract referrer ID from parameter
-                        referrer_id = start_parameter.replace('ref_', '')
-                        
-                        # Find referrer in database
-                        referrer = User.query.filter_by(telegram_id=referrer_id).first()
-                        
-                        if referrer and referrer.id != new_user.id:
-                            # Find referrer's referral code
-                            ref_code = ReferralCode.query.filter_by(user_id=referrer.id, is_active=True).first()
+                if not existing_user:
+                    logger.info(f"New user registered: {user_id} - {username}")
+                    
+                    # Create a new user record
+                    from app import db
+                    new_user = User(
+                        telegram_id=user_id,
+                        username=username,
+                        first_name=first_name,
+                        last_name=last_name,
+                        joined_at=datetime.utcnow(),
+                        status=UserStatus.ONBOARDING
+                    )
+                    
+                    # Generate a referral code for the new user
+                    new_referral_code = ReferralCode(
+                        user_id=None,  # Temporary placeholder, will update after user is committed
+                        code=ReferralCode.generate_code(),
+                        created_at=datetime.utcnow(),
+                        is_active=True
+                    )
+                    
+                    db.session.add(new_user)
+                    db.session.flush()  # Flush to get the user ID
+                    
+                    # Update the referral code with the new user ID
+                    new_referral_code.user_id = new_user.id
+                    db.session.add(new_referral_code)
+                    
+                    # Process referral if applicable
+                    if start_parameter and start_parameter.startswith('ref_'):
+                        try:
+                            # Extract referrer ID from parameter
+                            referrer_id = start_parameter.replace('ref_', '')
                             
-                            if ref_code:
-                                # Connect the new user to the referrer
-                                new_user.referrer_code_id = ref_code.id
+                            # Find referrer in database
+                            referrer = User.query.filter_by(telegram_id=referrer_id).first()
+                            
+                            if referrer and referrer.id != new_user.id:
+                                # Find referrer's referral code
+                                ref_code = ReferralCode.query.filter_by(user_id=referrer.id, is_active=True).first()
                                 
-                                # Update referral stats
-                                ref_code.total_referrals += 1
-                                
-                                logger.info(f"User {user_id} was referred by {referrer_id}")
+                                if ref_code:
+                                    # Connect the new user to the referrer
+                                    new_user.referrer_code_id = ref_code.id
+                                    
+                                    # Update referral stats
+                                    ref_code.total_referrals += 1
+                                    
+                                    logger.info(f"User {user_id} was referred by {referrer_id}")
+                        except Exception as e:
+                            logger.error(f"Error processing referral: {e}")
+                    
+                    # Commit changes to database
+                    db.session.commit()
+                    
+                    # Use the exact original welcome message from handlers/start.py
+                    welcome_message = (
+                        f"👋 *Welcome to THRIVE Bot*, {first_name}!\n\n"
+                        "I'm your automated Solana memecoin trading assistant. I help grow your SOL by buying and selling "
+                        "trending memecoins with safe, proven strategies. You retain full control of your funds at all times.\n\n"
+                        "💰 No hidden fees, no hidden risks\n"
+                        "⚡ Real-time trading 24/7\n"
+                        "🔒 Your SOL stays under your control\n\n"
+                        "To get started, please enter your *Solana wallet address* below.\n"
+                        "This is where your profits will be sent when you withdraw."
+                    )
+                    
+                    # No button in the original design
+                    reply_markup = None
+                    
+                    bot.send_message(chat_id, welcome_message, reply_markup=reply_markup)
+                    
+                    # Add a listener to wait for the wallet address
+                    bot.add_message_listener(chat_id, 'wallet_address', wallet_address_handler)
+                else:
+                    logger.info(f"Returning user: {user_id} - {username}")
+                    # Update last active in background to prevent blocking
+                    try:
+                        existing_user.last_active = datetime.utcnow()
+                        db.session.commit()
                     except Exception as e:
-                        logger.error(f"Error processing referral: {e}")
-                        
-                db.session.commit()
-                
-                # Use the exact original welcome message from handlers/start.py
-                welcome_message = (
-                    f"👋 *Welcome to THRIVE Bot*, {first_name}!\n\n"
-                    "I'm your automated Solana memecoin trading assistant. I help grow your SOL by buying and selling "
-                    "trending memecoins with safe, proven strategies. You retain full control of your funds at all times.\n\n"
-                    "💰 No hidden fees, no hidden risks\n"
-                    "⚡ Real-time trading 24/7\n"
-                    "🔒 Your SOL stays under your control\n\n"
-                    "To get started, please enter your *Solana wallet address* below.\n"
-                    "This is where your profits will be sent when you withdraw."
-                )
-                
-                # No button in the original design
-                reply_markup = None
-                
-                bot.send_message(chat_id, welcome_message, reply_markup=reply_markup)
-                
-                # Add a listener to wait for the wallet address
-                bot.add_message_listener(chat_id, 'wallet_address', wallet_address_handler)
-                
+                        logger.error(f"Error updating last_active: {e}")
+                    
+                    # For existing users, show main menu
+                    show_main_menu(update, chat_id)
+            except SQLAlchemyError as e:
+                logger.error(f"Database error during user registration: {e}")
+                bot.send_message(chat_id, "⚠️ Sorry, we encountered a database error. Please try again later.")
                 return
-            else:
-                logger.info(f"Returning user: {user_id} - {username}")
-                # For existing users, show main menu
-                show_main_menu(update, chat_id)
-                return
-        except SQLAlchemyError as e:
-            logger.error(f"Database error during user registration: {e}")
-            bot.send_message(chat_id, "⚠️ Sorry, we encountered a database error. Please try again later.")
-            return
+    
+    # Run the database operations in a background thread
+    thread = threading.Thread(target=process_start_command_in_background)
+    thread.daemon = True
+    thread.start()
+    
+    # Return immediately so bot doesn't freeze
+    return
 
 # Referral handler functions
 def copy_referral_handler(update, chat_id):
