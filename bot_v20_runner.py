@@ -1816,7 +1816,8 @@ def admin_broadcast_handler(update, chat_id):
                 {"text": "🖼️ Image + Text", "callback_data": "admin_broadcast_image"}
             ],
             [
-                {"text": "📣 Announcement", "callback_data": "admin_broadcast_announcement"}
+                {"text": "📣 Announcement", "callback_data": "admin_broadcast_announcement"},
+                {"text": "📈 Trade Alert", "callback_data": "admin_broadcast_trade"}
             ],
             [
                 {"text": "↩️ Back to Admin", "callback_data": "admin_back"}
