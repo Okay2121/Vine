@@ -2400,8 +2400,7 @@ def admin_confirm_adjustment_handler(update, chat_id):
         
         try:
             # Reset global variables
-            global admin_target_user_id, admin_adjust_telegram_id, admin_adjust_current_balance
-            global admin_adjustment_amount, admin_adjustment_reason
+            # We already declared these as global at the top of the function, so no need to do it again
             admin_target_user_id = None
             admin_adjust_telegram_id = None
             admin_adjust_current_balance = None
