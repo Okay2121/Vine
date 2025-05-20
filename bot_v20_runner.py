@@ -4874,10 +4874,10 @@ def withdraw_profit_handler(update, chat_id):
         bot.send_message(chat_id, f"Error displaying withdrawal options: {str(e)}")
 
 def trading_history_handler(update, chat_id):
-    """Show the performance page with trading history and 7-Day 2x ROI plan tracking."""
+    """Show the performance page with trading history and Autopilot Dashboard tracking."""
     try:
         with app.app_context():
-            from models import User, Profit
+            from models import User, Profit, Transaction
             from datetime import datetime, timedelta
             from sqlalchemy import func
             
@@ -4887,45 +4887,62 @@ def trading_history_handler(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
             
-            # Get 7-Day 2x ROI metrics
-            roi_metrics = get_user_roi_metrics(user.id)
-            
             # Calculate overall performance metrics
             total_profit_amount = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id).scalar() or 0
             total_profit_percentage = (total_profit_amount / user.initial_deposit) * 100 if user.initial_deposit > 0 else 0
             
-            # Calculate 7-day performance (focused on 7-Day 2x ROI plan)
-            seven_days_ago = datetime.utcnow().date() - timedelta(days=7)
-            days_active = min(7, (datetime.utcnow().date() - user.joined_at.date()).days)
-            days_left = max(0, 7 - days_active)
+            # Calculate active days for Autopilot Dashboard
+            days_active = min(30, (datetime.utcnow().date() - user.joined_at.date()).days)
+            days_left = max(0, 30 - days_active)
             
-            # Get daily profit data for the last 7 days
+            # Calculate current balance
+            current_balance = user.balance + total_profit_amount
+            
+            # Get daily profit data for visualization (last 14 days)
             daily_profits = []
             current_date = datetime.utcnow().date()
             
-            # Calculate target amount (2x initial deposit)
-            target_amount = user.initial_deposit * 2.0
-            current_amount = user.balance + total_profit_amount
-            amount_needed = max(0, target_amount - current_amount)
+            # Define the next milestone target - 10% of initial deposit or minimum 0.05 SOL
+            milestone_target = max(user.initial_deposit * 0.1, 0.05)
             
-            # Collect daily performance data
-            for i in range(min(7, days_active)):
+            # Calculate progress toward the next milestone
+            milestone_progress = min(100, (total_profit_amount / milestone_target) * 100) if milestone_target > 0 else 0
+            
+            # Get the recent trade transactions (buy/sell)
+            recent_trades = []
+            transactions = Transaction.query.filter_by(
+                user_id=user.id
+            ).filter(
+                Transaction.transaction_type.in_(['buy', 'sell'])
+            ).order_by(
+                Transaction.timestamp.desc()
+            ).limit(5).all()
+            
+            # Format the transactions to show as trades
+            for tx in transactions:
+                if tx.transaction_type == 'buy':
+                    action = "BUY"
+                    emoji = "🟢"
+                else:
+                    action = "SELL"
+                    emoji = "🔴"
+                
+                date_str = tx.timestamp.strftime("%Y-%m-%d")
+                amount_str = f"{abs(tx.amount):.4f}"
+                token_name = tx.token_name or "Unknown"
+                
+                trade_info = f"{emoji} {date_str}: {action} {token_name} ({amount_str} SOL)"
+                recent_trades.append(trade_info)
+            
+            # Collect daily performance data for the last 14 days
+            for i in range(min(14, days_active)):
                 day_date = current_date - timedelta(days=i)
                 day_profit = Profit.query.filter_by(user_id=user.id, date=day_date).first()
                 if day_profit:
                     percentage = day_profit.percentage
-                    day_data = f"Day {days_active-i}: +{percentage:.1f}%"
+                    amount = day_profit.amount
+                    day_data = f"Day {i+1}: +{percentage:.1f}% (+{amount:.4f} SOL)"
                     daily_profits.insert(0, day_data)  # Insert at beginning to maintain chronological order
-            
-            # Ensure we have data for all active days (fill with zeros if missing)
-            while len(daily_profits) < days_active:
-                day_num = len(daily_profits) + 1
-                daily_profits.append(f"Day {day_num}: +0.0%")
-                
-            # Calculate progress toward 2x goal
-            goal_progress = min(100, (total_profit_percentage / 100.0) * 100)
-            progress_blocks = int(min(14, goal_progress / (100/14)))
-            progress_bar = f"[{'██████████' if progress_blocks >= 10 else '█' * progress_blocks}{'░' * (14 - progress_blocks)}] {goal_progress:.0f}% complete"
             
             # Calculate current streak
             streak = 0
@@ -4938,50 +4955,52 @@ def trading_history_handler(update, chat_id):
                 else:
                     break
                     
-            # Build the 7-Day Performance Tracker message
+            # Build the Autopilot Performance Tracker message
             performance_message = (
-                "📊 *7-Day Performance Tracker*\n\n"
+                "📊 *Autopilot Performance Tracker*\n\n"
                 f"• *Initial Deposit:* {user.initial_deposit:.2f} SOL\n"
-                f"• *Current Balance:* {current_amount:.2f} SOL\n"
+                f"• *Current Balance:* {current_balance:.2f} SOL\n"
                 f"• *Total Profit:* +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n"
-                f"• *Goal:* 2x ROI in 7 Days (Target: {target_amount:.2f} SOL)\n"
-                f"• *Cycle:* Day {days_active} of 7\n\n"
-                
-                f"*Progress Toward Goal:*\n"
-                f"🎯 2x Progress:\n"
-                f"{progress_bar}\n"
+                f"• *Autopilot Status:* Active - Day {days_active} of 30\n\n"
             )
             
-            # Add motivational message based on remaining amount
-            if amount_needed > 0:
-                performance_message += f"Only {amount_needed:.1f} SOL left to reach your target!\n\n"
-            else:
-                performance_message += f"Congratulations! You've reached your 2x target! 🎉\n\n"
+            # Add milestone progress
+            progress_blocks = int(min(14, milestone_progress / (100/14)))
+            progress_bar = f"[{'█' * progress_blocks}{'░' * (14 - progress_blocks)}] {milestone_progress:.0f}% complete"
             
-            # Add daily performance breakdown
-            performance_message += "*Daily Performance:*\n"
-            for day_data in daily_profits:
-                performance_message += f"{day_data}\n"
-                
-            if days_active < 7:
-                performance_message += "(Tomorrow's boost incoming...)\n\n"
-            else:
-                performance_message += "\n"
-                
+            performance_message += f"*Progress Toward Next Milestone:*\n"
+            performance_message += f"🎯 Target: +{milestone_target:.2f} SOL\n"
+            performance_message += f"{progress_bar}\n\n"
+            
             # Add streak info
             if streak > 0:
-                performance_message += f"*Current Streak:*\n🔥 {streak} Green {'Days' if streak > 1 else 'Day'} in a Row\n"
+                fire_emojis = "🔥" * min(3, streak)
+                performance_message += f"*Current Streak:* {streak}-Day Green Streak! {fire_emojis}\n\n"
+            
+            # Add recent trades section
+            performance_message += "*Recent Trading Activity:*\n"
+            if recent_trades:
+                for trade in recent_trades:
+                    performance_message += f"{trade}\n"
+            else:
+                performance_message += "No recent trades yet. Autopilot is scanning for opportunities.\n"
+            
+            performance_message += "\nThrive is trading real, newly launched memecoins on Solana — your portfolio updates hourly.\n\n"
+            
+            # Add daily performance breakdown if we have data
+            if daily_profits:
+                performance_message += "*Recent Daily Performance:*\n"
+                # Show only the last 7 days for brevity
+                for day_data in daily_profits[-7:]:
+                    performance_message += f"{day_data}\n"
                 
                 # Find the best day
                 best_day_profit = Profit.query.filter_by(user_id=user.id).order_by(Profit.percentage.desc()).first()
                 if best_day_profit:
                     performance_message += f"Best Day So Far: +{best_day_profit.percentage:.1f}%\n\n"
-                    
-            # Add time left in cycle
+            # Show time left in Autopilot running cycle
             if days_left > 0:
-                performance_message += f"*Time Left in Cycle:*\n{days_left} {'days' if days_left > 1 else 'day'} left to complete this 7-day goal!\n"
-            else:
-                performance_message += "*Time Left in Cycle:*\nYour 7-day cycle is complete! Start a new one by depositing more SOL.\n"
+                performance_message += f"*Autopilot Status:*\n{days_left} {'days' if days_left > 1 else 'day'} remaining in your 30-day Autopilot cycle\n"
             
             # Create proper keyboard with transaction history button
             keyboard = bot.create_inline_keyboard([
