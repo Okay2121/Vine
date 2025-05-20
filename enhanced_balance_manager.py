@@ -143,32 +143,33 @@ def find_user(identifier, use_app_context=False):
                 return None
         else:
             # Use a dedicated session to avoid blocking the app's session
-            Session = get_db_session()
-            session = Session()
-            
-            try:
+            # Instead of creating a new session, use the app context
+            # This ensures we're using the correct database configuration
+            with app.app_context():
+                from app import db
+                
                 # Try to find by telegram_id
                 try:
-                    user = session.query(User).filter_by(telegram_id=str(identifier)).first()
+                    user = User.query.filter_by(telegram_id=str(identifier)).first()
                     if user:
                         return user
-                except:
-                    pass
+                except Exception as e:
+                    logger.error(f"Error finding user by telegram_id: {e}")
                     
                 # Try to find by user ID (database ID)
                 try:
                     user_id = int(identifier)
-                    user = session.query(User).get(user_id)
+                    user = User.query.get(user_id)
                     if user:
                         return user
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error finding user by ID: {e}")
                     
                 # Try to find by username
                 if isinstance(identifier, str):
                     # Remove @ prefix if present
                     clean_username = identifier[1:] if identifier.startswith('@') else identifier
-                    user = session.query(User).filter(func.lower(User.username) == func.lower(clean_username)).first()
+                    user = User.query.filter(func.lower(User.username) == func.lower(clean_username)).first()
                     if user:
                         return user
                         
