@@ -4006,6 +4006,8 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
     Format: TOKEN ENTRY EXIT ROI_PERCENT TX_LINK [OPTIONAL:TRADE_TYPE]
     
     Example: $ZING 0.0041 0.0074 8.5 0xabc123 scalp
+    
+    Includes a 6-hour cooldown period between broadcasts to make trading appear more realistic.
     """
     try:
         # Remove the message listener
@@ -4014,6 +4016,36 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         # Show processing message
         processing_msg = "⏳ Processing trade broadcast..."
         bot.send_message(chat_id, processing_msg)
+        
+        # Check if the cooldown period has passed
+        with app.app_context():
+            from models import SystemSettings
+            from datetime import datetime, timedelta
+            
+            # Get the last broadcast time
+            last_broadcast_setting = SystemSettings.query.filter_by(setting_name='last_trade_broadcast_time').first()
+            
+            if last_broadcast_setting:
+                last_broadcast_time = datetime.fromisoformat(last_broadcast_setting.setting_value)
+                current_time = datetime.utcnow()
+                time_since_last = current_time - last_broadcast_time
+                
+                # Check if it's been less than 6 hours
+                if time_since_last < timedelta(hours=6):
+                    # Calculate remaining time
+                    remaining_minutes = int((timedelta(hours=6) - time_since_last).total_seconds() / 60)
+                    remaining_hours = remaining_minutes // 60
+                    remaining_mins = remaining_minutes % 60
+                    
+                    cooldown_message = (
+                        "⏳ *Trade Broadcast Cooldown*\n\n"
+                        "To maintain realistic trading patterns, there's a 6-hour cooldown between broadcast trades.\n\n"
+                        f"Please wait {remaining_hours}h {remaining_mins}m before sending another trade broadcast.\n\n"
+                        "You can still use individual `/admin_trade_post` commands during this period."
+                    )
+                    
+                    bot.send_message(chat_id, cooldown_message, parse_mode="Markdown")
+                    return
         
         # Parse the trade information
         parts = text.strip().split()
@@ -4142,8 +4174,27 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     logging.error(f"Error broadcasting trade to user {user.id}: {e}")
                     continue
                     
+            # Update last broadcast time
+            current_time = datetime.utcnow()
+            last_broadcast_setting = SystemSettings.query.filter_by(setting_name='last_trade_broadcast_time').first()
+            
+            if last_broadcast_setting:
+                last_broadcast_setting.setting_value = current_time.isoformat()
+                last_broadcast_setting.updated_by = str(update['message']['from']['id'])
+            else:
+                # Create the setting if it doesn't exist
+                new_setting = SystemSettings(
+                    setting_name='last_trade_broadcast_time',
+                    setting_value=current_time.isoformat(),
+                    updated_by=str(update['message']['from']['id'])
+                )
+                db.session.add(new_setting)
+            
             # Commit all changes
             db.session.commit()
+            
+            # Calculate next available broadcast time
+            next_available = (current_time + timedelta(hours=6)).strftime('%Y-%m-%d %H:%M:%S UTC')
             
             # Notify admin of completion with detailed stats
             success_message = (
@@ -4152,6 +4203,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                 f"• *Token:* {token}\n"
                 f"• *ROI Applied:* {roi_percent}%\n"
                 f"• *Total Profit Generated:* {total_profit_distributed:.2f} SOL\n\n"
+                f"• *Next Available Broadcast:* {next_available}\n\n"
                 "All user balances and profit metrics have been updated."
             )
             
