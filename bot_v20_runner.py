@@ -3971,9 +3971,11 @@ def admin_broadcast_trade_handler(update, chat_id):
         instructions = (
             "📈 *Broadcast Trade Alert*\n\n"
             "Send the trade details in the following format:\n"
-            "`$TOKEN_NAME ENTRY_PRICE EXIT_PRICE ROI_PERCENT TX_HASH`\n\n"
-            "Example:\n"
-            "`$ZING 0.0041 0.0074 8.5 https://solscan.io/tx/abc123`\n\n"
+            "`$TOKEN_NAME ENTRY_PRICE EXIT_PRICE ROI_PERCENT TX_HASH [OPTIONAL:TRADE_TYPE]`\n\n"
+            "Examples:\n"
+            "`$ZING 0.0041 0.0074 8.5 https://solscan.io/tx/abc123`\n"
+            "`$ZING 0.0041 0.0074 8.5 https://solscan.io/tx/abc123 scalp`\n\n"
+            "Trade Types: scalp, snipe, dip, reversal\n\n"
             "This will be broadcast to all active users with personalized profit calculations based on their balance."
         )
         
@@ -3999,7 +4001,12 @@ def admin_broadcast_trade_handler(update, chat_id):
         bot.send_message(chat_id, f"Error: {str(e)}")
         
 def admin_broadcast_trade_message_handler(update, chat_id, text):
-    """Process and send the trade information broadcast to all active users with personalized profit calculations."""
+    """
+    Process and send the trade information broadcast to all active users with personalized profit calculations.
+    Format: TOKEN ENTRY EXIT ROI_PERCENT TX_LINK [OPTIONAL:TRADE_TYPE]
+    
+    Example: $ZING 0.0041 0.0074 8.5 0xabc123 scalp
+    """
     try:
         # Remove the message listener
         bot.remove_listener(chat_id)
@@ -4008,10 +4015,10 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         processing_msg = "⏳ Processing trade broadcast..."
         bot.send_message(chat_id, processing_msg)
         
-        # Parse the trade information - format: $TOKEN ENTRY EXIT ROI_PERCENT TX_LINK
+        # Parse the trade information
         parts = text.strip().split()
         if len(parts) < 5:
-            bot.send_message(chat_id, "⚠️ Invalid format. Please provide all required information: TOKEN ENTRY EXIT ROI% TX_LINK")
+            bot.send_message(chat_id, "⚠️ Invalid format. Please provide all required information: TOKEN ENTRY EXIT ROI% TX_LINK [OPTIONAL:TRADE_TYPE]")
             return
             
         token = parts[0]  # Token name
@@ -4020,6 +4027,19 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         roi_percent = float(parts[3])  # ROI percentage
         tx_link = parts[4]  # Transaction hash link
         
+        # Check for optional trade type
+        trade_type = None
+        if len(parts) >= 6:
+            trade_type = parts[5].lower()
+            valid_trade_types = ["scalp", "snipe", "dip", "reversal"]
+            if trade_type not in valid_trade_types:
+                bot.send_message(
+                    chat_id, 
+                    f"⚠️ Invalid trade type: '{trade_type}'. Valid types are: scalp, snipe, dip, reversal. "
+                    f"Proceeding without trade type."
+                )
+                trade_type = None
+        
         # Show confirmation message to admin
         confirmation = (
             "📣 *Trade Broadcast Confirmation*\n\n"
@@ -4027,29 +4047,52 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
             f"• *Entry:* {entry}\n"
             f"• *Exit:* {exit_price}\n"
             f"• *ROI:* {roi_percent}%\n"
-            f"• *TX:* {tx_link}\n\n"
-            "Broadcasting to all active users with personalized profit calculations..."
+            f"• *TX:* {tx_link}\n"
         )
+        
+        if trade_type:
+            confirmation += f"• *Trade Type:* {trade_type.capitalize()}\n"
+            
+        confirmation += "\nBroadcasting to all active users with personalized profit calculations..."
         
         bot.send_message(chat_id, confirmation, parse_mode="Markdown")
         
         # Process the broadcast for all active users
         with app.app_context():
-            from models import User, UserStatus, Profit
+            from models import User, UserStatus, Profit, Transaction
             from datetime import datetime
             
             # Query all active users
             active_users = User.query.filter_by(status=UserStatus.ACTIVE).all()
             broadcast_count = 0
+            total_profit_distributed = 0
             
             for user in active_users:
                 try:
                     # Calculate personalized profit based on user's balance
                     user_balance = user.balance
                     profit_amount = round(user_balance * (roi_percent / 100), 2)
+                    total_profit_distributed += profit_amount
+                    
+                    # Store previous balance for reporting
+                    previous_balance = user.balance
                     
                     # Update user's balance with the profit
                     user.balance += profit_amount
+                    
+                    # Create a transaction record
+                    transaction_type = "buy" if profit_amount > 0 else "sell"
+                    new_transaction = Transaction(
+                        user_id=user.id,
+                        transaction_type=transaction_type,
+                        amount=abs(profit_amount),
+                        token_name=token,
+                        timestamp=datetime.utcnow(),
+                        status="completed",
+                        notes=f"Auto trade: entry {entry}, exit {exit_price}",
+                        tx_hash=tx_link
+                    )
+                    db.session.add(new_transaction)
                     
                     # Create profit record for today
                     today = datetime.utcnow().date()
@@ -4064,11 +4107,30 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     # Create personalized message for each user
                     message = (
                         "📈 *New Trade Executed Automatically*\n\n"
+                    )
+                    
+                    # Add trade type if provided
+                    if trade_type:
+                        trade_type_formatted = trade_type.capitalize()
+                        trade_type_display = {
+                            "scalp": "Scalp Trade",
+                            "snipe": "New Launch Snipe",
+                            "dip": "Dip Buy Strategy",
+                            "reversal": "Reversal Play"
+                        }.get(trade_type, f"{trade_type_formatted} Trade")
+                        
+                        message += f"• *Trade Type:* {trade_type_display}\n"
+                    
+                    # Continue building the message
+                    message += (
                         f"• *Token:* {token} (New Launch)\n"
                         f"• *Entry:* {entry} | *Exit:* {exit_price}\n"
-                        f"• *Profit:* +{profit_amount:.2f} SOL\n"
+                        f"• *Profit:* +{profit_amount:.2f} SOL ({roi_percent}%)\n"
                         f"• *TX Hash:* [View on Solscan]({tx_link})\n\n"
-                        "Your trading dashboard has been updated based on this trade."
+                        f"• *Previous Balance:* {previous_balance:.2f} SOL\n"
+                        f"• *New Balance:* {user.balance:.2f} SOL\n\n"
+                        "*Next scan in progress... stay tuned!*\n\n"
+                        "_Your dashboard has been updated automatically with this trade._"
                     )
                     
                     # Send personalized message to the user
@@ -4083,9 +4145,17 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
             # Commit all changes
             db.session.commit()
             
-            # Notify admin of completion
-            success_message = f"✅ Trade broadcast completed. Sent to {broadcast_count} active users."
-            bot.send_message(chat_id, success_message)
+            # Notify admin of completion with detailed stats
+            success_message = (
+                "✅ *Trade Broadcast Successfully Sent*\n\n"
+                f"• *Users Reached:* {broadcast_count} of {len(active_users)}\n"
+                f"• *Token:* {token}\n"
+                f"• *ROI Applied:* {roi_percent}%\n"
+                f"• *Total Profit Generated:* {total_profit_distributed:.2f} SOL\n\n"
+                "All user balances and profit metrics have been updated."
+            )
+            
+            bot.send_message(chat_id, success_message, parse_mode="Markdown")
             
     except Exception as e:
         import logging
