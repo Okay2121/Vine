@@ -2178,17 +2178,16 @@ def admin_adjust_balance_reason_handler(update, chat_id, text):
 def admin_confirm_adjustment_handler(update, chat_id):
     """Confirm and process the balance adjustment."""
     try:
-        # Access required globals
+        # Access global variables with balance adjustment info
         global admin_target_user_id, admin_adjust_telegram_id, admin_adjust_current_balance
         global admin_adjustment_amount, admin_adjustment_reason
         
-        # Validate that we have all required data
-        if not admin_target_user_id or admin_adjustment_amount is None:
+        if admin_target_user_id is None or admin_adjustment_amount is None:
             bot.send_message(
                 chat_id,
-                "Error: Adjustment details missing. The session may have expired. Please try again.",
+                "⚠️ Balance adjustment data is missing. Please try again.",
                 reply_markup=bot.create_inline_keyboard([
-                    [{"text": "Try Again", "callback_data": "admin_adjust_balance"}]
+                    [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
                 ])
             )
             return
@@ -2209,6 +2208,12 @@ def admin_confirm_adjustment_handler(update, chat_id):
                         [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
                     ])
                 )
+                # Reset global variables
+                admin_target_user_id = None
+                admin_adjust_telegram_id = None
+                admin_adjust_current_balance = None
+                admin_adjustment_amount = None
+                admin_adjustment_reason = None
                 return
                 
             try:
@@ -2222,45 +2227,51 @@ def admin_confirm_adjustment_handler(update, chat_id):
                     amount = admin_adjustment_amount
                     reason = admin_adjustment_reason
                     
+                    # Default reason if none provided
+                    if not reason:
+                        reason = "Bonus"
+                    
                     success, message = admin_balance_manager.adjust_balance(identifier, amount, reason)
                     
                     if success:
                         # Extract the new balance from the user (it's already updated in the database)
                         with app.app_context():
                             # Refresh user from database to get updated balance
-                            user = User.query.get(admin_target_user_id)
+                            fresh_user = User.query.get(admin_target_user_id)
                             
-                            # Show success message to admin
-                            result_message = (
-                                f"✅ *Balance Updated Successfully*\n\n"
-                                f"User ID: `{user.telegram_id}`\n"
-                                f"Username: @{user.username}\n"
-                                f"Old Balance: {admin_adjust_current_balance:.4f} SOL\n"
-                                f"New Balance: {user.balance:.4f} SOL\n"
-                                f"Change: {'➕' if amount > 0 else '➖'} {abs(amount):.4f} SOL\n"
-                                f"Reason: {reason}\n\n"
-                                f"No notification was sent to the user."
-                            )
-                            
-                            # Send success message to admin
-                            bot.send_message(
-                                chat_id,
-                                result_message,
-                                parse_mode="Markdown",
-                                reply_markup=bot.create_inline_keyboard([
-                                    [
-                                        {"text": "Adjust Another User", "callback_data": "admin_adjust_balance"},
-                                        {"text": "Back to Admin", "callback_data": "admin_back"}
-                                    ]
-                                ])
-                            )
-                            
-                            # Clear the global variables used for this adjustment
-                            admin_target_user_id = None
-                            admin_adjust_telegram_id = None
-                            admin_adjust_current_balance = None
-                            admin_adjustment_amount = None
-                            admin_adjustment_reason = None
+                            if fresh_user:
+                                # Show success message to admin
+                                result_message = (
+                                    f"✅ *Balance Updated Successfully*\n\n"
+                                    f"User ID: `{fresh_user.telegram_id}`\n"
+                                    f"Username: @{fresh_user.username}\n"
+                                    f"Old Balance: {admin_adjust_current_balance:.4f} SOL\n"
+                                    f"New Balance: {fresh_user.balance:.4f} SOL\n"
+                                    f"Change: {'➕' if amount > 0 else '➖'} {abs(amount):.4f} SOL\n"
+                                    f"Reason: {reason}\n\n"
+                                    f"No notification was sent to the user."
+                                )
+                                
+                                # Send success message to admin
+                                bot.send_message(
+                                    chat_id,
+                                    result_message,
+                                    parse_mode="Markdown",
+                                    reply_markup=bot.create_inline_keyboard([
+                                        [
+                                            {"text": "Adjust Another User", "callback_data": "admin_adjust_balance"},
+                                            {"text": "Back to Admin", "callback_data": "admin_back"}
+                                        ]
+                                    ])
+                                )
+                                
+                                # Reset globals to prevent reuse
+                                admin_target_user_id = None
+                                admin_adjust_telegram_id = None
+                                admin_adjust_current_balance = None
+                                admin_adjustment_amount = None
+                                admin_adjustment_reason = None
+                                return
                     else:
                         # Handle error from the balance adjuster
                         bot.send_message(
@@ -2270,6 +2281,14 @@ def admin_confirm_adjustment_handler(update, chat_id):
                                 [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
                             ])
                         )
+                        
+                        # Reset global variables
+                        admin_target_user_id = None
+                        admin_adjust_telegram_id = None
+                        admin_adjust_current_balance = None
+                        admin_adjustment_amount = None
+                        admin_adjustment_reason = None
+                        return
                     
                 except ImportError:
                     # Fall back to the built-in adjustment logic if module not found
@@ -2291,10 +2310,10 @@ def admin_confirm_adjustment_handler(update, chat_id):
                     new_transaction.amount = abs(admin_adjustment_amount)
                     new_transaction.token_name = "SOL"  # Default token
                     new_transaction.status = 'completed'
-                    new_transaction.notes = admin_adjustment_reason  # Store the reason in the database
+                    new_transaction.notes = admin_adjustment_reason or "Bonus"  # Store the reason in the database
                     
                     # Also log the adjustment for monitoring
-                    logging.info(f"Balance adjustment for User ID {user.id}: {admin_adjustment_reason}")
+                    logging.info(f"Balance adjustment for User ID {user.id}: {admin_adjustment_reason or 'Bonus'}")
                     
                     # Add and commit transaction
                     db.session.add(new_transaction)
@@ -2337,12 +2356,13 @@ def admin_confirm_adjustment_handler(update, chat_id):
                         ])
                     )
                     
-                    # Clear the global variables used for this adjustment
+                    # Reset global variables
                     admin_target_user_id = None
                     admin_adjust_telegram_id = None
                     admin_adjust_current_balance = None
                     admin_adjustment_amount = None
                     admin_adjustment_reason = None
+                    return
                 
             except Exception as db_error:
                 # Handle database errors
@@ -2359,20 +2379,42 @@ def admin_confirm_adjustment_handler(update, chat_id):
                     ])
                 )
                 
+                # Reset global variables
+                admin_target_user_id = None
+                admin_adjust_telegram_id = None
+                admin_adjust_current_balance = None
+                admin_adjustment_amount = None
+                admin_adjustment_reason = None
+                return
+                
     except Exception as e:
         import logging
         logging.error(f"Error in admin_confirm_adjustment_handler: {e}")
         import traceback
         logging.error(traceback.format_exc())
         
-        bot.send_message(
-            chat_id,
-            f"Error processing adjustment: {str(e)}",
-            reply_markup=bot.create_inline_keyboard([
-                [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
-            ])
-        )
-
+        try:
+            # Reset global variables
+            global admin_target_user_id, admin_adjust_telegram_id, admin_adjust_current_balance
+            global admin_adjustment_amount, admin_adjustment_reason
+            admin_target_user_id = None
+            admin_adjust_telegram_id = None
+            admin_adjust_current_balance = None
+            admin_adjustment_amount = None
+            admin_adjustment_reason = None
+            
+            # Send error message
+            bot.send_message(
+                chat_id,
+                f"Error processing adjustment: {str(e)}",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+                ])
+            )
+        except:
+            pass
+        
+        return
 def admin_referral_overview_handler(update, chat_id):
     """Handle the referral overview button in admin panel."""
     try:
