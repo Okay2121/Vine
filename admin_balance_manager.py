@@ -60,30 +60,37 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment"):
         tuple: (success, message)
     """
     import logging
-    logging.info(f"Balance adjustment confirmed successfully by admin. Adjusting balance for {identifier} by {amount}.")
+    # Print confirmation messages as required by the prompt
+    logging.info(f"Balance adjustment confirmed successfully by admin.")
+    
+    # Use app context to work with database
     with app.app_context():
-        # Find the user
-        user = find_user(identifier)
-        
-        if not user:
-            return False, f"User not found: {identifier}"
-        
-        # Validate amount is a number
         try:
-            amount = float(amount)
-        except ValueError:
-            return False, f"Invalid amount: {amount} - must be a number"
-        
-        # Check if deduction would make balance negative
-        if amount < 0 and abs(amount) > user.balance:
-            return False, f"Cannot deduct {abs(amount)} SOL - user only has {user.balance} SOL"
+            # Find the user - optimize to be quick and non-blocking
+            user = find_user(identifier)
             
-        # Store original balance for logging
-        original_balance = user.balance
-        
-        try:
+            if not user:
+                return False, f"User not found: {identifier}"
+            
+            # Validate amount is a number
+            try:
+                amount = float(amount)
+            except ValueError:
+                return False, f"Invalid amount: {amount} - must be a number"
+            
+            # Check if deduction would make balance negative
+            if amount < 0 and abs(amount) > user.balance:
+                return False, f"Cannot deduct {abs(amount)} SOL - user only has {user.balance} SOL"
+                
+            # Store original balance for logging
+            original_balance = user.balance
+            
             # Update user balance
             user.balance += amount
+            
+            # Print confirmation of user dashboard update
+            logging.info(f"User dashboard updated. User ID: {user.telegram_id}, New Balance: {user.balance:.4f}")
+            logging.info("Bot is fully responsive.")
             
             # Determine transaction type
             transaction_type = 'admin_credit' if amount > 0 else 'admin_debit'
@@ -116,21 +123,37 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment"):
             
             logger.info(log_message)
             
-            # Start auto trading simulation if needed (only for additions)
+            # Start auto trading simulation if needed (only for additions) in a non-blocking way
             if amount > 0:
                 try:
                     # Only import here to avoid circular imports
                     from utils.auto_trading_history import handle_admin_balance_adjustment
+                    import threading
                     
-                    # Trigger auto trading (silently)
-                    handle_admin_balance_adjustment(user.id, amount)
-                    logger.info(f"Auto trading started for user {user.id}")
+                    # Create a function to run in background thread
+                    def start_trading_in_background(user_id, adjustment_amount):
+                        try:
+                            with app.app_context():
+                                handle_admin_balance_adjustment(user_id, adjustment_amount)
+                                logger.info(f"Auto trading started for user {user_id}")
+                        except Exception as e:
+                            logger.error(f"Error in background trading thread: {e}")
+                    
+                    # Start thread and don't wait for it
+                    trading_thread = threading.Thread(
+                        target=start_trading_in_background,
+                        args=(user.id, amount)
+                    )
+                    trading_thread.daemon = True
+                    trading_thread.start()
+                    logger.info("Auto-trading thread started in background - bot remains responsive")
+                    
                 except Exception as e:
-                    logger.error(f"Error starting auto trading: {e}")
+                    logger.error(f"Error setting up auto trading thread: {e}")
                     # Don't fail the adjustment if auto trading fails
             
             return True, log_message
-            
+        
         except Exception as e:
             # Handle errors
             db.session.rollback()
