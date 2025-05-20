@@ -1339,31 +1339,28 @@ def dashboard_command(update, chat_id):
             else:
                 dashboard_message += "• *Profit Streak:* Start your streak today!\n"
                 
-            dashboard_message += f"• *ROI Plan:* 2x in 7 Days\n"
-            dashboard_message += f"• *Day:* {days_active} of 7 ({days_left} days left)\n\n"
+            # Add Autopilot Trader information
+            dashboard_message += "• *Mode:* Autopilot Trader (Fully Automated)\n"
+            dashboard_message += f"• *Day:* {days_active} of 30 ({30 - days_active} days left)\n\n"
             
-            # Add 2x goal progress bar with animations
-            dashboard_message += "• *Progress Toward 2x Goal:*\n"
+            # Add progress toward next milestone
+            dashboard_message += "• *Progress Toward Next Milestone:*\n"
             dashboard_message += f"⏳ {progress_bar} {goal_progress:.0f}% Complete\n"
+            dashboard_message += "Thrive is scanning, entering, and exiting trades automatically\n"
+            dashboard_message += "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
             
-            # Show motivational message based on progress
-            progress_ratio = 0 if days_active == 0 else goal_progress / (days_active/7*100)
-            if progress_ratio >= 1.1:
-                dashboard_message += "You're ahead of schedule to double your SOL! Amazing! 🚀\n\n"
-            elif progress_ratio >= 0.9:
-                dashboard_message += "You're right on track to double your SOL! 👍\n\n"
-            else:
-                dashboard_message += "Keep going - you're working toward doubling your SOL! 💪\n\n"
-            
-            # Add goal completion tracker with real values
+            # Add goal completion tracker
             dashboard_message += "• *Goal Completion Tracker:*\n"
-            dashboard_message += f"🎯 Target: {target_amount:.2f} SOL (from {user.initial_deposit:.2f} SOL)\n"
-            dashboard_message += f"Current: {current_amount:.2f} SOL\n"
+            milestone_target = max(user.initial_deposit * 0.1, 0.05) # 10% of initial deposit or minimum 0.05 SOL
+            dashboard_message += f"🎯 *Next Milestone:* {milestone_target:.2f} SOL (from {total_profit_amount:.2f} SOL)\n"
+            dashboard_message += f"Current Balance: {current_balance:.2f} SOL\n"
+            dashboard_message += "Autopilot is continuously trading to reach this milestone\n"
             
             # Calculate progress bars using Unicode blocks for visual appeal
-            amount_blocks = int(min(10, amount_progress / 10))
-            amount_bar = f"[{'█' * amount_blocks}{'░' * (10 - amount_blocks)}] {amount_progress:.1f}% to goal\n\n"  
-            dashboard_message += amount_bar
+            progress_to_milestone = min(100, (total_profit_amount / milestone_target) * 100) if milestone_target > 0 else 0
+            milestone_blocks = int(min(10, progress_to_milestone / 10))
+            milestone_bar = f"{'░' * 10} {progress_to_milestone:.1f}% to next milestone\n\n"
+            dashboard_message += milestone_bar
             
             import random
             from config import MIN_DEPOSIT
