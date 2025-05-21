@@ -350,7 +350,25 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             
             # Add to database and commit
             db.session.add(new_transaction)
-            db.session.commit()
+            
+            # CRITICAL FIX: Ensure database changes are committed properly
+            try:
+                db.session.commit()
+                # Verify the changes were actually saved by refreshing the user
+                db.session.refresh(user)
+                
+                # Double-check if balance was updated correctly
+                if abs(user.balance - (original_balance + amount)) > 0.0001:
+                    # Try to fix it manually if there's a discrepancy
+                    logger.warning(f"Balance not updated correctly. Expected: {original_balance + amount}, Got: {user.balance}")
+                    user.balance = original_balance + amount
+                    db.session.commit()
+                    db.session.refresh(user)
+                    logger.info(f"Balance fixed manually. New balance: {user.balance}")
+            except Exception as commit_error:
+                db.session.rollback()
+                logger.error(f"Error committing balance changes: {commit_error}")
+                return False, f"Database error: {str(commit_error)}"
             
             # Log the adjustment (admin-only)
             action_type = "added to" if amount > 0 else "deducted from"
