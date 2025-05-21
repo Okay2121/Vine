@@ -134,6 +134,15 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment"):
                     def start_trading_in_background(user_id, adjustment_amount):
                         try:
                             with app.app_context():
+                                # Update ROI cycle to reflect the new balance
+                                try:
+                                    from utils.roi_system import admin_update_cycle_after_balance_adjustment
+                                    admin_update_cycle_after_balance_adjustment(user_id, adjustment_amount)
+                                    logger.info(f"ROI cycle updated for user {user_id} after admin balance adjustment")
+                                except Exception as roi_error:
+                                    logger.error(f"Failed to update ROI cycle for user {user_id}: {roi_error}")
+                                
+                                # Start auto trading
                                 handle_admin_balance_adjustment(user_id, adjustment_amount)
                                 logger.info(f"Auto trading started for user {user_id}")
                         except Exception as e:
