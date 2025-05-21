@@ -8331,7 +8331,6 @@ def admin_view_all_users_button_handler(update, chat_id):
                 
                 # Format wallet address for readability
                 wallet_address = user.wallet_address or "Not set"
-                deposit_wallet = user.deposit_wallet or "Not set"
                                 
                 # Get registration date
                 registration_date = user.joined_at.strftime("%Y-%m-%d") if user.joined_at else "N/A"
