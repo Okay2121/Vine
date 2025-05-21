@@ -1684,6 +1684,9 @@ def admin_user_management_handler(update, chat_id):
     try:
         with app.app_context():
             from models import User, UserStatus
+            import logging
+            
+            logging.info(f"Admin User Management handler called by {chat_id}")
             
             # Count total users
             total_users = User.query.count()
@@ -1696,14 +1699,30 @@ def admin_user_management_handler(update, chat_id):
                 "Select an action below:"
             )
             
+            # Show all users directly instead of requiring another button click
+            # This is a temporary workaround for the non-responsive button
+            try:
+                # Get all users ordered by registration date (most recent first)
+                users = User.query.order_by(User.joined_at.desc()).limit(10).all()
+                logging.info(f"Found {len(users)} users in the database")
+                
+                if users:
+                    user_list = "\n\n*Recent Users:*\n"
+                    for idx, user in enumerate(users, 1):
+                        username = f"@{user.username}" if user.username else "No username"
+                        user_list += f"{idx}. {username} - {user.balance:.4f} SOL\n"
+                    
+                    message += user_list
+            except Exception as e:
+                logging.error(f"Error listing users: {e}")
+            
             keyboard = bot.create_inline_keyboard([
                 [
-                    {"text": "View All Users", "callback_data": "admin_view_all_users"},
-                    {"text": "View Active Users", "callback_data": "admin_view_active_users"}
+                    {"text": "🔍 Search User", "callback_data": "admin_search_user"},
+                    {"text": "✅ View Active Only", "callback_data": "admin_view_active_users"}
                 ],
                 [
-                    {"text": "Search User", "callback_data": "admin_search_user"},
-                    {"text": "Export Users (CSV)", "callback_data": "admin_export_csv"}
+                    {"text": "📊 Export Users (CSV)", "callback_data": "admin_export_csv"}
                 ],
                 [
                     {"text": "Back to Admin Panel", "callback_data": "admin_back"}
