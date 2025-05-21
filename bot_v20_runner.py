@@ -2578,33 +2578,10 @@ def admin_confirm_adjustment_handler(update, chat_id):
                         ])
                     )
                     
-                    # Send updated dashboard to the user after successful balance adjustment
-                    try:
-                        with app.app_context():
-                            # Find the user by telegram_id
-                            user = User.query.filter_by(telegram_id=tg_id).first()
-                            
-                            if user:
-                                # Send a notification about the balance update
-                                notification_message = f"💰 *Your balance has been updated*\n\nYour new balance is: *{user.balance:.2f} SOL*"
-                                
-                                # Create keyboard for user to view dashboard
-                                keyboard = bot.create_inline_keyboard([
-                                    [{"text": "View Updated Dashboard", "callback_data": "view_dashboard"}]
-                                ])
-                                
-                                # Send notification to user
-                                bot.send_message(
-                                    int(user.telegram_id), 
-                                    notification_message,
-                                    parse_mode="Markdown",
-                                    reply_markup=keyboard
-                                )
-                                
-                                logging.info(f"Balance update notification sent to user {user.telegram_id}")
-                    except Exception as dash_error:
-                        logging.error(f"Error sending balance update notification to user: {dash_error}")
-                        # Don't fail the adjustment process if notification fails
+                    # We don't need to send notifications to users
+                    # Balance will be updated in the database and will show in their dashboard
+                    # when they next view it
+                    logging.info(f"User balance updated silently, will reflect in dashboard")
                 else:
                     bot.send_message(
                         chat_id,
