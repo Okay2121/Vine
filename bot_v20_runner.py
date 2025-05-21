@@ -1637,17 +1637,19 @@ def admin_command(update, chat_id):
                     {"text": "Direct Message", "callback_data": "admin_direct_message"}
                 ],
                 [
-                    {"text": "View Stats", "callback_data": "admin_view_stats"},
+                    {"text": "View All Users", "callback_data": "admin_view_all_users"},
                     {"text": "Adjust Balance", "callback_data": "admin_adjust_balance"}
                 ],
                 [
-                    {"text": "Support Tickets", "callback_data": "admin_view_tickets"},
-                    {"text": "Bot Settings", "callback_data": "admin_bot_settings"}
+                    {"text": "View Stats", "callback_data": "admin_view_stats"},
+                    {"text": "Support Tickets", "callback_data": "admin_view_tickets"}
                 ],
                 [
-                    {"text": "Referral Overview", "callback_data": "admin_referral_overview"},
-                    {"text": "Referral Payouts", "callback_data": "admin_referral_payouts"}
+                    {"text": "Bot Settings", "callback_data": "admin_bot_settings"},
+                    {"text": "Referral Overview", "callback_data": "admin_referral_overview"}
                 ],
+                [
+                    {"text": "Referral Payouts", "callback_data": "admin_referral_payouts"},
                 [
                     {"text": "📊 Deposit Logs", "callback_data": "admin_deposit_logs"},
                     {"text": "💸 Manage Withdrawals", "callback_data": "admin_manage_withdrawals"}
