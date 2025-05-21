@@ -120,25 +120,26 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             # Add to database and commit explicitly
             db.session.add(new_transaction)
             
-            # Commit the changes and verify they were saved
+            # Commit the changes
             db.session.commit()
             
-            # Verify the changes were actually saved by reloading the user
-            db.session.refresh(user)
+            # Verify the changes were actually saved by querying the user again
+            # This is safer than using refresh which can fail with detached objects
+            updated_user = User.query.get(user.id)
             
             # Verify the transaction was actually saved
             saved_transaction = Transaction.query.get(new_transaction.id)
             if not saved_transaction:
                 return False, "Transaction record not saved properly"
             
-            # Log the adjustment
+            # Log the adjustment using the updated_user data
             action_type = "added to" if amount > 0 else "deducted from"
             log_message = (
                 f"BALANCE ADJUSTMENT SUCCESSFUL\n"
-                f"User: {user.username} (ID: {user.id}, Telegram ID: {user.telegram_id})\n"
+                f"User: {updated_user.username} (ID: {updated_user.id}, Telegram ID: {updated_user.telegram_id})\n"
                 f"{abs(amount):.4f} SOL {action_type} balance\n"
                 f"Previous balance: {original_balance:.4f} SOL\n"
-                f"New balance: {user.balance:.4f} SOL\n"
+                f"New balance: {updated_user.balance:.4f} SOL\n"
                 f"Reason: {reason}\n"
                 f"Transaction ID: {new_transaction.id}"
             )
