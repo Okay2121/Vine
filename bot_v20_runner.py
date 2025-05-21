@@ -5641,7 +5641,7 @@ def run_polling():
     bot.add_callback_handler("admin_exit", admin_exit_handler)
     bot.add_callback_handler("admin_back", admin_back_handler)
     bot.add_callback_handler("admin_view_active_users", admin_view_active_users_handler)
-    bot.add_callback_handler("admin_view_all_users", admin_view_all_users_handler)
+    bot.add_callback_handler("admin_view_all_users", admin_view_all_users_button_handler)
     bot.add_callback_handler("admin_search_user", admin_search_user_handler)
     bot.add_callback_handler("admin_export_csv", admin_export_csv_handler)
     bot.add_callback_handler("admin_export_deposits_csv", admin_export_deposits_csv_handler)
