@@ -199,6 +199,89 @@ def check_user_dashboard(user_id=None, telegram_id=None, username=None):
         
         return dashboard
 
+def set_initial_deposit(identifier, amount, reason="Admin initial deposit setting", silent=False):
+    """
+    Set a user's initial deposit value (doesn't affect current balance)
+    
+    This function updates the user's initial deposit field, which is used for ROI calculations
+    throughout the dashboard and notifications. It does not adjust the actual balance.
+    
+    Args:
+        identifier (str): Username, telegram_id, or database ID
+        amount (float): Amount to set as initial deposit (must be non-negative)
+        reason (str): Reason for setting the initial deposit
+        silent (bool): If True, don't log the adjustment to console
+        
+    Returns:
+        tuple: (success, message)
+    """
+    if not silent:
+        logging.info(f"Initial deposit setting confirmed by admin.")
+    
+    # Use app context to work with database
+    with app.app_context():
+        try:
+            # Find the user
+            user = find_user(identifier)
+            
+            if not user:
+                return False, f"User not found: {identifier}"
+            
+            # Validate amount is a positive number
+            try:
+                amount = float(amount)
+                if amount < 0:
+                    return False, f"Invalid amount: {amount} - must be non-negative"
+            except ValueError:
+                return False, f"Invalid amount: {amount} - must be a number"
+            
+            # Store original values for logging
+            original_initial_deposit = user.initial_deposit
+            
+            # Update user initial deposit
+            user.initial_deposit = amount
+            
+            if not silent:
+                logging.info(f"User initial deposit updated. User ID: {user.telegram_id}, Initial Deposit: {user.initial_deposit:.4f}")
+                logging.info("Bot is fully responsive.")
+            
+            # Create a transaction record for tracking
+            new_transaction = Transaction()
+            new_transaction.user_id = user.id
+            new_transaction.transaction_type = 'admin_set_initial'
+            new_transaction.amount = amount
+            new_transaction.token_name = "SOL"
+            new_transaction.timestamp = datetime.utcnow()
+            new_transaction.status = 'completed'
+            new_transaction.notes = reason
+            
+            # Add to database and commit
+            db.session.add(new_transaction)
+            db.session.commit()
+            
+            # Log the adjustment
+            log_message = (
+                f"INITIAL DEPOSIT SETTING\n"
+                f"User: {user.username} (ID: {user.id}, Telegram ID: {user.telegram_id})\n"
+                f"Initial deposit set to: {amount:.4f} SOL\n"
+                f"Previous initial deposit: {original_initial_deposit:.4f} SOL\n"
+                f"Current balance: {user.balance:.4f} SOL\n"
+                f"Reason: {reason}\n"
+                f"Transaction ID: {new_transaction.id}"
+            )
+            
+            if not silent:
+                logger.info(log_message)
+            
+            return True, log_message
+            
+        except Exception as e:
+            # Handle errors
+            db.session.rollback()
+            logger.error(f"Error setting initial deposit: {e}")
+            logger.error(traceback.format_exc())
+            return False, f"Error: {str(e)}"
+
 def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_trading=False, silent=False):
     """
     Adjust a user's balance by adding or subtracting the specified amount
