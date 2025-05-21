@@ -2942,19 +2942,60 @@ def admin_view_all_users_handler(update, chat_id):
                 # Get referral earnings (5% profit)
                 referral_earnings = user.referral_bonus if user.referral_bonus is not None else 0.0
                 
-                # Create user entry
+                # Format deposit wallet display
+                deposit_wallet = user.deposit_wallet or "Not set"
+                display_deposit_wallet = deposit_wallet
+                if deposit_wallet != "Not set" and len(deposit_wallet) > 10:
+                    display_deposit_wallet = f"{deposit_wallet[:6]}...{deposit_wallet[-4:]}"
+                
+                # Get user's name information
+                name_display = ""
+                if user.first_name or user.last_name:
+                    name_display = f"• Name: {user.first_name or ''} {user.last_name or ''}\n"
+                
+                # Calculate ROI (Return on Investment)
+                roi_percentage = 0
+                if user.initial_deposit > 0:
+                    roi_percentage = (total_profits / user.initial_deposit) * 100
+                
+                # Calculate net profit (total profit - total deposited + total withdrawn)
+                net_profit = user.balance - total_deposits
+                
+                # Calculate active trading amount 
+                active_trading = user.balance
+                
+                # Get last activity time with date and time
+                last_activity = "N/A"
+                if user.last_activity:
+                    last_activity = user.last_activity.strftime("%Y-%m-%d %H:%M:%S")
+                
+                # Create user entry with full details
                 user_entry = (
                     f"*User #{idx}*\n"
                     f"• ID: `{user.telegram_id}`\n"
                     f"• Username: @{user.username or 'No Username'}\n"
-                    f"• Wallet: `{display_wallet}`\n"
+                    f"{name_display}"
                     f"• Registered: {registration_date}\n"
-                    f"• Status: {user.status.value}\n"
+                    f"• Last Activity: {last_activity}\n"
+                    f"• Status: {user.status.value}\n\n"
+                    
+                    f"*Financial Details*\n"
+                    f"• Current Balance: {user.balance:.4f} SOL\n"
+                    f"• Initial Deposit: {user.initial_deposit:.4f} SOL\n" 
                     f"• Total Deposited: {total_deposits:.4f} SOL\n"
                     f"• Total Withdrawn: {total_withdrawn:.4f} SOL\n"
-                    f"• Current Balance: {user.balance:.4f} SOL\n"
+                    f"• Total Profit: {total_profits:.4f} SOL\n"
+                    f"• Net Profit: {net_profit:.4f} SOL\n"
+                    f"• ROI: {roi_percentage:.2f}%\n"
+                    f"• Active Trading: {active_trading:.4f} SOL\n\n"
+                    
+                    f"*Referral System*\n"
                     f"• Referral Count: {referral_count}\n"
                     f"• Referral Earnings: {referral_earnings:.4f} SOL\n\n"
+                    
+                    f"*Wallet Information*\n"
+                    f"• Payout Wallet: `{display_wallet}`\n"
+                    f"• Deposit Wallet: `{display_deposit_wallet}`\n\n"
                 )
                 
                 message += user_entry
