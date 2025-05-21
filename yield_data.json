@@ -51,8 +51,17 @@
     "page": 0
   },
   "1": {
-    "balance": 0.5,
+    "balance": 1.0,
     "trades": [
+      {
+        "name": "TEST",
+        "symbol": "TEST",
+        "mint": "https://solscan.io/tx/test123",
+        "entry": 0.005,
+        "exit": 0.007,
+        "yield": 39.99999999999999,
+        "timestamp": "2025-05-21T23:30:07.066005"
+      },
       {
         "name": "TEST",
         "symbol": "TEST",

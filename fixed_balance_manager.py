@@ -131,9 +131,10 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             
             # Verify the transaction was actually saved - using a fresh query
             # to avoid detached instance errors
+            transaction_id = new_transaction.id  # Store the ID before closing the session
             transaction_exists = db.session.execute(
                 "SELECT COUNT(*) FROM transaction WHERE id = :id",
-                {"id": new_transaction.id}
+                {"id": transaction_id}
             ).scalar()
             
             if not transaction_exists:
