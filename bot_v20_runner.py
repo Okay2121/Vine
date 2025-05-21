@@ -2861,9 +2861,13 @@ def admin_view_all_users_handler(update, chat_id):
             # Log everything for debugging
             logging.info(f"Admin View All Users handler called by chat_id {chat_id}")
             
+            # Let's ensure the database is accessible
+            # For SQLAlchemy connections, we'll use a simpler approach
+            
             # Get all users ordered by registration date (most recent first)
             users = []
             try:
+                # Create a fresh query for all users
                 users = User.query.order_by(User.joined_at.desc()).limit(10).all()
                 logging.info(f"Found {len(users)} users in the database")
             except Exception as db_error:
