@@ -360,6 +360,62 @@ def admin_resume_cycle(user_id):
             db.session.rollback()
             return False
 
+def admin_update_cycle_after_balance_adjustment(user_id, adjustment_amount):
+    """
+    Admin function to update a user's active ROI cycle after a balance adjustment.
+    This ensures the autopilot dashboard reflects the new balance immediately.
+    
+    Args:
+        user_id (int): Database ID of the user
+        adjustment_amount (float): Amount that was added to the user's balance
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    with app.app_context():
+        try:
+            # Get user's active cycle
+            cycle = TradingCycle.query.filter_by(
+                user_id=user_id, 
+                status=CycleStatus.IN_PROGRESS
+            ).first()
+            
+            # If no active cycle, check if we need to create one
+            if not cycle:
+                # Get the user object
+                user = User.query.get(user_id)
+                if not user:
+                    logger.error(f"User {user_id} not found")
+                    return False
+                
+                # Create a new cycle since there's been a balance adjustment
+                return admin_start_new_cycle(user_id)
+            
+            # Update the cycle's current balance to reflect the adjustment
+            previous_balance = cycle.current_balance
+            cycle.current_balance += adjustment_amount
+            
+            # Log the balance update
+            logger.info(f"Updated ROI cycle for user {user_id}: Balance {previous_balance:.4f} → {cycle.current_balance:.4f} (+{adjustment_amount:.4f})")
+            
+            # Update the progress percentage
+            progress = min(100, ((cycle.current_balance - cycle.initial_balance) / (cycle.target_balance - cycle.initial_balance)) * 100)
+            cycle.progress_percentage = max(0, progress)  # Ensure it's not negative
+            
+            # Check if the target has been reached
+            if cycle.current_balance >= cycle.target_balance:
+                cycle.status = CycleStatus.COMPLETED
+                cycle.end_date = datetime.utcnow()
+                logger.info(f"ROI cycle completed for user {user_id} after balance adjustment")
+            
+            db.session.commit()
+            return True
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Database error updating cycle after balance adjustment: {e}")
+            db.session.rollback()
+            return False
+
 def get_cycle_history(user_id, limit=10):
     """
     Get the trading cycle history for a user.

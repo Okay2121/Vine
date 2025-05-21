@@ -1324,6 +1324,14 @@ def handle_admin_balance_adjustment(user_id, amount):
     
     logger.info(f"Handling admin balance adjustment of +{amount} SOL for user {user_id}")
     
+    # Update ROI cycle to reflect the new balance
+    try:
+        from utils.roi_system import admin_update_cycle_after_balance_adjustment
+        admin_update_cycle_after_balance_adjustment(user_id, amount)
+        logger.info(f"Updated ROI cycle for user {user_id} after admin balance adjustment")
+    except Exception as roi_error:
+        logger.error(f"Failed to update ROI cycle for user {user_id}: {roi_error}")
+    
     # Check if auto trading is already active
     if is_auto_trading_active_for_user(user_id):
         logger.info(f"Auto trading already active for user {user_id}")
