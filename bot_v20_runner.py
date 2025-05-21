@@ -1907,6 +1907,331 @@ def admin_view_stats_handler(update, chat_id):
         except Exception as inner_e:
             logging.error(f"Error sending error message: {inner_e}")
 
+def admin_set_initial_deposit_handler(update, chat_id):
+    """Handle the set initial deposit button in the user details panel."""
+    try:
+        # Extract user ID from callback data
+        callback_data = update.callback_query.data
+        user_id = int(callback_data.split(':')[1])
+        
+        # Store the user ID in global variable for conversation handler
+        global admin_target_user_id
+        admin_target_user_id = user_id
+        
+        with app.app_context():
+            from models import User
+            
+            # Get user from database
+            user = User.query.get(user_id)
+            
+            if not user:
+                bot.send_message(
+                    chat_id,
+                    "⚠️ Error: User not found. Please try again.",
+                    reply_markup=bot.create_inline_keyboard([
+                        [{"text": "Back to User Management", "callback_data": "admin_user_management"}]
+                    ])
+                )
+                return
+            
+            # Show current initial deposit and prompt for new value
+            message = (
+                f"🔄 *Set Initial Deposit*\n\n"
+                f"User: @{user.username or 'No username'} (ID: {user.telegram_id})\n"
+                f"Current Initial Deposit: {user.initial_deposit:.4f} SOL\n\n"
+                "Please enter the new initial deposit amount in SOL.\n"
+                "This will only change the initial deposit value used for ROI calculations and will NOT affect the user's actual balance."
+            )
+            
+            # Create cancel button
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "Cancel", "callback_data": f"admin_user_detail:{user.id}"}]
+            ])
+            
+            bot.send_message(
+                chat_id,
+                message,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+            
+            # Set the bot to expect the initial deposit amount next
+            bot.register_next_step_handler(
+                chat_id,
+                admin_initial_deposit_amount_handler
+            )
+    
+    except Exception as e:
+        logging.error(f"Error in admin_set_initial_deposit_handler: {e}")
+        logging.error(traceback.format_exc())
+        
+        # Handle the case when bot isn't initialized
+        try:
+            if 'bot' in globals() and bot is not None:
+                bot.send_message(chat_id, f"Error setting initial deposit: {str(e)}")
+            else:
+                logging.error("Cannot send error message - bot not initialized")
+        except Exception as inner_e:
+            logging.error(f"Error sending error message: {inner_e}")
+
+def admin_initial_deposit_amount_handler(update, chat_id, text):
+    """Process the initial deposit amount."""
+    try:
+        # Get the amount from the message text
+        try:
+            amount = float(text.strip())
+            
+            if amount < 0:
+                bot.send_message(
+                    chat_id,
+                    "⚠️ Error: Initial deposit amount cannot be negative. Please enter a positive number.",
+                    reply_markup=bot.create_inline_keyboard([
+                        [{"text": "Cancel", "callback_data": f"admin_user_detail:{admin_target_user_id}"}]
+                    ])
+                )
+                return
+                
+            # Store the amount in global variable for next step
+            global admin_initial_deposit_amount
+            admin_initial_deposit_amount = amount
+            
+            # Get user details
+            with app.app_context():
+                from models import User
+                
+                user = User.query.get(admin_target_user_id)
+                
+                if not user:
+                    bot.send_message(
+                        chat_id,
+                        "⚠️ Error: User not found. The user may have been deleted. Please try again.",
+                        reply_markup=bot.create_inline_keyboard([
+                            [{"text": "Back to User Management", "callback_data": "admin_user_management"}]
+                        ])
+                    )
+                    return
+                
+                # Ask for confirmation
+                message = (
+                    f"📝 *Confirm Initial Deposit Setting*\n\n"
+                    f"User: @{user.username or 'No username'} (ID: {user.telegram_id})\n"
+                    f"Current Initial Deposit: {user.initial_deposit:.4f} SOL\n"
+                    f"New Initial Deposit: {amount:.4f} SOL\n\n"
+                    "Please enter a reason for this change or click Confirm with the default reason."
+                )
+                
+                # Create confirm/cancel buttons
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "Confirm", "callback_data": "admin_confirm_initial_deposit"}],
+                    [{"text": "Cancel", "callback_data": f"admin_user_detail:{user.id}"}]
+                ])
+                
+                bot.send_message(
+                    chat_id,
+                    message,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+                
+                # Register handler for reason or confirmation
+                bot.register_next_step_handler(
+                    chat_id,
+                    admin_initial_deposit_reason_handler
+                )
+                
+        except ValueError:
+            bot.send_message(
+                chat_id,
+                "⚠️ Error: Invalid amount. Please enter a valid number.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Cancel", "callback_data": f"admin_user_detail:{admin_target_user_id}"}]
+                ])
+            )
+            return
+    
+    except Exception as e:
+        logging.error(f"Error in admin_initial_deposit_amount_handler: {e}")
+        logging.error(traceback.format_exc())
+        
+        # Handle the case when bot isn't initialized
+        try:
+            if 'bot' in globals() and bot is not None:
+                bot.send_message(chat_id, f"Error processing initial deposit amount: {str(e)}")
+            else:
+                logging.error("Cannot send error message - bot not initialized")
+        except Exception as inner_e:
+            logging.error(f"Error sending error message: {inner_e}")
+
+def admin_initial_deposit_reason_handler(update, chat_id, text=None):
+    """Process the reason for initial deposit setting."""
+    try:
+        # Get reason from text or use default
+        reason = text.strip() if text and text.strip() else "Admin initial deposit setting"
+        
+        # Get user details
+        with app.app_context():
+            from models import User
+            
+            user = User.query.get(admin_target_user_id)
+            
+            if not user:
+                bot.send_message(
+                    chat_id,
+                    "⚠️ Error: User not found. The user may have been deleted. Please try again.",
+                    reply_markup=bot.create_inline_keyboard([
+                        [{"text": "Back to User Management", "callback_data": "admin_user_management"}]
+                    ])
+                )
+                return
+            
+            # Final confirmation message
+            message = (
+                f"📝 *Confirm Initial Deposit Setting*\n\n"
+                f"User: @{user.username or 'No username'} (ID: {user.telegram_id})\n"
+                f"Current Initial Deposit: {user.initial_deposit:.4f} SOL\n"
+                f"New Initial Deposit: {admin_initial_deposit_amount:.4f} SOL\n"
+                f"Reason: {reason}\n\n"
+                "Are you sure you want to update this user's initial deposit?"
+            )
+            
+            # Create confirm/cancel buttons
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "✅ Confirm", "callback_data": f"admin_confirm_initial_deposit:{reason}"}],
+                [{"text": "❌ Cancel", "callback_data": f"admin_user_detail:{user.id}"}]
+            ])
+            
+            bot.send_message(
+                chat_id,
+                message,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+    
+    except Exception as e:
+        logging.error(f"Error in admin_initial_deposit_reason_handler: {e}")
+        logging.error(traceback.format_exc())
+        
+        # Handle the case when bot isn't initialized
+        try:
+            if 'bot' in globals() and bot is not None:
+                bot.send_message(chat_id, f"Error processing reason: {str(e)}")
+            else:
+                logging.error("Cannot send error message - bot not initialized")
+        except Exception as inner_e:
+            logging.error(f"Error sending error message: {inner_e}")
+
+def admin_confirm_initial_deposit_handler(update, chat_id):
+    """Confirm and process the initial deposit setting."""
+    try:
+        # Extract reason from callback data if present
+        callback_data = update.callback_query.data
+        parts = callback_data.split(':')
+        reason = parts[1] if len(parts) > 1 else "Admin initial deposit setting"
+        
+        # Use the balance_manager module for setting initial deposit
+        import balance_manager
+        
+        # Get user details
+        with app.app_context():
+            from models import User
+            
+            user = User.query.get(admin_target_user_id)
+            
+            if not user:
+                bot.send_message(
+                    chat_id,
+                    "Error: User not found. The user may have been deleted. Please try again.",
+                    reply_markup=bot.create_inline_keyboard([
+                        [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+                    ])
+                )
+                # Reset global variables
+                global admin_target_user_id, admin_initial_deposit_amount
+                admin_target_user_id = None
+                admin_initial_deposit_amount = None
+                return
+            
+            # Use the non-blocking initial deposit setter
+            identifier = user.telegram_id
+            amount = admin_initial_deposit_amount
+            
+            success, message = balance_manager.set_initial_deposit(identifier, amount, reason)
+            
+            if success:
+                # Show success message to admin
+                with app.app_context():
+                    # Refresh user from database to get updated initial deposit
+                    fresh_user = User.query.get(admin_target_user_id)
+                    
+                    if fresh_user:
+                        success_message = (
+                            f"✅ *Initial Deposit Updated Successfully*\n\n"
+                            f"User: @{fresh_user.username or 'No username'} (ID: {fresh_user.telegram_id})\n"
+                            f"New Initial Deposit: {fresh_user.initial_deposit:.4f} SOL\n"
+                            f"Current Balance: {fresh_user.balance:.4f} SOL\n"
+                            f"Reason: {reason}\n\n"
+                            "The user's dashboard will now reflect this initial deposit for ROI calculations."
+                        )
+                        
+                        keyboard = bot.create_inline_keyboard([
+                            [{"text": "View User Details", "callback_data": f"admin_user_detail:{fresh_user.id}"}],
+                            [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+                        ])
+                        
+                        bot.send_message(
+                            chat_id,
+                            success_message,
+                            parse_mode="Markdown",
+                            reply_markup=keyboard
+                        )
+            else:
+                # Show error message
+                error_message = (
+                    f"❌ *Error Setting Initial Deposit*\n\n"
+                    f"{message}\n\n"
+                    "Please try again later."
+                )
+                
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "Return to User Details", "callback_data": f"admin_user_detail:{user.id}"}],
+                    [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+                ])
+                
+                bot.send_message(
+                    chat_id,
+                    error_message,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+            
+            # Reset global variables
+            admin_target_user_id = None
+            admin_initial_deposit_amount = None
+            
+    except Exception as e:
+        # Log the error
+        logging.error(f"Error in admin_confirm_initial_deposit_handler: {e}")
+        logging.error(traceback.format_exc())
+        
+        try:
+            if 'bot' in globals() and bot is not None:
+                bot.send_message(
+                    chat_id,
+                    f"❌ *Error Setting Initial Deposit*\n\n{str(e)}",
+                    parse_mode="Markdown",
+                    reply_markup=bot.create_inline_keyboard([
+                        [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+                    ])
+                )
+            else:
+                logging.error("Cannot send error message - bot not initialized")
+        except Exception as inner_e:
+            logging.error(f"Error sending error message: {inner_e}")
+            
+        # Reset global variables
+        admin_target_user_id = None
+        admin_initial_deposit_amount = None
+
 def admin_adjust_balance_handler(update, chat_id):
     """Handle the adjust balance button with full implementation and user panel interaction."""
     try:
@@ -5244,6 +5569,8 @@ def run_polling():
     # Additional admin handlers from the original codebase
     bot.add_callback_handler("admin_send_message", lambda update, chat_id: bot.send_message(chat_id, "Direct message sending requires conversation handler from python-telegram-bot."))
     bot.add_callback_handler("admin_adjust_user_balance", admin_adjust_balance_handler)  # Use the actual handler function
+    bot.add_callback_handler("admin_set_initial_deposit", admin_set_initial_deposit_handler)  # Handler for setting initial deposit
+    bot.add_callback_handler("admin_confirm_initial_deposit", admin_confirm_initial_deposit_handler)  # Confirmation handler
     bot.add_callback_handler("admin_process_withdrawal", lambda update, chat_id: bot.send_message(chat_id, "Withdrawal processing feature coming soon."))
     bot.add_callback_handler("admin_process_tickets", lambda update, chat_id: bot.send_message(chat_id, "Ticket processing feature requires conversation handler from python-telegram-bot."))
     bot.add_callback_handler("admin_export_referrals", admin_export_referrals_handler)
