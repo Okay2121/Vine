@@ -8208,6 +8208,61 @@ def admin_deny_withdrawal_handler(update, chat_id):
             ])
         )
 
+def admin_view_all_users_handler(update, chat_id):
+    """Show a list of all users in the system for easy management."""
+    try:
+        with app.app_context():
+            from models import User
+            
+            # Get all users with pagination (first 20)
+            all_users = User.query.limit(20).all()
+            
+            if not all_users:
+                message = "👥 *User List*\n\nThere are no users in the system yet."
+            else:
+                message = "👥 *All Users (First 20)*\n\n"
+                
+                for i, user in enumerate(all_users, 1):
+                    # Format user status for display
+                    status = user.status.name if hasattr(user.status, 'name') else str(user.status)
+                    
+                    message += (
+                        f"*{i}. {user.username or 'No Username'}*\n"
+                        f"ID: `{user.telegram_id}`\n"
+                        f"Balance: {user.balance:.6f} SOL\n"
+                        f"Status: {status}\n"
+                        f"Joined: {user.created_at.strftime('%Y-%m-%d')}\n\n"
+                    )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "Search User", "callback_data": "admin_search_user"},
+                    {"text": "Export CSV", "callback_data": "admin_export_csv"}
+                ],
+                [{"text": "🔙 Back to Admin Panel", "callback_data": "admin_back"}]
+            ])
+            
+            bot.send_message(
+                chat_id,
+                message,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in admin_view_all_users_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        
+        bot.send_message(
+            chat_id,
+            f"⚠️ Error viewing all users: {str(e)}",
+            reply_markup=bot.create_inline_keyboard([
+                [{"text": "🔙 Back to Admin", "callback_data": "admin_back"}]
+            ])
+        )
+
 def admin_view_completed_withdrawals_handler(update, chat_id):
     """Show a list of completed withdrawal transactions."""
     try:
