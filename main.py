@@ -261,6 +261,74 @@ def admin_deposit_logs_route():
             "message": str(e)
         }), 500
 
+@app.route('/admin/users')
+def admin_users_route():
+    """Web route to view all users with detailed information"""
+    from app import db
+    from models import User, Transaction, Profit, UserStatus, ReferralCode
+    from flask import render_template
+    from sqlalchemy import func
+    
+    try:
+        with app.app_context():
+            # Get all users, ordered by most recent first
+            users = User.query.order_by(User.joined_at.desc()).all()
+            
+            # Get additional information for each user
+            user_details = []
+            for user in users:
+                # Calculate total deposits
+                total_deposits = db.session.query(
+                    func.sum(Transaction.amount)
+                ).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type == "deposit",
+                    Transaction.status == "completed"
+                ).scalar() or 0.0
+                
+                # Calculate total withdrawals
+                total_withdrawn = db.session.query(
+                    func.sum(Transaction.amount)
+                ).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type == "withdraw",
+                    Transaction.status == "completed"
+                ).scalar() or 0.0
+                
+                # Calculate total profit
+                total_profit = db.session.query(
+                    func.sum(Profit.amount)
+                ).filter(
+                    Profit.user_id == user.id
+                ).scalar() or 0.0
+                
+                # Get referral count
+                referral_count = ReferralCode.query.filter_by(
+                    inviter_id=user.id
+                ).count() if hasattr(ReferralCode, 'inviter_id') else 0
+                
+                # Format user status
+                status = user.status.value if hasattr(user.status, 'value') else str(user.status)
+                
+                # Append user details
+                user_details.append({
+                    'user': user,
+                    'total_deposits': total_deposits,
+                    'total_withdrawn': total_withdrawn,
+                    'total_profit': total_profit,
+                    'referral_count': referral_count,
+                    'status': status
+                })
+            
+            # Render the template with user data
+            return render_template('admin_users.html', user_details=user_details)
+    
+    except Exception as e:
+        logger.error(f"Error retrieving users: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return render_template('error.html', error=str(e))
+
 # Run the app when this script is executed in development mode
 if __name__ == "__main__":
     # Start bot in a separate thread
