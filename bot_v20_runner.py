@@ -2972,7 +2972,8 @@ def admin_view_all_users_handler(update, chat_id):
                 # Create user entry with full details
                 user_entry = (
                     f"*User #{idx}*\n"
-                    f"• ID: `{user.telegram_id}`\n"
+                    f"• User ID (copy): `{user.id}`\n"
+                    f"• Telegram ID (copy): `{user.telegram_id}`\n"
                     f"• Username: @{user.username or 'No Username'}\n"
                     f"{name_display}"
                     f"• Registered: {registration_date}\n"
@@ -2994,8 +2995,8 @@ def admin_view_all_users_handler(update, chat_id):
                     f"• Referral Earnings: {referral_earnings:.4f} SOL\n\n"
                     
                     f"*Wallet Information*\n"
-                    f"• Payout Wallet: `{display_wallet}`\n"
-                    f"• Deposit Wallet: `{display_deposit_wallet}`\n\n"
+                    f"• Payout Wallet (copy):\n`{wallet_address}`\n\n"
+                    f"• Deposit Wallet (copy):\n`{deposit_wallet}`\n\n"
                 )
                 
                 message += user_entry
