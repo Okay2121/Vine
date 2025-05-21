@@ -2828,6 +2828,9 @@ def admin_view_active_users_handler(update, chat_id):
 
 def admin_view_all_users_handler(update, chat_id):
     """Handle the view all users button in admin panel."""
+    import logging
+    logging.info(f"View All Users button clicked by {chat_id}")
+    
     try:
         with app.app_context():
             from models import User, UserStatus, Transaction, Profit, ReferralCode
@@ -2835,9 +2838,9 @@ def admin_view_all_users_handler(update, chat_id):
             from sqlalchemy import func
             from datetime import datetime, timedelta
             import traceback
-            import logging
             
             # Get all users ordered by registration date (most recent first)
+            users = []
             try:
                 users = User.query.order_by(User.joined_at.desc()).limit(10).all()
                 logging.info(f"Found {len(users)} users in the database")
