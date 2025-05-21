@@ -5748,7 +5748,32 @@ def run_polling():
     bot.add_callback_handler("admin_confirm_withdrawal", lambda update, chat_id: bot.send_message(chat_id, "Withdrawal confirmed successfully!"))
     bot.add_callback_handler("admin_send_direct_message", admin_send_direct_message_handler)
     bot.add_callback_handler("admin_send_direct_message_image", admin_send_direct_message_image_handler)
-    bot.add_callback_handler("admin_confirm_adjustment", admin_confirm_adjustment_handler)
+    # Custom wrapper to prevent double processing for balance adjustments
+    def single_process_adjustment_handler(update, chat_id):
+        global _adjustment_in_progress
+        if not hasattr(bot, '_adjustment_in_progress'):
+            bot._adjustment_in_progress = False
+            
+        if bot._adjustment_in_progress:
+            bot.send_message(
+                chat_id,
+                "⚠️ A balance adjustment is already in progress. Please wait...",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+                ])
+            )
+            return
+            
+        # Set flag to prevent duplicate processing
+        bot._adjustment_in_progress = True
+        try:
+            # Call the actual handler
+            admin_confirm_adjustment_handler(update, chat_id)
+        finally:
+            # Reset flag when done (even if there's an error)
+            bot._adjustment_in_progress = False
+            
+    bot.add_callback_handler("admin_confirm_adjustment", single_process_adjustment_handler)
     bot.add_callback_handler("admin_confirm_remove_user", lambda update, chat_id: bot.send_message(chat_id, "User removed successfully!"))
     
     # Start the bot
