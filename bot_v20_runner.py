@@ -2839,6 +2839,9 @@ def admin_view_all_users_handler(update, chat_id):
             from datetime import datetime, timedelta
             import traceback
             
+            # Log everything for debugging
+            logging.info(f"Admin View All Users handler called by chat_id {chat_id}")
+            
             # Get all users ordered by registration date (most recent first)
             users = []
             try:
