@@ -2826,6 +2826,7 @@ def admin_view_all_users_handler(update, chat_id):
     try:
         with app.app_context():
             from models import User, UserStatus, Transaction, Profit, ReferralCode
+            from app import db
             from sqlalchemy import func
             from datetime import datetime, timedelta
             import traceback
