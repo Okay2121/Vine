@@ -1650,11 +1650,10 @@ def admin_command(update, chat_id):
                 ],
                 [
                     {"text": "Referral Payouts", "callback_data": "admin_referral_payouts"},
-                [
-                    {"text": "📊 Deposit Logs", "callback_data": "admin_deposit_logs"},
-                    {"text": "💸 Manage Withdrawals", "callback_data": "admin_manage_withdrawals"}
+                    {"text": "📊 Deposit Logs", "callback_data": "admin_deposit_logs"}
                 ],
                 [
+                    {"text": "💸 Manage Withdrawals", "callback_data": "admin_manage_withdrawals"},
                     {"text": "Exit Panel", "callback_data": "admin_exit"}
                 ]
             ])
