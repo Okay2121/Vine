@@ -36,6 +36,7 @@ admin_adjust_telegram_id = None
 admin_adjust_current_balance = None
 admin_adjustment_amount = None
 admin_adjustment_reason = None
+admin_initial_deposit_amount = None
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -2786,11 +2787,14 @@ def admin_search_query_handler(update, chat_id, text):
                     {"text": "Adjust Balance", "callback_data": f"admin_adjust_user_balance"}
                 ],
                 [
-                    {"text": "Process Withdrawal", "callback_data": f"admin_process_withdrawal"},
-                    {"text": "Remove User", "callback_data": f"admin_remove_user"}
+                    {"text": "Set Initial Deposit", "callback_data": f"admin_set_initial_deposit:{user.id}"},
+                    {"text": "Process Withdrawal", "callback_data": f"admin_process_withdrawal"}
                 ],
                 [
-                    {"text": "Search Another User", "callback_data": "admin_search_user"},
+                    {"text": "Remove User", "callback_data": f"admin_remove_user"},
+                    {"text": "Search Another User", "callback_data": "admin_search_user"}
+                ],
+                [
                     {"text": "Back", "callback_data": "admin_user_management"}
                 ]
             ])
