@@ -2625,27 +2625,48 @@ def admin_confirm_adjustment_handler(update, chat_id):
                 
                 # Verify the adjustment was actually saved to database
                 with app.app_context():
+                    # Clear previous session to avoid caching issues
+                    db.session.close()
+                    
                     # Force a refresh from database to see updated values
                     user_after = User.query.filter_by(telegram_id=str(identifier)).first()
                     
                     if user_after:
                         balance_after = user_after.balance
                         logging.info(f"Balance after adjustment: {balance_after}")
+                        expected_balance = balance_before + amount
                         
                         # Verify change was actually made
-                        if abs(balance_after - balance_before - amount) < 0.0001:
+                        if abs(balance_after - expected_balance) < 0.0001:
                             success = True
-                            message = f"✅ Balance verified in database: {balance_before} → {balance_after}"
+                            message = f"✅ Balance verified in database: {balance_before:.4f} → {balance_after:.4f} SOL"
                         else:
                             # Attempt to manually update if we see a mismatch
                             try:
-                                user_after.balance = balance_before + amount
+                                logging.warning(f"Balance mismatch detected. Expected: {expected_balance:.4f}, Got: {balance_after:.4f}")
+                                
+                                # Use a direct SQL update to avoid any ORM caching issues
+                                from sqlalchemy import text
+                                sql = text("UPDATE user SET balance = :new_balance WHERE telegram_id = :tg_id")
+                                db.session.execute(sql, {"new_balance": expected_balance, "tg_id": str(identifier)})
                                 db.session.commit()
-                                message = f"⚠️ Balance fixed manually: {balance_before} → {user_after.balance}"
-                                success = True
+                                
+                                # Verify the fix worked
+                                db.session.expire_all()  # Clear session cache
+                                fixed_user = User.query.filter_by(telegram_id=str(identifier)).first()
+                                if fixed_user and abs(fixed_user.balance - expected_balance) < 0.0001:
+                                    message = f"⚠️ Balance fixed manually: {balance_before:.4f} → {fixed_user.balance:.4f} SOL"
+                                    success = True
+                                else:
+                                    fixed_balance = fixed_user.balance if fixed_user else "unknown"
+                                    message = f"⚠️ Manual fix attempted: Got {fixed_balance} (expected {expected_balance:.4f})"
+                                    success = False
+                                    
                             except Exception as db_error:
                                 logging.error(f"Error fixing balance: {db_error}")
-                                message = f"❌ Balance update failed: {balance_before} → expected {balance_before + amount}, got {balance_after}"
+                                import traceback
+                                logging.error(traceback.format_exc())
+                                message = f"❌ Balance update failed: {balance_before:.4f} → expected {expected_balance:.4f}, got {balance_after:.4f} SOL"
                                 success = False
                 
                 # Send response to admin
@@ -4298,14 +4319,26 @@ def add_trade_to_history(user_id, token_name, entry_price, exit_price, profit_am
         tx_hash (str): Transaction hash
     """
     try:
-        # Set up file path
-        data_file = 'yield_data.json'
+        # Set up file path - ensure this is in the correct directory
+        data_dir = os.path.dirname(os.path.abspath(__file__))
+        data_file = os.path.join(data_dir, 'yield_data.json')
+        
+        import logging
+        logging.info(f"Adding trade to history for user {user_id}. File path: {data_file}")
         
         # Load existing data
         try:
             with open(data_file, 'r') as f:
                 yield_data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+                logging.info(f"Successfully loaded existing yield data with {len(yield_data)} user entries")
+        except FileNotFoundError:
+            logging.info(f"Yield data file not found, creating new file at {data_file}")
+            yield_data = {}
+        except json.JSONDecodeError:
+            logging.warning(f"Invalid JSON in yield data file, creating fresh data")
+            yield_data = {}
+        except Exception as load_error:
+            logging.error(f"Unexpected error loading yield data: {load_error}")
             yield_data = {}
         
         # Convert user_id to string (JSON keys are strings)
@@ -4313,6 +4346,7 @@ def add_trade_to_history(user_id, token_name, entry_price, exit_price, profit_am
         
         # Create user entry if it doesn't exist
         if user_id_str not in yield_data:
+            logging.info(f"Creating new user entry for user_id {user_id}")
             yield_data[user_id_str] = {
                 "balance": 0.0,
                 "trades": [],
@@ -4339,14 +4373,52 @@ def add_trade_to_history(user_id, token_name, entry_price, exit_price, profit_am
         # Add to user's trades
         yield_data[user_id_str]["trades"].insert(0, new_trade)  # Add to the beginning
         
-        # Update user's balance
-        yield_data[user_id_str]["balance"] = profit_amount
+        # Update user's balance without overwriting the entire balance
+        # This was a bug - we were replacing the balance instead of adding to it
+        current_balance = yield_data[user_id_str].get("balance", 0.0)
+        yield_data[user_id_str]["balance"] = current_balance + profit_amount
         
         # Save back to file
-        with open(data_file, 'w') as f:
-            json.dump(yield_data, f, indent=2)
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(data_file), exist_ok=True)
             
-        return True
+            with open(data_file, 'w') as f:
+                json.dump(yield_data, f, indent=2)
+                
+            logging.info(f"Successfully saved trade data for user {user_id}")
+            
+            # Also create TradingPosition record in database for better reliability
+            with app.app_context():
+                from models import TradingPosition
+                
+                # Check if this position already exists to avoid duplicates
+                existing_position = TradingPosition.query.filter_by(
+                    user_id=user_id,
+                    token_name=token_name.replace('$', ''),
+                    entry_price=entry_price
+                ).first()
+                
+                if not existing_position:
+                    # Create a new position record
+                    new_position = TradingPosition(
+                        user_id=user_id,
+                        token_name=token_name.replace('$', ''),
+                        amount=profit_amount / entry_price if entry_price > 0 else 0,
+                        entry_price=entry_price,
+                        current_price=exit_price,
+                        timestamp=datetime.utcnow(),
+                        status='closed'
+                    )
+                    
+                    db.session.add(new_position)
+                    db.session.commit()
+                    logging.info(f"Created TradingPosition record in database for user {user_id}")
+            
+            return True
+        except Exception as save_error:
+            logging.error(f"Error saving yield data: {save_error}")
+            return False
     except Exception as e:
         import logging
         logging.error(f"Error adding trade to history: {e}")
