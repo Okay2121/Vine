@@ -2844,26 +2844,8 @@ def admin_view_all_users_handler(update, chat_id):
             except Exception as db_error:
                 logging.error(f"Error querying users: {db_error}")
                 logging.error(traceback.format_exc())
-                
-                # Create a test user if none exist for demonstration
-                test_user = User()
-                test_user.telegram_id = str(chat_id)
-                test_user.username = "admin"
-                test_user.first_name = "Admin"
-                test_user.last_name = "User"
-                test_user.joined_at = datetime.now()
-                test_user.status = UserStatus.ACTIVE
-                test_user.balance = 1.0
-                test_user.initial_deposit = 1.0
-                
-                try:
-                    db.session.add(test_user)
-                    db.session.commit()
-                    logging.info("Created test admin user for demonstration")
-                    users = [test_user]
-                except Exception as user_error:
-                    logging.error(f"Error creating test user: {user_error}")
-                    users = []
+                # Don't modify the database - just return empty list
+                users = []
             
             if not users:
                 message = (
