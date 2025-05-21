@@ -8250,7 +8250,7 @@ def admin_deny_withdrawal_handler(update, chat_id):
             ])
         )
 
-# This is the fixed admin view all users handler that gets called from the callback
+# This is the improved admin view users handler with copied fields and no deposit wallet
 def admin_view_all_users_button_handler(update, chat_id):
     """Special handler for the view all users button"""
     import logging
@@ -8329,7 +8329,7 @@ def admin_view_all_users_button_handler(update, chat_id):
                 if referral_code:
                     referral_count = User.query.filter_by(referrer_code_id=referral_code.id).count()
                 
-                # Format wallet address for readability
+                # Format wallet address for readability - Only payout wallet is used
                 wallet_address = user.wallet_address or "Not set"
                                 
                 # Get registration date
@@ -8359,7 +8359,7 @@ def admin_view_all_users_button_handler(update, chat_id):
                 if user.last_activity:
                     last_activity = user.last_activity.strftime("%Y-%m-%d %H:%M:%S")
                 
-                # Create user entry with full details
+                # Create user entry with full details and easy-to-copy fields (deposit wallet removed)
                 user_entry = (
                     f"*User #{idx}*\n"
                     f"• User ID (copy): `{user.id}`\n"
@@ -8386,7 +8386,6 @@ def admin_view_all_users_button_handler(update, chat_id):
                     
                     f"*Wallet Information*\n"
                     f"• Payout Wallet (copy):\n`{wallet_address}`\n\n"
-                    f"• Deposit Wallet (copy):\n`{deposit_wallet}`\n\n"
                 )
                 
                 message += user_entry
