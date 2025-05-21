@@ -119,23 +119,33 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             
             # Add to database and commit explicitly
             db.session.add(new_transaction)
-            
-            # Commit the changes
             db.session.commit()
             
+            # Store the transaction ID before doing anything else
+            try:
+                transaction_id = new_transaction.id
+            except Exception as e:
+                # If we can't get the ID, just set it to None
+                transaction_id = None
+                logging.warning(f"Could not get transaction ID: {e}")
+            
             # Verify the changes were actually saved by querying the user again with a fresh session
-            db.session.close()  # Close current session
+            db.session.close()  # Close current session to avoid caching issues
             
             # Create a new session to ensure we're not getting cached data
             updated_user = db.session.query(User).filter(User.id == user.id).first()
             
-            # Verify the transaction was actually saved - using a fresh query
+            # Verify the transaction was actually saved - using a direct SQL query
             # to avoid detached instance errors
-            transaction_id = new_transaction.id  # Store the ID before closing the session
-            transaction_exists = db.session.execute(
-                "SELECT COUNT(*) FROM transaction WHERE id = :id",
-                {"id": transaction_id}
-            ).scalar()
+            transaction_exists = False
+            if transaction_id is not None:
+                from sqlalchemy import text
+                result = db.session.execute(
+                    text("SELECT COUNT(*) FROM \"transaction\" WHERE id = :id"),
+                    {"id": transaction_id}
+                )
+                count = result.scalar()
+                transaction_exists = count > 0
             
             if not transaction_exists:
                 return False, "Transaction record not saved properly"
