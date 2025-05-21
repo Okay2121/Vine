@@ -123,26 +123,53 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             # Commit the changes
             db.session.commit()
             
-            # Verify the changes were actually saved by querying the user again
-            # This is safer than using refresh which can fail with detached objects
-            updated_user = User.query.get(user.id)
+            # Verify the changes were actually saved by querying the user again with a fresh session
+            db.session.close()  # Close current session
             
-            # Verify the transaction was actually saved
-            saved_transaction = Transaction.query.get(new_transaction.id)
-            if not saved_transaction:
+            # Create a new session to ensure we're not getting cached data
+            updated_user = db.session.query(User).filter(User.id == user.id).first()
+            
+            # Verify the transaction was actually saved - using a fresh query
+            # to avoid detached instance errors
+            transaction_exists = db.session.execute(
+                "SELECT COUNT(*) FROM transaction WHERE id = :id",
+                {"id": new_transaction.id}
+            ).scalar()
+            
+            if not transaction_exists:
                 return False, "Transaction record not saved properly"
             
-            # Log the adjustment using the updated_user data
-            action_type = "added to" if amount > 0 else "deducted from"
-            log_message = (
-                f"BALANCE ADJUSTMENT SUCCESSFUL\n"
-                f"User: {updated_user.username} (ID: {updated_user.id}, Telegram ID: {updated_user.telegram_id})\n"
-                f"{abs(amount):.4f} SOL {action_type} balance\n"
-                f"Previous balance: {original_balance:.4f} SOL\n"
-                f"New balance: {updated_user.balance:.4f} SOL\n"
-                f"Reason: {reason}\n"
-                f"Transaction ID: {new_transaction.id}"
-            )
+            # Check if we got the updated user back
+            if not updated_user:
+                # If we didn't get the updated user, try one more query with a direct SQL approach
+                from sqlalchemy import text
+                result = db.session.execute(text("SELECT balance FROM user WHERE id = :user_id"), {"user_id": user.id})
+                new_balance = result.scalar()
+                
+                # Log message with what we have
+                action_type = "added to" if amount > 0 else "deducted from"
+                log_message = (
+                    f"BALANCE ADJUSTMENT SUCCESSFUL (VERIFICATION INCOMPLETE)\n"
+                    f"User ID: {user.id}, Telegram ID: {user.telegram_id}\n"
+                    f"{abs(amount):.4f} SOL {action_type} balance\n"
+                    f"Previous balance: {original_balance:.4f} SOL\n"
+                    f"Expected new balance: {original_balance + amount:.4f} SOL\n"
+                    f"Actual balance from SQL: {new_balance if new_balance is not None else 'Unknown'}\n"
+                    f"Reason: {reason}\n"
+                    f"Transaction ID: {new_transaction.id}"
+                )
+            else:
+                # Log the adjustment using the updated_user data
+                action_type = "added to" if amount > 0 else "deducted from"
+                log_message = (
+                    f"BALANCE ADJUSTMENT SUCCESSFUL\n"
+                    f"User: {updated_user.username or 'Unknown'} (ID: {updated_user.id}, Telegram ID: {updated_user.telegram_id})\n"
+                    f"{abs(amount):.4f} SOL {action_type} balance\n"
+                    f"Previous balance: {original_balance:.4f} SOL\n"
+                    f"New balance: {updated_user.balance:.4f} SOL\n"
+                    f"Reason: {reason}\n"
+                    f"Transaction ID: {new_transaction.id}"
+                )
             
             if not silent:
                 logger.info(log_message)
