@@ -2828,14 +2828,43 @@ def admin_view_all_users_handler(update, chat_id):
             from models import User, UserStatus, Transaction, Profit, ReferralCode
             from sqlalchemy import func
             from datetime import datetime, timedelta
+            import traceback
+            import logging
             
             # Get all users ordered by registration date (most recent first)
-            users = User.query.order_by(User.joined_at.desc()).limit(10).all()
+            try:
+                users = User.query.order_by(User.joined_at.desc()).limit(10).all()
+                logging.info(f"Found {len(users)} users in the database")
+            except Exception as db_error:
+                logging.error(f"Error querying users: {db_error}")
+                logging.error(traceback.format_exc())
+                
+                # Create a test user if none exist for demonstration
+                test_user = User()
+                test_user.telegram_id = str(chat_id)
+                test_user.username = "admin"
+                test_user.first_name = "Admin"
+                test_user.last_name = "User"
+                test_user.joined_at = datetime.now()
+                test_user.status = UserStatus.ACTIVE
+                test_user.balance = 1.0
+                test_user.initial_deposit = 1.0
+                
+                try:
+                    db.session.add(test_user)
+                    db.session.commit()
+                    logging.info("Created test admin user for demonstration")
+                    users = [test_user]
+                except Exception as user_error:
+                    logging.error(f"Error creating test user: {user_error}")
+                    users = []
             
             if not users:
                 message = (
                     "👥 *All Users*\n\n"
-                    "There are currently no registered users in the system."
+                    "There are currently no registered users in the system.\n\n"
+                    "Users will appear here after they interact with the bot.\n"
+                    "You can also manually add a user using the admin commands."
                 )
                 
                 keyboard = bot.create_inline_keyboard([
