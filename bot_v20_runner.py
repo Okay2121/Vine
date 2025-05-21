@@ -2146,7 +2146,6 @@ def admin_confirm_initial_deposit_handler(update, chat_id):
                     ])
                 )
                 # Reset global variables
-                global admin_target_user_id, admin_initial_deposit_amount
                 admin_target_user_id = None
                 admin_initial_deposit_amount = None
                 return
