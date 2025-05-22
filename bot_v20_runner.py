@@ -6660,7 +6660,8 @@ def trade_history_display_handler(update, chat_id):
     try:
         # Get the user ID from the database
         with app.app_context():
-            from models import User
+            from models import User, TradingPosition
+            from datetime import datetime
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             
             if not user:
@@ -6672,6 +6673,15 @@ def trade_history_display_handler(update, chat_id):
             # Check if user has funded their account
             has_funds = user.balance > 0 or user.initial_deposit > 0
             
+            # First check if there are any closed trading positions (admin broadcasts)
+            closed_positions = TradingPosition.query.filter_by(
+                user_id=user_id,
+                status='closed'
+            ).order_by(TradingPosition.timestamp.desc()).all()
+            
+            # If there are closed positions, we'll show those regardless of the yield module
+            has_admin_trades = len(closed_positions) > 0
+            
             # Import the yield_module function safely
             try:
                 # Try to import directly from the module
@@ -6679,13 +6689,43 @@ def trade_history_display_handler(update, chat_id):
                 
                 # Different behavior based on funding status
                 if has_funds:
-                    # For funded accounts, show real trade history
-                    history_message = get_trade_history_message(user_id)
-                    
-                    if "No trade history found" in history_message:
-                        # Simulate a sample trade for funded users to show them what it looks like
-                        simulate_trade(user_id)
+                    if has_admin_trades:
+                        # Show admin-broadcasted trades alongside yield module trades
+                        # Format the message
+                        history_message = "📊 <b>Your Trading History</b>\n\n"
+                        
+                        # Add closed positions (admin broadcasts)
+                        for position in closed_positions:
+                            # Calculate profit/loss
+                            pl_amount = (position.current_price - position.entry_price) * position.amount
+                            pl_percentage = ((position.current_price / position.entry_price) - 1) * 100
+                            
+                            # Determine emoji based on profit/loss
+                            pl_emoji = "📈" if pl_percentage > 0 else "📉"
+                            date_str = position.timestamp.strftime("%Y-%m-%d %H:%M")
+                            
+                            # Add trade details
+                            history_message += f"<b>{position.token_name}</b> {pl_emoji} {pl_percentage:.1f}%\n"
+                            history_message += f"Amount: {position.amount:.6f} SOL\n"
+                            history_message += f"Entry: ${position.entry_price:.6f}\n"
+                            history_message += f"Exit: ${position.current_price:.6f}\n"
+                            history_message += f"P/L: {pl_amount:.6f} SOL\n"
+                            history_message += f"Date: {date_str}\n\n"
+                        
+                        # Try to get yield module trades as well
+                        yield_message = get_trade_history_message(user_id)
+                        if "No trade history found" not in yield_message:
+                            # Append yield module trades after admin broadcasts
+                            yield_message = yield_message.replace("📊 <b>Trading History</b>", "<b>Additional Trades</b>")
+                            history_message += yield_message
+                    else:
+                        # For funded accounts with no admin trades, show yield module trade history
                         history_message = get_trade_history_message(user_id)
+                        
+                        if "No trade history found" in history_message:
+                            # Simulate a sample trade for funded users to show them what it looks like
+                            simulate_trade(user_id)
+                            history_message = get_trade_history_message(user_id)
                     
                     # Create pagination keyboard
                     page_keyboard = create_pagination_keyboard(user_id, 0)
@@ -6709,26 +6749,84 @@ def trade_history_display_handler(update, chat_id):
                     keyboard = bot.create_inline_keyboard(keyboard_markup)
                     bot.send_message(chat_id, history_message, parse_mode="HTML", reply_markup=keyboard)
                 else:
-                    # For unfunded accounts, show a message encouraging deposit
-                    deposit_keyboard = bot.create_inline_keyboard([
-                        [{"text": "🔄 Deposit Funds", "callback_data": "deposit"}],
+                    # Even if not funded, if they have admin trades, show those
+                    if has_admin_trades:
+                        # Format the message
+                        history_message = "📊 <b>Your Trading History</b>\n\n"
+                        
+                        # Add closed positions (admin broadcasts)
+                        for position in closed_positions:
+                            # Calculate profit/loss
+                            pl_amount = (position.current_price - position.entry_price) * position.amount
+                            pl_percentage = ((position.current_price / position.entry_price) - 1) * 100
+                            
+                            # Determine emoji based on profit/loss
+                            pl_emoji = "📈" if pl_percentage > 0 else "📉"
+                            date_str = position.timestamp.strftime("%Y-%m-%d %H:%M")
+                            
+                            # Add trade details
+                            history_message += f"<b>{position.token_name}</b> {pl_emoji} {pl_percentage:.1f}%\n"
+                            history_message += f"Amount: {position.amount:.6f} SOL\n"
+                            history_message += f"Entry: ${position.entry_price:.6f}\n"
+                            history_message += f"Exit: ${position.current_price:.6f}\n"
+                            history_message += f"P/L: {pl_amount:.6f} SOL\n"
+                            history_message += f"Date: {date_str}\n\n"
+                        
+                        # Add back button
+                        keyboard = bot.create_inline_keyboard([
+                            [{"text": "🔙 Back", "callback_data": "trading_history"}]
+                        ])
+                        
+                        bot.send_message(chat_id, history_message, parse_mode="HTML", reply_markup=keyboard)
+                    else:
+                        # For unfunded accounts with no admin trades, show a message encouraging deposit
+                        deposit_keyboard = bot.create_inline_keyboard([
+                            [{"text": "🔄 Deposit Funds", "callback_data": "deposit"}],
+                            [{"text": "🔙 Back", "callback_data": "trading_history"}]
+                        ])
+                        
+                        bot.send_message(
+                            chat_id, 
+                            "📊 <b>Trade History</b>\n\n"
+                            "Your account is not yet funded. To start trading and building your "
+                            "performance history, please deposit funds first.\n\n"
+                            "Our AI trading system will automatically start making profitable trades "
+                            "for you as soon as your account is funded.",
+                            parse_mode="HTML",
+                            reply_markup=deposit_keyboard
+                        )
+                
+            except ImportError as e:
+                # Fallback if import fails - still show admin trades if available
+                if has_admin_trades:
+                    # Format the message
+                    history_message = "📊 <b>Your Trading History</b>\n\n"
+                    
+                    # Add closed positions (admin broadcasts)
+                    for position in closed_positions:
+                        # Calculate profit/loss
+                        pl_amount = (position.current_price - position.entry_price) * position.amount
+                        pl_percentage = ((position.current_price / position.entry_price) - 1) * 100
+                        
+                        # Determine emoji based on profit/loss
+                        pl_emoji = "📈" if pl_percentage > 0 else "📉"
+                        date_str = position.timestamp.strftime("%Y-%m-%d %H:%M")
+                        
+                        # Add trade details
+                        history_message += f"<b>{position.token_name}</b> {pl_emoji} {pl_percentage:.1f}%\n"
+                        history_message += f"Amount: {position.amount:.6f} SOL\n"
+                        history_message += f"Entry: ${position.entry_price:.6f}\n"
+                        history_message += f"Exit: ${position.current_price:.6f}\n"
+                        history_message += f"P/L: {pl_amount:.6f} SOL\n"
+                        history_message += f"Date: {date_str}\n\n"
+                    
+                    # Add back button
+                    keyboard = bot.create_inline_keyboard([
                         [{"text": "🔙 Back", "callback_data": "trading_history"}]
                     ])
                     
-                    bot.send_message(
-                        chat_id, 
-                        "📊 <b>Trade History</b>\n\n"
-                        "Your account is not yet funded. To start trading and building your "
-                        "performance history, please deposit funds first.\n\n"
-                        "Our AI trading system will automatically start making profitable trades "
-                        "for you as soon as your account is funded.",
-                        parse_mode="HTML",
-                        reply_markup=deposit_keyboard
-                    )
-                
-            except ImportError as e:
-                # Fallback if import fails
-                if has_funds:
+                    bot.send_message(chat_id, history_message, parse_mode="HTML", reply_markup=keyboard)
+                elif has_funds:
                     # Message for funded accounts
                     bot.send_message(
                         chat_id, 
