@@ -6052,6 +6052,7 @@ def trading_history_handler(update, chat_id):
             win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
             
             # Build the new Performance Page message
+            # Performance Overview Title (The first thing users see)
             performance_message = "📈 *Performance Overview*\n\n"
             performance_message += "\"Track your journey, gains, and trading health in one place.\"\n\n"
             
