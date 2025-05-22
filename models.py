@@ -56,10 +56,17 @@ class Transaction(db.Model):
     transaction_type = db.Column(db.String(20), nullable=False)  # deposit, withdraw, buy, sell, admin_credit, admin_debit
     amount = db.Column(db.Float, nullable=False)
     token_name = db.Column(db.String(64))  # For buy/sell transactions
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Indexed for faster lookups
     status = db.Column(db.String(20), default='pending')  # pending, completed, failed
     notes = db.Column(db.Text, nullable=True)  # For storing reasons or additional information
-    tx_hash = db.Column(db.String(128), nullable=True)  # For transaction hash for blockchain transactions
+    tx_hash = db.Column(db.String(128), nullable=True, unique=True, index=True)  # Unique to prevent duplicate processing
+    processed_at = db.Column(db.DateTime, nullable=True)  # When the transaction was actually processed
+    
+    # Create indexes for common query patterns
+    __table_args__ = (
+        db.Index('idx_transaction_user_type', 'user_id', 'transaction_type'),
+        db.Index('idx_transaction_status', 'status'),
+    )
     
     def __repr__(self):
         return f'<Transaction {self.transaction_type} {self.amount}>'
