@@ -6051,95 +6051,80 @@ def trading_history_handler(update, chat_id):
             total_trades = profitable_trades + loss_trades
             win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
             
-            # Build the new Performance Page message
-            # Build a clean, user-friendly performance dashboard
-            performance_message = "📈 *Performance Overview*\n\n"
-            performance_message += "Track your journey, gains, and trading health in one place.\n\n"
+            # Build a visually stunning and user-friendly performance dashboard
+            performance_message = "🚀 *PERFORMANCE DASHBOARD* 🚀\n\n"
             
-            # Profit breakdown with clean formatting
-            performance_message += "---\n\n"
-            performance_message += "*Portfolio Summary*\n\n"
-            performance_message += f"💸 Total Profit: +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n"
-            performance_message += f"🎯 Initial Deposit: {user.initial_deposit:.2f} SOL\n"
-            performance_message += f"💼 Current Balance: {current_balance:.2f} SOL\n\n"
-            performance_message += f"Your portfolio grew by {total_profit_percentage:.1f}% since joining Autopilot.\n\n"
+            # Balance section - highlight the important numbers
+            performance_message += "💰 *BALANCE*\n"
+            performance_message += f"Initial: {user.initial_deposit:.2f} SOL\n"
+            performance_message += f"Current: {current_balance:.2f} SOL\n"
+            performance_message += f"Profit: +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n\n"
             
-            # Today's performance
-            performance_message += "---\n\n"
-            performance_message += "*Today's Performance*\n\n"
-            performance_message += f"📆 Today's Profit: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
-            performance_message += f"⏰ Starting Balance: {yesterday_balance:.2f} SOL\n\n"
-            
-            # Clean progress indicator
-            daily_blocks = int(min(10, daily_goal_progress / 10))
-            daily_bar = f"[ {'▓' * daily_blocks}{'░' * (10 - daily_blocks)} ] {daily_goal_progress:.0f}% of today's target\n\n"
-            performance_message += f"{daily_bar}"
-            
-            # Streak information
-            performance_message += "---\n\n"
-            performance_message += "*Winning Streak*\n\n"
-            
-            if streak > 0:
-                fire_emojis = "🔥" * min(3, streak)
-                performance_message += f"{fire_emojis} {streak}-Day Green Streak!\n"
-                performance_message += "Keep compounding your gains!\n\n"
+            # Today's profit - emphasized and eye-catching
+            performance_message += "📈 *TODAY'S PERFORMANCE*\n"
+            if today_profit_amount > 0:
+                performance_message += f"Profit: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
+                daily_blocks = int(min(10, daily_goal_progress / 10))
+                daily_bar = f"{'█' * daily_blocks}{'░' * (10 - daily_blocks)} {daily_goal_progress:.0f}% of target\n\n"
+                performance_message += f"{daily_bar}"
             else:
-                performance_message += "⚪ No streak yet — earn profit today to start one!\n\n"
+                performance_message += "No profit recorded yet today\n"
+                performance_message += f"Starting: {yesterday_balance:.2f} SOL\n\n"
             
-            # Trading cycle progress
-            performance_message += "---\n\n"
-            performance_message += "*Trading Cycle*\n\n"
-            performance_message += f"📅 Day: {days_active} of 30\n"
+            # Profit streak - motivational and prominent
+            performance_message += "🔥 *WINNING STREAK*\n"
+            if streak > 0:
+                streak_emoji = "🔥" if streak >= 3 else "✨"
+                performance_message += f"{streak_emoji} {streak} day{'s' if streak > 1 else ''} in a row!\n"
+                if streak >= 5:
+                    performance_message += "Incredible winning streak! Keep it up! 🏆\n\n"
+                else:
+                    performance_message += "You're on fire! Keep building momentum! 💪\n\n"
+            else:
+                performance_message += "Start your streak today with your first profit!\n\n"
             
+            # Cycle progress - clean and visual
+            performance_message += "⏱️ *TRADING CYCLE*\n"
+            performance_message += f"Day {days_active} of 30\n"
             cycle_percentage = (days_active / 30) * 100
-            performance_message += f"You're {cycle_percentage:.1f}% through your trading cycle.\n\n"
-            
-            # Clean cycle progress indicator
             cycle_blocks = int(min(10, cycle_percentage / 10))
-            cycle_bar = f"[ {'▓' * cycle_blocks}{'░' * (10 - cycle_blocks)} ] {cycle_percentage:.0f}% Complete\n\n"
+            cycle_bar = f"{'█' * cycle_blocks}{'░' * (10 - cycle_blocks)} {cycle_percentage:.0f}% complete\n\n"
             performance_message += f"{cycle_bar}"
             
-            # Milestone tracking
-            performance_message += "---\n\n"
-            performance_message += "*Next Milestone*\n\n"
-            
+            # Milestone progress - visual and motivational
+            performance_message += "🏁 *NEXT MILESTONE*\n"
             milestone_profit_target = milestone_target
-            performance_message += f"Target: +{milestone_profit_target:.2f} SOL Profit\n"
-            performance_message += f"Current: +{total_profit_amount:.2f} SOL ({milestone_progress:.0f}% Complete)\n\n"
-            
-            # Clean milestone progress indicator
+            performance_message += f"Target: +{milestone_profit_target:.2f} SOL\n"
+            performance_message += f"Current: +{total_profit_amount:.2f} SOL\n"
             milestone_blocks = int(min(10, milestone_progress / 10))
-            milestone_bar = f"⏳ [ {'▓' * milestone_blocks}{'░' * (10 - milestone_blocks)} ] {milestone_progress:.0f}%\n\n"
+            milestone_bar = f"{'█' * milestone_blocks}{'░' * (10 - milestone_blocks)} {milestone_progress:.0f}% progress\n\n"
             performance_message += f"{milestone_bar}"
             
-            # Goal tracking
-            performance_message += "---\n\n"
-            performance_message += "*Goal Tracker*\n\n"
-            
+            # Goal tracker - clear progress visualization
+            performance_message += "🎯 *GOAL TRACKER*\n"
             goal_target = user.initial_deposit + milestone_target
-            performance_message += f"🎯 Target: {goal_target:.2f} SOL\n"
+            performance_message += f"Target: {goal_target:.2f} SOL\n"
             performance_message += f"Current: {current_balance:.2f} SOL\n"
-            
-            remaining_to_goal = max(0, goal_target - current_balance)
-            performance_message += f"Remaining: {remaining_to_goal:.2f} SOL\n\n"
-            
-            # Clean goal progress indicator
             goal_progress = min(100, (current_balance / goal_target * 100)) if goal_target > 0 else 0
             goal_blocks = int(min(10, goal_progress / 10))
-            goal_bar = f"[ {'▓' * goal_blocks}{'░' * (10 - goal_blocks)} ] {goal_progress:.0f}% to goal\n\n"
+            goal_bar = f"{'█' * goal_blocks}{'░' * (10 - goal_blocks)} {goal_progress:.0f}% complete\n\n"
             performance_message += f"{goal_bar}"
             
-            # Trading performance metrics
-            performance_message += "---\n\n"
-            performance_message += "*Trading Accuracy*\n\n"
-            performance_message += f"✅ {profitable_trades} Profitable Trades Today\n"
-            performance_message += f"❌ {loss_trades} Loss Trade\n"
-            performance_message += f"Overall Win Rate: {win_rate:.0f}%\n\n"
+            # Trading stats - clean and informative
+            performance_message += "📊 *TRADING STATS*\n"
+            performance_message += f"✅ Wins: {profitable_trades}\n"
+            performance_message += f"❌ Losses: {loss_trades}\n"
+            total_trades = profitable_trades + loss_trades
+            win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
             
-            if win_rate >= 50:
-                performance_message += "Your auto-trading strategy is profitable today.\n"
+            if total_trades > 0:
+                performance_message += f"Win rate: {win_rate:.0f}%\n\n"
+                if win_rate >= 50:
+                    performance_message += "Your auto-trading strategy is profitable today! 📈\n"
+                else:
+                    performance_message += "Market conditions are challenging, but the bot is adapting. 🔄\n"
             else:
-                performance_message += "Market conditions are challenging today, but the bot is adapting.\n"
+                performance_message += "No trades completed today\n"
             
             # Create proper keyboard with transaction history button
             keyboard = bot.create_inline_keyboard([
