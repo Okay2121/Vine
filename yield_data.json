@@ -54,6 +54,15 @@
     "balance": 2.4699999999999998,
     "trades": [
       {
+        "name": "SOLCHADS",
+        "symbol": "SOLCHADS",
+        "mint": "test_tx_hash_123456",
+        "entry": 0.001,
+        "exit": 0.0015,
+        "yield": 50.0,
+        "timestamp": "2025-05-22T18:56:25.914144"
+      },
+      {
         "name": "ZING",
         "symbol": "ZING",
         "mint": "https://solscan.io/tx/abc123",
