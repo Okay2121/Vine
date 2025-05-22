@@ -270,7 +270,7 @@ def find_user_by_sender_wallet(sender_wallet):
 
 def process_auto_deposit(user_id, amount, tx_signature):
     """
-    Process an automatic deposit for a user.
+    Process an automatic deposit for a user with enhanced transaction safety.
     
     Args:
         user_id (int): Database ID of the user
@@ -282,9 +282,21 @@ def process_auto_deposit(user_id, amount, tx_signature):
     """
     with app.app_context():
         try:
+            # Use SQL transaction to ensure database consistency
+            # Create a savepoint for this transaction
+            db.session.begin_nested()
+            
+            # Check if this transaction was already processed (idempotence)
+            existing_tx = Transaction.query.filter_by(tx_hash=tx_signature).first()
+            if existing_tx:
+                logger.warning(f"Transaction {tx_signature} already processed - avoiding duplicate credit")
+                db.session.commit()
+                return True
+                
             user = User.query.get(user_id)
             if not user:
                 logger.error(f"User {user_id} not found for auto deposit")
+                db.session.rollback()
                 return False
             
             # Record the transaction
@@ -294,9 +306,10 @@ def process_auto_deposit(user_id, amount, tx_signature):
             transaction.amount = amount
             transaction.status = "completed"
             transaction.tx_hash = tx_signature
+            transaction.timestamp = datetime.utcnow()  # Explicitly set timestamp
             db.session.add(transaction)
             
-            # Update user balance
+            # Update user balance safely
             previous_balance = user.balance
             user.balance = previous_balance + amount
             
@@ -314,7 +327,7 @@ def process_auto_deposit(user_id, amount, tx_signature):
             logger.info(f"Auto deposit of {amount} SOL processed for user {user_id}")
             logger.info(f"Previous balance: {previous_balance} SOL, New balance: {user.balance} SOL")
             
-            # Start auto trading history for this user
+            # Process auto trading in a separate try-except block to prevent it from affecting deposits
             try:
                 # Import the auto trading module
                 from utils.auto_trading_history import handle_user_deposit
@@ -324,7 +337,7 @@ def process_auto_deposit(user_id, amount, tx_signature):
                 logger.info(f"Auto trading history started for user {user_id} after deposit")
             except Exception as trading_error:
                 logger.error(f"Failed to start auto trading history for user {user_id}: {trading_error}")
-                # Don't fail the deposit process if auto trading fails
+                # Don't let trading errors affect deposit success
             
             return True
             
