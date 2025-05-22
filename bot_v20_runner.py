@@ -4739,6 +4739,9 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     # Create TradingPosition record to display in trade history
                     from models import TradingPosition
                     
+                    # Store the entry price in a properly named variable to avoid "name 'entry_price' is not defined" error
+                    entry_price = entry
+                    
                     # Calculate the token amount - using a safe calculation to avoid division by zero
                     token_amount = 0.0
                     if exit_price != entry_price:
@@ -4752,7 +4755,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                         user_id=user.id,
                         token_name=token,
                         amount=token_amount,
-                        entry_price=entry,
+                        entry_price=entry_price,
                         current_price=exit_price,
                         timestamp=datetime.utcnow(),
                         status="closed"  # Mark as closed since it's a completed trade
