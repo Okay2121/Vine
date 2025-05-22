@@ -4736,7 +4736,22 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     )
                     db.session.add(new_profit)
                     
-                    # Add trade to user's history page
+                    # Create TradingPosition record to display in trade history
+                    from models import TradingPosition
+                    
+                    # Create a completed trading position for the trade
+                    trading_position = TradingPosition(
+                        user_id=user.id,
+                        token_name=token,
+                        amount=profit_amount / (exit_price - entry_price) if exit_price != entry_price else 1.0,
+                        entry_price=entry,
+                        current_price=exit_price,
+                        timestamp=datetime.utcnow(),
+                        status="closed"  # Mark as closed since it's a completed trade
+                    )
+                    db.session.add(trading_position)
+                    
+                    # Add trade to user's history page (JSON file)
                     add_trade_to_history(
                         user_id=user.id, 
                         token_name=token,
