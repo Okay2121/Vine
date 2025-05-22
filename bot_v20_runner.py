@@ -1365,7 +1365,6 @@ def dashboard_command(update, chat_id):
             # Add a trust-building reminder message - different messages based on deposit status
             if user.status == UserStatus.ACTIVE and user.balance >= MIN_DEPOSIT:
                 tips_message = random.choice([
-                    "Thrive is trading real, newly launched memecoins on Solana to grow your portfolio.",
                     "Your Autopilot system is working 24/7 to find and execute trading opportunities.",
                     "Thrive's trading engine targets consistent daily profits when market conditions allow.",
                     "Every day brings new memecoin opportunities that your Autopilot can discover.",
@@ -6049,7 +6048,7 @@ def trading_history_handler(update, chat_id):
             else:
                 performance_message += "No recent trades yet. Autopilot is scanning for opportunities.\n"
             
-            performance_message += "\nThrive is trading real, newly launched memecoins on Solana — your portfolio updates hourly.\n\n"
+            performance_message += "\n\n"
             
             # Add daily performance breakdown if we have data
             if daily_profits:
