@@ -51,8 +51,35 @@
     "page": 0
   },
   "1": {
-    "balance": 2.4699999999999998,
+    "balance": 0.5832926829268292,
     "trades": [
+      {
+        "name": "SOLCHADS",
+        "symbol": "SOLCHADS",
+        "mint": "tx_1747940185",
+        "entry": 0.001,
+        "exit": 0.0015,
+        "yield": 50.0,
+        "timestamp": "2025-05-22T18:56:25.807997"
+      },
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "tx_1747925890",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-22T14:58:10.059629"
+      },
+      {
+        "name": "TEST",
+        "symbol": "TEST",
+        "mint": "tx_1747870129",
+        "entry": 0.005,
+        "exit": 0.007,
+        "yield": 39.99999999999999,
+        "timestamp": "2025-05-21T23:28:49.637677"
+      },
       {
         "name": "SOLCHADS",
         "symbol": "SOLCHADS",
@@ -111,8 +138,17 @@
     "page": 0
   },
   "3": {
-    "balance": 8.02,
+    "balance": 17.054712671074782,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "tx_1747925890",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-22T14:58:10.564464"
+      },
       {
         "name": "BONK",
         "symbol": "BONK",
@@ -162,8 +198,17 @@
     "page": 0
   },
   "4": {
-    "balance": 7.94,
+    "balance": 24.871773095129278,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "tx_1747925891",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-22T14:58:11.029725"
+      },
       {
         "name": "MEME",
         "symbol": "MEME",
@@ -213,8 +258,17 @@
     "page": 0
   },
   "5": {
-    "balance": 3.91,
+    "balance": 5.507678962057243,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "tx_1747925891",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-22T14:58:11.536736"
+      },
       {
         "name": "BOME",
         "symbol": "BOME",
