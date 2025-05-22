@@ -98,13 +98,13 @@ def ensure_daily_snapshot(user_id):
         if not user:
             return None
             
-        snapshot = DailySnapshot(
-            user_id=user_id,
-            date=today,
-            starting_balance=user.balance,
-            trades_count=0,
-            winning_trades=0
-        )
+        snapshot = DailySnapshot()
+        snapshot.user_id = user_id
+        snapshot.date = today
+        snapshot.starting_balance = user.balance
+        snapshot.trades_count = 0
+        snapshot.winning_trades = 0
+        
         db.session.add(snapshot)
         db.session.commit()
     
@@ -182,12 +182,11 @@ def end_of_day_processing(user_id):
         
         # Create profit record for the day if profit exists
         if snapshot.profit_amount != 0:
-            daily_profit = Profit(
-                user_id=user_id,
-                amount=snapshot.profit_amount,
-                percentage=snapshot.profit_percentage,
-                date=snapshot.date
-            )
+            daily_profit = Profit()
+            daily_profit.user_id = user_id
+            daily_profit.amount = snapshot.profit_amount
+            daily_profit.percentage = snapshot.profit_percentage
+            daily_profit.date = snapshot.date
             db.session.add(daily_profit)
         
         # Update streak information
@@ -222,7 +221,10 @@ def update_streak(user_id, is_profitable_day):
     # Get or create user metrics
     metrics = UserMetrics.query.filter_by(user_id=user_id).first()
     if not metrics:
-        metrics = UserMetrics(user_id=user_id)
+        metrics = UserMetrics()
+        metrics.user_id = user_id
+        metrics.current_streak = 0
+        metrics.best_streak = 0
         db.session.add(metrics)
     
     today = datetime.utcnow().date()
@@ -262,7 +264,8 @@ def update_milestone_progress(user_id):
     # Get or create user metrics
     metrics = UserMetrics.query.filter_by(user_id=user_id).first()
     if not metrics:
-        metrics = UserMetrics(user_id=user_id)
+        metrics = UserMetrics()
+        metrics.user_id = user_id
         db.session.add(metrics)
     
     # Set next milestone if not set (10% of initial deposit or minimum 0.05 SOL)
@@ -284,12 +287,11 @@ def update_milestone_progress(user_id):
         metrics.next_milestone = profit + max(user.initial_deposit * 0.1, 0.05)
         
         # Record milestone achievement
-        milestone = MilestoneTracker(
-            user_id=user_id,
-            milestone_type='profit_amount',
-            value=profit,
-            acknowledged=False
-        )
+        milestone = MilestoneTracker()
+        milestone.user_id = user_id
+        milestone.milestone_type = 'profit_amount'
+        milestone.value = profit
+        milestone.acknowledged = False
         db.session.add(milestone)
     
     db.session.commit()
@@ -313,7 +315,8 @@ def update_goal_progress(user_id):
     # Get or create user metrics
     metrics = UserMetrics.query.filter_by(user_id=user_id).first()
     if not metrics:
-        metrics = UserMetrics(user_id=user_id)
+        metrics = UserMetrics()
+        metrics.user_id = user_id
         db.session.add(metrics)
     
     # Set goal if not set (2x initial deposit)
@@ -332,12 +335,11 @@ def update_goal_progress(user_id):
         metrics.current_goal = user.balance * 2
         
         # Record goal achievement
-        milestone = MilestoneTracker(
-            user_id=user_id,
-            milestone_type='goal_reached',
-            value=user.balance,
-            acknowledged=False
-        )
+        milestone = MilestoneTracker()
+        milestone.user_id = user_id
+        milestone.milestone_type = 'goal_reached'
+        milestone.value = user.balance
+        milestone.acknowledged = False
         db.session.add(milestone)
     
     db.session.commit()
@@ -403,7 +405,8 @@ def get_performance_data(user_id):
     # Ensure metrics exist
     metrics = UserMetrics.query.filter_by(user_id=user_id).first()
     if not metrics:
-        metrics = UserMetrics(user_id=user_id)
+        metrics = UserMetrics()
+        metrics.user_id = user_id
         db.session.add(metrics)
         db.session.commit()
     
@@ -411,7 +414,7 @@ def get_performance_data(user_id):
     snapshot = ensure_daily_snapshot(user_id)
     
     # Calculate days active (capped at 30)
-    days_active = min(30, (datetime.utcnow().date() - user.created_at.date()).days + 1)
+    days_active = min(30, (datetime.utcnow().date() - user.created_at.date()).days + 1) if hasattr(user, 'created_at') else 1
     
     # Get today's profit
     today_profit = Profit.query.filter_by(
