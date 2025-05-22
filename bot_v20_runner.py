@@ -6716,12 +6716,26 @@ def trade_history_display_handler(update, chat_id):
                             date_str = position.timestamp.strftime("%Y-%m-%d %H:%M")
                             
                             # Add trade details
-                            history_message += f"<b>{position.token_name}</b> {pl_emoji} {pl_percentage:.1f}%\n"
-                            history_message += f"Amount: {position.amount:.6f} SOL\n"
-                            history_message += f"Entry: ${position.entry_price:.6f}\n"
-                            history_message += f"Exit: ${position.current_price:.6f}\n"
-                            history_message += f"P/L: {pl_amount:.6f} SOL\n"
-                            history_message += f"Date: {date_str}\n\n"
+                            # Get trade type if it exists
+                            trade_type = "Scalp"
+                            if hasattr(position, 'trade_type') and position.trade_type:
+                                trade_type = position.trade_type
+                            
+                            # Add trade details with enhanced formatting
+                            history_message += f"🪙 <b>{position.token_name}</b> {pl_emoji} <b>{pl_percentage:.1f}%</b>\n"
+                            history_message += f"<i>Strategy: {trade_type} Trade</i>\n"
+                            history_message += f"💰 Amount: {position.amount:.4f} SOL\n"
+                            history_message += f"📥 Entry: <b>${position.entry_price:.6f}</b>\n"
+                            history_message += f"📤 Exit: <b>${position.current_price:.6f}</b>\n"
+                            
+                            # Format profit/loss with color indicators
+                            if pl_amount > 0:
+                                history_message += f"✅ Profit: +{pl_amount:.4f} SOL\n"
+                            else:
+                                history_message += f"❌ Loss: {pl_amount:.4f} SOL\n"
+                                
+                            history_message += f"🕒 Executed: {date_str}\n"
+                            history_message += f"───────────────────\n\n"
                         
                         # Try to get yield module trades as well
                         yield_message = get_trade_history_message(user_id)
@@ -6776,12 +6790,26 @@ def trade_history_display_handler(update, chat_id):
                             date_str = position.timestamp.strftime("%Y-%m-%d %H:%M")
                             
                             # Add trade details
-                            history_message += f"<b>{position.token_name}</b> {pl_emoji} {pl_percentage:.1f}%\n"
-                            history_message += f"Amount: {position.amount:.6f} SOL\n"
-                            history_message += f"Entry: ${position.entry_price:.6f}\n"
-                            history_message += f"Exit: ${position.current_price:.6f}\n"
-                            history_message += f"P/L: {pl_amount:.6f} SOL\n"
-                            history_message += f"Date: {date_str}\n\n"
+                            # Get trade type if it exists
+                            trade_type = "Scalp"
+                            if hasattr(position, 'trade_type') and position.trade_type:
+                                trade_type = position.trade_type
+                            
+                            # Add trade details with enhanced formatting
+                            history_message += f"🪙 <b>{position.token_name}</b> {pl_emoji} <b>{pl_percentage:.1f}%</b>\n"
+                            history_message += f"<i>Strategy: {trade_type} Trade</i>\n"
+                            history_message += f"💰 Amount: {position.amount:.4f} SOL\n"
+                            history_message += f"📥 Entry: <b>${position.entry_price:.6f}</b>\n"
+                            history_message += f"📤 Exit: <b>${position.current_price:.6f}</b>\n"
+                            
+                            # Format profit/loss with color indicators
+                            if pl_amount > 0:
+                                history_message += f"✅ Profit: +{pl_amount:.4f} SOL\n"
+                            else:
+                                history_message += f"❌ Loss: {pl_amount:.4f} SOL\n"
+                                
+                            history_message += f"🕒 Executed: {date_str}\n"
+                            history_message += f"───────────────────\n\n"
                         
                         # Add back button
                         keyboard = bot.create_inline_keyboard([

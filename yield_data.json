@@ -114,6 +114,42 @@
     "balance": 8.02,
     "trades": [
       {
+        "name": "BONK",
+        "symbol": "BONK",
+        "mint": "tx_1746698725",
+        "entry": 0.092656,
+        "exit": 0.10674200832880897,
+        "yield": 15.202478337947856,
+        "timestamp": "2025-05-08T10:05:25.307618"
+      },
+      {
+        "name": "MEME",
+        "symbol": "MEME",
+        "mint": "tx_1746723925",
+        "entry": 0.06277,
+        "exit": 0.09167329067035185,
+        "yield": 46.04634486275583,
+        "timestamp": "2025-05-08T17:05:25.303267"
+      },
+      {
+        "name": "MEME",
+        "symbol": "MEME",
+        "mint": "tx_1747310725",
+        "entry": 0.057632,
+        "exit": 0.0675539596262544,
+        "yield": 17.216059873428648,
+        "timestamp": "2025-05-15T12:05:25.297443"
+      },
+      {
+        "name": "MEME",
+        "symbol": "MEME",
+        "mint": "tx_1747609525",
+        "entry": 0.056904,
+        "exit": 0.08249534417096564,
+        "yield": 44.97283876522853,
+        "timestamp": "2025-05-18T23:05:25.287825"
+      },
+      {
         "name": "ZING",
         "symbol": "ZING",
         "mint": "https://solscan.io/tx/abc123",
@@ -129,6 +165,42 @@
     "balance": 7.94,
     "trades": [
       {
+        "name": "MEME",
+        "symbol": "MEME",
+        "mint": "tx_1747004725",
+        "entry": 0.002007,
+        "exit": 0.0029158495493603765,
+        "yield": 45.28398352567895,
+        "timestamp": "2025-05-11T23:05:25.365022"
+      },
+      {
+        "name": "BOME",
+        "symbol": "BOME",
+        "mint": "tx_1747001125",
+        "entry": 0.007532,
+        "exit": 0.00935244657244345,
+        "yield": 24.16949777540429,
+        "timestamp": "2025-05-11T22:05:25.362898"
+      },
+      {
+        "name": "POPCAT",
+        "symbol": "POPCAT",
+        "mint": "tx_1747577125",
+        "entry": 0.055984,
+        "exit": 0.06340820276389383,
+        "yield": 13.261293876632308,
+        "timestamp": "2025-05-18T14:05:25.360349"
+      },
+      {
+        "name": "SOLCHADS",
+        "symbol": "SOLCHADS",
+        "mint": "tx_1746774325",
+        "entry": 0.078758,
+        "exit": 0.08483196261663348,
+        "yield": 7.712184942016664,
+        "timestamp": "2025-05-09T07:05:25.357815"
+      },
+      {
         "name": "ZING",
         "symbol": "ZING",
         "mint": "https://solscan.io/tx/abc123",
@@ -143,6 +215,42 @@
   "5": {
     "balance": 3.91,
     "trades": [
+      {
+        "name": "BOME",
+        "symbol": "BOME",
+        "mint": "tx_1747227925",
+        "entry": 0.099065,
+        "exit": 0.1321988244473926,
+        "yield": 33.446549686965724,
+        "timestamp": "2025-05-14T13:05:25.402279"
+      },
+      {
+        "name": "POPCAT",
+        "symbol": "POPCAT",
+        "mint": "tx_1747238725",
+        "entry": 0.090998,
+        "exit": 0.12810307170410565,
+        "yield": 40.7757002396818,
+        "timestamp": "2025-05-14T16:05:25.400377"
+      },
+      {
+        "name": "BONK",
+        "symbol": "BONK",
+        "mint": "tx_1746813925",
+        "entry": 0.063438,
+        "exit": 0.04647367234473713,
+        "yield": -26.74158651795906,
+        "timestamp": "2025-05-09T18:05:25.398445"
+      },
+      {
+        "name": "MEME",
+        "symbol": "MEME",
+        "mint": "tx_1746839125",
+        "entry": 0.084337,
+        "exit": 0.09795647746675,
+        "yield": 16.14887589877516,
+        "timestamp": "2025-05-10T01:05:25.395868"
+      },
       {
         "name": "ZING",
         "symbol": "ZING",
