@@ -4633,8 +4633,6 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
     Format: TOKEN ENTRY EXIT ROI_PERCENT TX_LINK [OPTIONAL:TRADE_TYPE]
     
     Example: $ZING 0.0041 0.0074 8.5 0xabc123 scalp
-    
-    Includes a 6-hour cooldown period between broadcasts to make trading appear more realistic.
     """
     try:
         # Remove the message listener
@@ -4644,35 +4642,10 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         processing_msg = "⏳ Processing trade broadcast..."
         bot.send_message(chat_id, processing_msg)
         
-        # Check if the cooldown period has passed
+        # Record broadcast time for tracking purposes
         with app.app_context():
             from models import SystemSettings
-            from datetime import datetime, timedelta
-            
-            # Get the last broadcast time
-            last_broadcast_setting = SystemSettings.query.filter_by(setting_name='last_trade_broadcast_time').first()
-            
-            if last_broadcast_setting:
-                last_broadcast_time = datetime.fromisoformat(last_broadcast_setting.setting_value)
-                current_time = datetime.utcnow()
-                time_since_last = current_time - last_broadcast_time
-                
-                # Check if it's been less than 6 hours
-                if time_since_last < timedelta(hours=6):
-                    # Calculate remaining time
-                    remaining_minutes = int((timedelta(hours=6) - time_since_last).total_seconds() / 60)
-                    remaining_hours = remaining_minutes // 60
-                    remaining_mins = remaining_minutes % 60
-                    
-                    cooldown_message = (
-                        "⏳ *Trade Broadcast Cooldown*\n\n"
-                        "To maintain realistic trading patterns, there's a 6-hour cooldown between broadcast trades.\n\n"
-                        f"Please wait {remaining_hours}h {remaining_mins}m before sending another trade broadcast.\n\n"
-                        "You can still use individual `/admin_trade_post` commands during this period."
-                    )
-                    
-                    bot.send_message(chat_id, cooldown_message, parse_mode="Markdown")
-                    return
+            from datetime import datetime
         
         # Parse the trade information
         parts = text.strip().split()
