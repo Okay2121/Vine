@@ -1346,7 +1346,6 @@ def dashboard_command(update, chat_id):
             # Add progress toward next milestone
             dashboard_message += "• *Progress Toward Next Milestone:*\n"
             dashboard_message += f"⏳ {progress_bar} {goal_progress:.0f}% Complete\n"
-            dashboard_message += "Thrive is trading real, newly launched memecoins on Solana — your portfolio updates hourly.\n"
             dashboard_message += "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
             
             # Add goal completion tracker
