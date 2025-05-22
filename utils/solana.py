@@ -281,22 +281,18 @@ def process_auto_deposit(user_id, amount, tx_signature):
         bool: True if successful, False otherwise
     """
     with app.app_context():
-        try:
-            # Use SQL transaction to ensure database consistency
-            # Create a savepoint for this transaction
-            db.session.begin_nested()
+        # First check if this transaction was already processed (idempotence)
+        existing_tx = Transaction.query.filter_by(tx_hash=tx_signature).first()
+        if existing_tx:
+            logger.warning(f"Transaction {tx_signature} already processed - avoiding duplicate credit")
+            return True
             
-            # Check if this transaction was already processed (idempotence)
-            existing_tx = Transaction.query.filter_by(tx_hash=tx_signature).first()
-            if existing_tx:
-                logger.warning(f"Transaction {tx_signature} already processed - avoiding duplicate credit")
-                db.session.commit()
-                return True
-                
+        # Use a try block with explicit transaction handling
+        try:
+            # Get user information
             user = User.query.get(user_id)
             if not user:
                 logger.error(f"User {user_id} not found for auto deposit")
-                db.session.rollback()
                 return False
             
             # Record the transaction
@@ -307,6 +303,7 @@ def process_auto_deposit(user_id, amount, tx_signature):
             transaction.status = "completed"
             transaction.tx_hash = tx_signature
             transaction.timestamp = datetime.utcnow()  # Explicitly set timestamp
+            transaction.processed_at = datetime.utcnow()  # Record when we processed it
             db.session.add(transaction)
             
             # Update user balance safely
@@ -322,6 +319,7 @@ def process_auto_deposit(user_id, amount, tx_signature):
                 from models import UserStatus
                 user.status = UserStatus.ACTIVE
                 
+            # Commit the transaction
             db.session.commit()
             
             logger.info(f"Auto deposit of {amount} SOL processed for user {user_id}")

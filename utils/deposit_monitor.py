@@ -70,9 +70,9 @@ def scan_for_deposits():
                     success = process_auto_deposit(user.id, amount, tx_signature)
                     
                     if success:
-                        # Update wallet timestamp in separate transaction for safety
+                        # Update wallet timestamp in a safe way
                         try:
-                            db.session.begin_nested()
+                            # Simple update of the last_used timestamp
                             wallet.last_used = datetime.utcnow()
                             db.session.commit()
                             deposits_found += 1
@@ -88,7 +88,7 @@ def scan_for_deposits():
                                 
                         except Exception as wallet_update_error:
                             logger.error(f"Failed to update wallet timestamp: {str(wallet_update_error)}")
-                            db.session.rollback()
+                            # Just log the error, don't rollback as the deposit itself was successful
                     else:
                         logger.error(f"Failed to process deposit for user {user.telegram_id}")
             except Exception as wallet_error:
