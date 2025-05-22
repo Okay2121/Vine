@@ -4739,11 +4739,19 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     # Create TradingPosition record to display in trade history
                     from models import TradingPosition
                     
+                    # Calculate the token amount - using a safe calculation to avoid division by zero
+                    token_amount = 0.0
+                    if exit_price != entry_price:
+                        token_amount = abs(profit_amount / (exit_price - entry_price))
+                    else:
+                        # Fallback to a reasonable calculation if prices are the same
+                        token_amount = abs(profit_amount / entry_price) if entry_price > 0 else 1.0
+                    
                     # Create a completed trading position for the trade
                     trading_position = TradingPosition(
                         user_id=user.id,
                         token_name=token,
-                        amount=profit_amount / (exit_price - entry_price) if exit_price != entry_price else 1.0,
+                        amount=token_amount,
                         entry_price=entry,
                         current_price=exit_price,
                         timestamp=datetime.utcnow(),
