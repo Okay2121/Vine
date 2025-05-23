@@ -6660,9 +6660,10 @@ def transaction_history_handler(update, chat_id):
                                 except:
                                     pass
                         
-                        # Add type indicator with emoji
+                        # Add type indicator with emoji and clickable token name
                         type_display = "Buy Order" if tx.transaction_type == "buy" else "Sell Order"
-                        history_message += f"{trade_emoji} *{type_display}*\n"
+                        token_explorer_url = f"https://solscan.io/token/{tx.token_name}"
+                        history_message += f"{trade_emoji} *{type_display}* [${tx.token_name}]({token_explorer_url})\n"
                         
                         # Add price information
                         if price > 0:
@@ -6670,8 +6671,7 @@ def transaction_history_handler(update, chat_id):
                         else:
                             history_message += f"• *{trade_type}:* {tx.amount:.4f} SOL\n"
                         
-                        # Add token information as separate line for better clarity
-                        history_message += f"• *Token:* ${tx.token_name}\n"
+                        # Token information already included in the header
                         
                         # Add ROI if available (for sell transactions)
                         if tx.transaction_type == "sell" and roi_percentage is not None:
