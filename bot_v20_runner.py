@@ -6036,26 +6036,26 @@ def trading_history_handler(update, chat_id):
             else:
                 performance_message += "Start your streak today with your first profit!\n\n"
             
-            # Trading stats - enhanced with more detailed information
-            performance_message += "📊 *TRADING STATS*\n"
-            performance_message += f"✅ Wins: {profitable_trades}\n"
-            performance_message += f"❌ Losses: {loss_trades}\n"
+            # Token Trading Performance - Real Results
+            performance_message += "🎯 *TOKEN TRADING RESULTS*\n"
+            performance_message += f"🟢 Winning Tokens: {profitable_trades}\n"
+            performance_message += f"🔴 Losing Tokens: {loss_trades}\n"
             
             if total_trades > 0:
-                performance_message += f"Win rate: {win_rate:.1f}%\n"
-                performance_message += f"Total trades: {total_trades}\n\n"
+                performance_message += f"Success Rate: {win_rate:.1f}%\n"
+                performance_message += f"Tokens Traded: {total_trades}\n\n"
                 
-                # Provide specific performance feedback based on win rate
+                # Provide specific feedback based on token trading performance
                 if win_rate >= 75:
-                    performance_message += "Exceptional trading! Your strategy is outperforming the market! 🔥📈\n"
+                    performance_message += "🔥 Exceptional token picks! Your bot is crushing the memecoin market!\n"
                 elif win_rate >= 50:
-                    performance_message += "Your auto-trading strategy is profitable! 📈\n"
+                    performance_message += "📈 Solid token selection! Your strategy is beating the market!\n"
                 elif win_rate >= 30:
-                    performance_message += "Market conditions are challenging, but the bot is adapting. 🔄\n"
+                    performance_message += "🔄 Mixed results - the bot is learning market patterns and adapting!\n"
                 else:
-                    performance_message += "Volatile market. The bot is adjusting strategy to find better opportunities. 📊\n"
+                    performance_message += "📊 Tough market conditions - bot is analyzing and improving token selection!\n"
             else:
-                performance_message += "No trades completed yet. The bot is waiting for optimal market conditions. ⏳\n"
+                performance_message += "⏳ No token trades completed yet. Scanning for profitable opportunities!\n"
             
             # Create proper keyboard with transaction history button but no trade history button
             keyboard = bot.create_inline_keyboard([
