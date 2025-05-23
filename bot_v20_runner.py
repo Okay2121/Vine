@@ -6022,15 +6022,37 @@ def trading_history_handler(update, chat_id):
                 Transaction.timestamp >= datetime.combine(today_date, datetime.min.time())
             ).all()
             
-            # Count profitable vs loss trades
+            # Get trading stats from yield_data.json instead of just today's trades
             profitable_trades = 0
             loss_trades = 0
-            for tx in trades_today:
-                if hasattr(tx, 'profit_amount') and tx.profit_amount is not None:
-                    if tx.profit_amount > 0:
-                        profitable_trades += 1
-                    elif tx.profit_amount < 0:
-                        loss_trades += 1
+            
+            # Try to get stats from yield_data.json file first
+            try:
+                yield_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yield_data.json')
+                
+                if os.path.exists(yield_data_path):
+                    with open(yield_data_path, 'r') as f:
+                        yield_data = json.load(f)
+                    
+                    user_id_str = str(user.id)
+                    if user_id_str in yield_data:
+                        user_data = yield_data[user_id_str]
+                        # Get wins and losses from yield_data
+                        profitable_trades = user_data.get('wins', 0)
+                        loss_trades = user_data.get('losses', 0)
+                        logging.info(f"Got stats from yield_data.json: {profitable_trades} wins, {loss_trades} losses")
+                        
+            except Exception as e:
+                logging.error(f"Error reading yield_data.json: {e}")
+                
+            # Fallback to calculating from today's trades if we didn't get stats from yield_data.json
+            if profitable_trades == 0 and loss_trades == 0:
+                for tx in trades_today:
+                    if hasattr(tx, 'profit_amount') and tx.profit_amount is not None:
+                        if tx.profit_amount > 0:
+                            profitable_trades += 1
+                        elif tx.profit_amount < 0:
+                            loss_trades += 1
             
             # Calculate win rate
             total_trades = profitable_trades + loss_trades
