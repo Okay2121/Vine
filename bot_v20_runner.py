@@ -6028,7 +6028,14 @@ def trading_history_handler(update, chat_id):
             
             # Try to get stats from yield_data.json file first
             try:
-                yield_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yield_data.json')
+                # Try multiple possible locations for yield_data.json
+                possible_paths = ['yield_data.json', '/home/runner/workspace/yield_data.json', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yield_data.json')]
+                
+                yield_data_path = None
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        yield_data_path = path
+                        break
                 
                 if os.path.exists(yield_data_path):
                     with open(yield_data_path, 'r') as f:
