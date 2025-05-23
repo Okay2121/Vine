@@ -109,9 +109,34 @@ def process_trade_broadcast(details):
                 position.buy_timestamp = datetime.utcnow()
                 
                 db.session.add(position)
+                
+                # Also create Buy transactions for all active users
+                users = User.query.filter(User.balance > 0).all()
+                update_count = 0
+                
+                for user in users:
+                    try:
+                        # Create a Buy transaction record
+                        transaction = Transaction()
+                        transaction.user_id = user.id
+                        transaction.transaction_type = 'buy'
+                        transaction.amount = user.balance * 0.1  # Use 10% of balance as placeholder amount
+                        transaction.token_name = details['token_name']
+                        transaction.price = details['price']
+                        transaction.timestamp = datetime.utcnow()
+                        transaction.notes = f"Buy ${details['token_name']} at ${details['price']:.6f}"
+                        transaction.tx_hash = tx_hash
+                        transaction.status = 'completed'
+                        
+                        db.session.add(transaction)
+                        update_count += 1
+                    except Exception as user_error:
+                        logger.error(f"Error creating Buy transaction for user {user.id}: {str(user_error)}")
+                        continue
+                
                 db.session.commit()
                 
-                return True, f"BUY order recorded for ${details['token_name']} at {details['price']}", 1
+                return True, f"BUY order recorded for ${details['token_name']} at {details['price']} for {update_count} users", update_count
                 
             elif trade_type == 'sell':
                 # For sell transactions, match with a previous buy and apply profit/loss
@@ -188,10 +213,13 @@ def process_trade_broadcast(details):
                         transaction.user_id = user.id
                         transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
                         transaction.amount = profit_amount
+                        transaction.token_name = details['token_name']
+                        transaction.price = exit_price  # Store the token price
                         transaction.timestamp = datetime.utcnow()
                         # Use notes instead of description if that's what your model has
                         transaction.notes = f"${details['token_name']} trade: {roi_percent:.2f}% ROI"
                         transaction.tx_hash = tx_hash
+                        transaction.status = 'completed'
                         
                         db.session.add(transaction)
                         
@@ -294,8 +322,8 @@ def send_trade_notifications(bot, details, users):
                 f"Buy: ${details['entry_price']:.6f}\n"
                 f"Sell: ${details['exit_price']:.6f}\n"
                 f"ROI: {details['roi_percent']:.2f}%\n\n"
-                f"💰 Your profit: ${profit:.2f}\n"
-                f"💵 New balance: ${user.balance:.2f}"
+                f"💰 Your profit: {profit:.6f} SOL\n"
+                f"💵 New balance: {user.balance:.6f} SOL"
             )
             
             # Send the message

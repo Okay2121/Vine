@@ -112,12 +112,41 @@ async def trading_history_callback(update: Update, context: ContextTypes.DEFAULT
         history = "📜 *TRADING HISTORY*\n\n"
         
         for trade in trades:
-            action = "🟢 BUY" if trade.transaction_type == 'buy' else "🔴 SELL"
+            # Determine emoji and styling based on transaction type
+            if trade.transaction_type == 'buy':
+                action = "🟢 *BUY*"
+            elif trade.transaction_type == 'sell':
+                action = "🔴 *SELL*"
+            else:
+                action = "⚪ *TRADE*"
+                
             date = trade.timestamp.strftime("%Y-%m-%d %H:%M")
             token = trade.token_name or "Unknown"
             amount = abs(trade.amount)
             
-            history += f"{action} · {token} · {amount:.4f} SOL · {date}\n\n"
+            # Enhanced display with more details
+            history += f"{action} {token}\n"
+            
+            # Show price if available
+            if hasattr(trade, 'price') and trade.price:
+                history += f"Price: ${trade.price:.6f}\n"
+                
+            history += f"Amount: {amount:.4f} SOL\n"
+            history += f"Date: {date}\n"
+            
+            # Add transaction link if available
+            if hasattr(trade, 'tx_hash') and trade.tx_hash:
+                # Create a Solana Explorer link for the transaction
+                if trade.tx_hash.startswith('http'):
+                    # Link is already provided
+                    explorer_url = trade.tx_hash
+                else:
+                    # Create link from hash
+                    explorer_url = f"https://solscan.io/tx/{trade.tx_hash}"
+                history += f"[View Transaction]({explorer_url})\n"
+            
+            # Add separator between transactions
+            history += "───────────────────\n\n"
     else:
         history = "📜 *TRADING HISTORY*\n\nNo trading activity found yet."
     

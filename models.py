@@ -56,6 +56,7 @@ class Transaction(db.Model):
     transaction_type = db.Column(db.String(20), nullable=False)  # deposit, withdraw, buy, sell, admin_credit, admin_debit
     amount = db.Column(db.Float, nullable=False)
     token_name = db.Column(db.String(64))  # For buy/sell transactions
+    price = db.Column(db.Float, nullable=True)  # Token price for buy/sell transactions
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Indexed for faster lookups
     status = db.Column(db.String(20), default='pending')  # pending, completed, failed
     notes = db.Column(db.Text, nullable=True)  # For storing reasons or additional information
