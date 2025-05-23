@@ -4566,15 +4566,17 @@ def admin_broadcast_trade_handler(update, chat_id):
             bot.send_message(chat_id, "⚠️ You don't have permission to use this feature.")
             return
             
-        # Show input form with instructions
+        # Show input form with instructions for new BUY/SELL format
         instructions = (
-            "📈 *Broadcast Trade Alert*\n\n"
+            "📈 *Broadcast Trade Alert - New Format*\n\n"
             "Send the trade details in the following format:\n"
-            "`$TOKEN_NAME ENTRY_PRICE EXIT_PRICE ROI_PERCENT TX_HASH [OPTIONAL:TRADE_TYPE]`\n\n"
+            "`$TOKEN_NAME ENTRY_PRICE EXIT_PRICE TX_HASH [OPTIONAL:TRADE_TYPE]`\n\n"
             "Examples:\n"
-            "`$ZING 0.0041 0.0074 8.5 https://solscan.io/tx/abc123`\n"
-            "`$ZING 0.0041 0.0074 8.5 https://solscan.io/tx/abc123 scalp`\n\n"
+            "`$ZING 0.0041 0.0074 https://solscan.io/tx/abc123`\n"
+            "`$ZING 0.0041 0.0074 https://solscan.io/tx/abc123 scalp`\n\n"
             "Trade Types: scalp, snipe, dip, reversal\n\n"
+            "✅ ROI will be calculated automatically: ((Exit - Entry) / Entry) × 100\n"
+            "✅ No manual ROI input needed - prevents calculation conflicts\n\n"
             "This will be broadcast to all active users with personalized profit calculations based on their balance."
         )
         
@@ -4619,30 +4621,34 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
             from models import SystemSettings
             from datetime import datetime
         
-        # Parse the trade information
+        # Parse the trade information (new format without manual ROI)
         parts = text.strip().split()
-        if len(parts) < 5:
-            bot.send_message(chat_id, "⚠️ Invalid format. Please provide all required information: TOKEN ENTRY EXIT ROI% TX_LINK [OPTIONAL:TRADE_TYPE]")
+        if len(parts) < 4:
+            bot.send_message(chat_id, "⚠️ Invalid format. Please provide: TOKEN ENTRY EXIT TX_LINK [OPTIONAL:TRADE_TYPE]")
             return
             
         token = parts[0]  # Token name
         entry = float(parts[1])  # Entry price
         exit_price = float(parts[2])  # Exit price
-        roi_percent = float(parts[3])  # ROI percentage
-        tx_link = parts[4]  # Transaction hash link
+        tx_link = parts[3]  # Transaction hash link
+        
+        # Calculate ROI automatically
+        roi_percent = ((exit_price - entry) / entry) * 100
         
         # Check for optional trade type
         trade_type = None
-        if len(parts) >= 6:
-            trade_type = parts[5].lower()
+        if len(parts) >= 5:
+            # Check if the 5th parameter is a valid trade type (not a URL)
+            potential_trade_type = parts[4].lower()
             valid_trade_types = ["scalp", "snipe", "dip", "reversal"]
-            if trade_type not in valid_trade_types:
-                bot.send_message(
-                    chat_id, 
-                    f"⚠️ Invalid trade type: '{trade_type}'. Valid types are: scalp, snipe, dip, reversal. "
-                    f"Proceeding without trade type."
-                )
-                trade_type = None
+            if potential_trade_type in valid_trade_types:
+                trade_type = potential_trade_type
+            else:
+                # If 5th parameter isn't a trade type, check if there's a 6th parameter
+                if len(parts) >= 6:
+                    potential_trade_type = parts[5].lower()
+                    if potential_trade_type in valid_trade_types:
+                        trade_type = potential_trade_type
         
         # Show confirmation message to admin
         confirmation = (
