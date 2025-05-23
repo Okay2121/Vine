@@ -64,7 +64,7 @@ def format_compact_performance(
         return '█' * filled + '░' * (length - filled)
     
     # Build the message with careful spacing and grouping
-    msg = "🚀 *PERFORMANCE DASHBOARD* 🚀\n\n"
+    msg = "*PERFORMANCE DASHBOARD*\n\n"
     
     # Balance section - clean and minimal
     msg += f"💰 *{initial_deposit:.2f} + {profit:.2f} = {current_balance:.2f} SOL*\n\n"
@@ -80,10 +80,7 @@ def format_compact_performance(
         streak_emoji = "🔥" if streak_days >= 3 else "✨"
         msg += f"{streak_emoji} *{streak_days} DAY {'STREAK' if streak_days > 1 else 'WIN'}!*\n\n"
     
-    # Cycle progress - countdown feel
-    msg += f"⏱️ *DAY {current_day}/{total_days}* · {remaining_days} days left\n"
-    cycle_bar = generate_bar(cycle_percentage)
-    msg += f"{cycle_bar} {cycle_percentage:.0f}%\n\n"
+
     
 
     
