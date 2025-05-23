@@ -6086,8 +6086,8 @@ def trading_history_handler(update, chat_id):
             )
             
     except Exception as e:
-        logger.error(f"Error in trading_history_handler: {e}")
-        logger.error(traceback.format_exc())
+        print(f"Error in trading_history_handler: {e}")
+        print(traceback.format_exc())
         bot.send_message(chat_id, f"Error displaying performance data: {str(e)}")
 
 def support_handler(update, chat_id):
