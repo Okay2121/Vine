@@ -6082,32 +6082,9 @@ def trading_history_handler(update, chat_id):
             else:
                 performance_message += "Start your streak today with your first profit!\n\n"
             
-            # Cycle progress - clean and visual
-            performance_message += "⏱️ *TRADING CYCLE*\n"
-            performance_message += f"Day {days_active} of 30\n"
-            cycle_percentage = (days_active / 30) * 100
-            cycle_blocks = int(min(10, cycle_percentage / 10))
-            cycle_bar = f"{'█' * cycle_blocks}{'░' * (10 - cycle_blocks)} {cycle_percentage:.0f}% complete\n\n"
-            performance_message += f"{cycle_bar}"
+
             
-            # Milestone progress - visual and motivational
-            performance_message += "🏁 *NEXT MILESTONE*\n"
-            milestone_profit_target = milestone_target
-            performance_message += f"Target: +{milestone_profit_target:.2f} SOL\n"
-            performance_message += f"Current: +{total_profit_amount:.2f} SOL\n"
-            milestone_blocks = int(min(10, milestone_progress / 10))
-            milestone_bar = f"{'█' * milestone_blocks}{'░' * (10 - milestone_blocks)} {milestone_progress:.0f}% progress\n\n"
-            performance_message += f"{milestone_bar}"
-            
-            # Goal tracker - clear progress visualization
-            performance_message += "🎯 *GOAL TRACKER*\n"
-            goal_target = user.initial_deposit + milestone_target
-            performance_message += f"Target: {goal_target:.2f} SOL\n"
-            performance_message += f"Current: {current_balance:.2f} SOL\n"
-            goal_progress = min(100, (current_balance / goal_target * 100)) if goal_target > 0 else 0
-            goal_blocks = int(min(10, goal_progress / 10))
-            goal_bar = f"{'█' * goal_blocks}{'░' * (10 - goal_blocks)} {goal_progress:.0f}% complete\n\n"
-            performance_message += f"{goal_bar}"
+
             
             # Trading stats - enhanced with more detailed information
             performance_message += "📊 *TRADING STATS*\n"
