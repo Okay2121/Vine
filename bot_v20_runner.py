@@ -8884,3 +8884,40 @@ def admin_view_completed_withdrawals_handler(update, chat_id):
 
 if __name__ == '__main__':
     run_polling()
+def main():
+    """Run the bot as a standalone program"""
+    import logging
+    import os
+    from dotenv import load_dotenv
+    
+    # Configure logging
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+    logger = logging.getLogger(__name__)
+    
+    # Load environment variables
+    load_dotenv()
+    
+    # Get the bot token from environment variables
+    token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    
+    if not token:
+        logger.error("No Telegram bot token provided. Set the TELEGRAM_BOT_TOKEN environment variable.")
+        return
+    
+    logger.info("Starting Telegram bot...")
+    
+    # Create bot instance
+    global bot
+    bot = SimpleTelegramBot(token)
+    
+    # Register all command handlers
+    register_handlers()
+    
+    # Start the bot
+    bot.start_polling()
+    
+if __name__ == "__main__":
+    main()
