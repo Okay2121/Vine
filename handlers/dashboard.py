@@ -930,16 +930,11 @@ async def trading_history_callback(update: Update, context: ContextTypes.DEFAULT
                     
             # Build the 7-Day Performance Tracker message
             performance_message = (
-                "📊 *7-Day Performance Tracker*\n\n"
+                "*Performance Tracker*\n\n"
                 f"• *Initial Deposit:* {user.initial_deposit:.2f} SOL\n"
                 f"• *Current Balance:* {current_amount:.2f} SOL\n"
                 f"• *Total Profit:* +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n"
-                f"• *Goal:* 2x ROI in 7 Days (Target: {target_amount:.2f} SOL)\n"
                 f"• *Cycle:* Day {days_active} of 7\n\n"
-                
-                f"*Progress Toward Goal:*\n"
-                f"🎯 2x Progress:\n"
-                f"{progress_bar}\n"
             )
             
             # Add motivational message based on remaining amount
