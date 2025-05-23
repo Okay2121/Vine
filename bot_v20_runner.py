@@ -198,6 +198,220 @@ class SimpleTelegramBot:
                 chat_id = update['message']['chat']['id']
                 user_id = str(update['message']['from']['id'])
                 
+                # Check for Buy/Sell trade messages (new format)
+                if text.strip().lower().startswith('buy ') or text.strip().lower().startswith('sell '):
+                    # Only process if from admin
+                    if is_admin(update['message']['from']['id']):
+                        import re
+                        
+                        # Parse trade message
+                        buy_pattern = re.compile(r'^buy\s+(\$[a-zA-Z0-9]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
+                        sell_pattern = re.compile(r'^sell\s+(\$[a-zA-Z0-9]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
+                        
+                        buy_match = buy_pattern.match(text.strip())
+                        sell_match = sell_pattern.match(text.strip())
+                        
+                        if buy_match:
+                            token, price, tx_link = buy_match.groups()
+                            self.send_message(chat_id, "💱 *Processing BUY order...*", parse_mode="Markdown")
+                            
+                            try:
+                                # Add pending trade to database
+                                with app.app_context():
+                                    from models import TradingPosition
+                                    
+                                    # Check if transaction already exists
+                                    tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
+                                    existing = TradingPosition.query.filter_by(buy_tx_hash=tx_hash).first()
+                                    
+                                    if existing:
+                                        self.send_message(
+                                            chat_id, 
+                                            f"⚠️ *Duplicate Transaction*\n\nThis BUY transaction has already been processed for {existing.token_name}",
+                                            parse_mode="Markdown"
+                                        )
+                                        return
+                                    
+                                    # Create new position
+                                    position = TradingPosition()
+                                    position.user_id = 1  # Placeholder - will be updated when matched with SELL
+                                    position.token_name = token.replace('$', '')
+                                    position.amount = 1.0  # Placeholder
+                                    position.entry_price = float(price)
+                                    position.current_price = float(price)
+                                    position.timestamp = datetime.utcnow()
+                                    position.status = 'open'
+                                    position.trade_type = 'scalp'
+                                    position.buy_tx_hash = tx_hash
+                                    position.buy_timestamp = datetime.utcnow()
+                                    
+                                    db.session.add(position)
+                                    db.session.commit()
+                                    
+                                    self.send_message(
+                                        chat_id,
+                                        f"✅ *BUY Order Recorded*\n\n"
+                                        f"• *Token:* {token}\n"
+                                        f"• *Entry Price:* {price}\n"
+                                        f"• *Transaction:* [View on Explorer]({tx_link})\n"
+                                        f"• *Timestamp:* {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                                        f"_This BUY will be matched with a future SELL order._",
+                                        parse_mode="Markdown"
+                                    )
+                            except Exception as e:
+                                logging.error(f"Error processing BUY trade: {e}")
+                                import traceback
+                                logging.error(traceback.format_exc())
+                                self.send_message(chat_id, f"⚠️ Error processing BUY trade: {str(e)}")
+                            
+                            return
+                            
+                        elif sell_match:
+                            token, price, tx_link = sell_match.groups()
+                            self.send_message(chat_id, "💱 *Processing SELL order...*", parse_mode="Markdown")
+                            
+                            try:
+                                # Match with open position and calculate profit
+                                with app.app_context():
+                                    from models import TradingPosition, Transaction, Profit, User
+                                    
+                                    # Check if transaction already exists
+                                    tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
+                                    existing = TradingPosition.query.filter_by(sell_tx_hash=tx_hash).first()
+                                    
+                                    if existing:
+                                        self.send_message(
+                                            chat_id, 
+                                            f"⚠️ *Duplicate Transaction*\n\nThis SELL transaction has already been processed",
+                                            parse_mode="Markdown"
+                                        )
+                                        return
+                                    
+                                    # Find matching open position
+                                    clean_token = token.replace('$', '')
+                                    position = TradingPosition.query.filter_by(
+                                        token_name=clean_token,
+                                        status='open'
+                                    ).order_by(TradingPosition.buy_timestamp.asc()).first()
+                                    
+                                    if not position:
+                                        self.send_message(
+                                            chat_id,
+                                            f"⚠️ *No Matching Position*\n\nNo open BUY order found for {token}",
+                                            parse_mode="Markdown"
+                                        )
+                                        return
+                                    
+                                    # Calculate ROI percentage
+                                    sell_price = float(price)
+                                    entry_price = position.entry_price
+                                    roi_percentage = ((sell_price - entry_price) / entry_price) * 100
+                                    
+                                    # Update position
+                                    position.current_price = sell_price
+                                    position.sell_tx_hash = tx_hash
+                                    position.sell_timestamp = datetime.utcnow()
+                                    position.status = 'closed'
+                                    position.roi_percentage = roi_percentage
+                                    
+                                    # Apply profit to active users
+                                    users = User.query.filter(User.balance > 0).all()
+                                    updated_count = 0
+                                    
+                                    for user in users:
+                                        try:
+                                            # Calculate profit
+                                            profit_amount = user.balance * (roi_percentage / 100)
+                                            
+                                            # Update balance
+                                            previous_balance = user.balance
+                                            user.balance += profit_amount
+                                            
+                                            # Record transaction
+                                            transaction = Transaction()
+                                            transaction.user_id = user.id
+                                            transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
+                                            transaction.amount = profit_amount
+                                            transaction.token_name = clean_token
+                                            transaction.status = 'completed'
+                                            transaction.notes = f"Trade ROI: {roi_percentage:.2f}% - {clean_token}"
+                                            transaction.tx_hash = tx_hash
+                                            transaction.processed_at = datetime.utcnow()
+                                            
+                                            # Create user position record
+                                            user_position = TradingPosition()
+                                            user_position.user_id = user.id
+                                            user_position.token_name = clean_token
+                                            user_position.amount = abs(profit_amount / (sell_price - entry_price)) if sell_price != entry_price else 1.0
+                                            user_position.entry_price = entry_price
+                                            user_position.current_price = sell_price
+                                            user_position.timestamp = datetime.utcnow()
+                                            user_position.status = 'closed'
+                                            user_position.trade_type = position.trade_type if position.trade_type else 'scalp'
+                                            user_position.buy_tx_hash = position.buy_tx_hash
+                                            user_position.sell_tx_hash = tx_hash
+                                            user_position.buy_timestamp = position.buy_timestamp
+                                            user_position.sell_timestamp = datetime.utcnow()
+                                            user_position.roi_percentage = roi_percentage
+                                            user_position.paired_position_id = position.id
+                                            
+                                            # Add profit record
+                                            profit_record = Profit()
+                                            profit_record.user_id = user.id
+                                            profit_record.amount = profit_amount
+                                            profit_record.percentage = roi_percentage
+                                            profit_record.date = datetime.utcnow().date()
+                                            
+                                            db.session.add(transaction)
+                                            db.session.add(user_position)
+                                            db.session.add(profit_record)
+                                            
+                                            # Send notification to user
+                                            try:
+                                                emoji = "📈" if roi_percentage >= 0 else "📉"
+                                                message = (
+                                                    f"{emoji} *Trade Alert*\n\n"
+                                                    f"• *Token:* {clean_token}\n"
+                                                    f"• *Entry:* {entry_price:.8f}\n"
+                                                    f"• *Exit:* {sell_price:.8f}\n"
+                                                    f"• *ROI:* {roi_percentage:.2f}%\n"
+                                                    f"• *Your Profit:* {profit_amount:.4f} SOL\n"
+                                                    f"• *New Balance:* {user.balance:.4f} SOL\n\n"
+                                                    f"_Your dashboard has been updated with this trade._"
+                                                )
+                                                self.send_message(user.telegram_id, message, parse_mode="Markdown")
+                                            except Exception as notify_error:
+                                                logging.error(f"Error notifying user {user.id}: {str(notify_error)}")
+                                            
+                                            updated_count += 1
+                                        except Exception as user_error:
+                                            logging.error(f"Error updating user {user.id}: {str(user_error)}")
+                                            continue
+                                    
+                                    # Commit all changes
+                                    db.session.commit()
+                                    
+                                    # Send confirmation to admin
+                                    self.send_message(
+                                        chat_id,
+                                        f"✅ *SELL Order Processed*\n\n"
+                                        f"• *Token:* {token}\n"
+                                        f"• *Exit Price:* {price}\n"
+                                        f"• *Entry Price:* {position.entry_price}\n"
+                                        f"• *ROI:* {roi_percentage:.2f}%\n"
+                                        f"• *Users Updated:* {updated_count}\n"
+                                        f"• *Transaction:* [View on Explorer]({tx_link})\n\n"
+                                        f"_Trade profit has been applied to all active users._",
+                                        parse_mode="Markdown"
+                                    )
+                            except Exception as e:
+                                logging.error(f"Error processing SELL trade: {e}")
+                                import traceback
+                                logging.error(traceback.format_exc())
+                                self.send_message(chat_id, f"⚠️ Error processing SELL trade: {str(e)}")
+                            
+                            return
+                
                 # Check if there's an active listener waiting for user input
                 if chat_id in self.wallet_listeners:
                     listener_type, callback = self.wallet_listeners[chat_id]
