@@ -51,8 +51,17 @@
     "page": 0
   },
   "1": {
-    "balance": 0.5832926829268292,
+    "balance": 1.183292682926829,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "https://solscan.io/tx/abc123",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-23T03:32:11.366009"
+      },
       {
         "name": "SOLCHADS",
         "symbol": "SOLCHADS",
@@ -150,8 +159,17 @@
     "last_updated": "2025-05-23T00:40:02.275254"
   },
   "3": {
-    "balance": 17.054712671074782,
+    "balance": 27.294712671074784,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "https://solscan.io/tx/abc123",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-23T03:32:11.712377"
+      },
       {
         "name": "ZING",
         "symbol": "ZING",
@@ -222,8 +240,17 @@
     "last_updated": "2025-05-23T00:40:02.276564"
   },
   "4": {
-    "balance": 24.871773095129278,
+    "balance": 35.02177309512928,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "https://solscan.io/tx/abc123",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-23T03:32:12.027622"
+      },
       {
         "name": "ZING",
         "symbol": "ZING",
@@ -294,8 +321,17 @@
     "last_updated": "2025-05-23T00:40:02.277238"
   },
   "5": {
-    "balance": 5.507678962057243,
+    "balance": 10.507678962057243,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "https://solscan.io/tx/abc123",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-23T03:32:12.342468"
+      },
       {
         "name": "ZING",
         "symbol": "ZING",

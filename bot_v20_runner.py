@@ -6125,14 +6125,13 @@ def trading_history_handler(update, chat_id):
             else:
                 performance_message += "No trades completed today\n"
             
-            # Create proper keyboard with transaction history button
+            # Create proper keyboard without transaction history button
             keyboard = bot.create_inline_keyboard([
                 [
                     {"text": "💲 Deposit More", "callback_data": "deposit"},
                     {"text": "💰 Withdraw", "callback_data": "withdraw_profit"}
                 ],
                 [
-                    {"text": "📜 Transaction History", "callback_data": "transaction_history"},
                     {"text": "📊 Trade History", "callback_data": "view_trade_history"}
                 ],
                 [
