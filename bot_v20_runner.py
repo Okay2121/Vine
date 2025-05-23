@@ -1343,21 +1343,7 @@ def dashboard_command(update, chat_id):
             dashboard_message += "• *Mode:* Autopilot Trader (Fully Automated)\n"
             dashboard_message += f"• *Day:* {days_active} of 30 ({30 - days_active} days left)\n\n"
             
-            # Add progress toward next milestone
-            dashboard_message += "• *Progress Toward Next Milestone:*\n"
-            dashboard_message += f"⏳ {progress_bar} {goal_progress:.0f}% Complete\n"
             dashboard_message += "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
-            
-            # Add goal completion tracker
-            dashboard_message += "• *Goal Completion Tracker:*\n"
-            dashboard_message += f"🎯 *Target:* {milestone_target:.2f} SOL (from {user.initial_deposit:.2f} SOL)\n"
-            dashboard_message += f"Current: {current_balance:.2f} SOL\n"
-            
-            # Calculate progress bars using Unicode blocks for visual appeal
-            progress_to_goal = min(100, (total_profit_amount / (milestone_target - user.initial_deposit)) * 100) if (milestone_target - user.initial_deposit) > 0 else 0
-            goal_blocks = int(min(10, progress_to_goal / 10))
-            goal_bar = f"{'█' * goal_blocks}{'░' * (10 - goal_blocks)} {progress_to_goal:.1f}% to goal\n\n"
-            dashboard_message += goal_bar
             
             import random
             from config import MIN_DEPOSIT
