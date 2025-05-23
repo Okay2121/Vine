@@ -85,15 +85,7 @@ def format_compact_performance(
     cycle_bar = generate_bar(cycle_percentage)
     msg += f"{cycle_bar} {cycle_percentage:.0f}%\n\n"
     
-    # Milestone progress - visual progress bar
-    msg += f"🏁 *MILESTONE: {milestone_current:.2f}/{milestone_target:.2f} SOL*\n"
-    milestone_bar = generate_bar(milestone_percentage)
-    msg += f"{milestone_bar} {milestone_percentage:.0f}%\n\n"
-    
-    # Goal tracker - clear visual of progress
-    msg += f"🎯 *GOAL: {current_balance:.2f}/{goal_target:.2f} SOL*\n"
-    goal_bar = generate_bar(goal_percentage)
-    msg += f"{goal_bar} {goal_percentage:.0f}%\n\n"
+
     
     # Recent activity - live trading feel
     msg += "⚡ *RECENT TRADES:*\n"
