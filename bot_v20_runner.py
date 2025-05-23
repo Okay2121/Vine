@@ -6062,10 +6062,7 @@ def trading_history_handler(update, chat_id):
             # Today's profit - emphasized and eye-catching
             performance_message += "📈 *TODAY'S PERFORMANCE*\n"
             if today_profit_amount > 0:
-                performance_message += f"Profit: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
-                daily_blocks = int(min(10, daily_goal_progress / 10))
-                daily_bar = f"{'█' * daily_blocks}{'░' * (10 - daily_blocks)} {daily_goal_progress:.0f}% of target\n\n"
-                performance_message += f"{daily_bar}"
+                performance_message += f"Profit: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n\n"
             else:
                 performance_message += "No profit recorded yet today\n"
                 performance_message += f"Starting: {yesterday_balance:.2f} SOL\n\n"
