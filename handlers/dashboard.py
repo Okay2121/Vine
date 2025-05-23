@@ -571,7 +571,7 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
             transactions = Transaction.query.filter_by(user_id=user.id).order_by(Transaction.timestamp.desc()).limit(10).all()
             
             if transactions:
-                history_message = "📜 *Transaction History*\n\n"
+                history_message = "📜 *TRANSACTION HISTORY*\n\n📊 Your last 10 transactions with tracking links\n───────────────────\n\n"
                 
                 for tx in transactions:
                     # Create appropriate emoji based on transaction type
@@ -598,13 +598,20 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                     history_message += f"   *Date*: {date_str}\n"
                     history_message += f"   *Status*: {tx.status.title()}\n"
                     
-                    # Add transaction hash as clickable link if available
+                    # Add transaction hash as clickable link with enhanced styling if available
                     if tx.tx_hash:
                         # Create a Solana Explorer link for the transaction
                         explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
-                        history_message += f"   *Track*: [View Transaction]({explorer_url})\n"
+                        history_message += f"   *Track*: [🔍 View on Blockchain]({explorer_url})\n"
                     
-                    history_message += "\n"
+                    # Add notes/description if available
+                    if hasattr(tx, 'notes') and tx.notes:
+                        notes = str(tx.notes)
+                        if len(notes) > 50:  # Truncate long notes
+                            notes = notes[:47] + "..."
+                        history_message += f"   *Info*: _{notes}_\n"
+                    
+                    history_message += "   ───────────────────\n\n"
             else:
                 history_message = "📜 *Transaction History*\n\n*No transactions found.*\n\nStart trading to see your transaction history here!"
             
@@ -925,22 +932,40 @@ async def trading_history_callback(update: Update, context: ContextTypes.DEFAULT
                     if trade.timestamp.date() == today:
                         today_trades += 1
             
-            # Add trading stats section
+            # Add trading stats section with enhanced visual formatting
             performance_message += "\n📊 *TRADING STATS*\n"
-            performance_message += f"✅ Wins: {profitable_trades}\n"
-            performance_message += f"❌ Losses: {loss_trades}\n"
             
             total_trades = profitable_trades + loss_trades
             win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
             
+            # Enhanced visual display with block styling
+            performance_message += "┌─────────────────────────┐\n"
+            performance_message += f"│ ✅ Wins:  {profitable_trades:2d}               │\n"
+            performance_message += f"│ ❌ Losses: {loss_trades:2d}               │\n"
+            
             if total_trades > 0:
-                performance_message += f"Win rate: {win_rate:.0f}%\n"
-                if today_trades == 0:
-                    performance_message += "No trades completed today\n"
+                # Create a visual win rate indicator with emojis
+                win_indicators = "🟢" * min(5, int(win_rate/20 + 0.5))
+                empty_indicators = "⚪" * (5 - len(win_indicators))
+                win_rate_display = win_indicators + empty_indicators
+                
+                performance_message += f"│ Win Rate: {win_rate:.0f}%  {win_rate_display} │\n"
+                
+                # Show recent trading activity
+                if today_trades > 0:
+                    performance_message += f"│ Today's Trades: {today_trades:2d}         │\n"
                 else:
-                    performance_message += f"{today_trades} trades completed today\n"
+                    performance_message += "│ No trades completed today  │\n"
+                    
+                # Add trading streak if applicable
+                if profitable_trades > loss_trades:
+                    performance_message += "│ 🔥 Profitable trading!      │\n"
+                
             else:
-                performance_message += "No trading history yet\n"
+                performance_message += "│ No trading history yet     │\n"
+                performance_message += "│ Deposit to start trading!  │\n"
+                
+            performance_message += "└─────────────────────────┘\n"
                 
             # Add time left in cycle
             if days_left > 0:
@@ -948,16 +973,25 @@ async def trading_history_callback(update: Update, context: ContextTypes.DEFAULT
             else:
                 performance_message += f"\n*Time Left in Cycle:*\nYour 7-day cycle is complete! Start a new one by depositing more SOL.\n"
             
-            # Create simplified keyboard with just deposit, withdraw and back options
-            keyboard = [
-                [
-                    InlineKeyboardButton("💲 Deposit More", callback_data="deposit"),
-                    InlineKeyboardButton("💰 Withdraw", callback_data="withdraw_profit")
-                ],
-                [
-                    InlineKeyboardButton("🔙 Back to Dashboard", callback_data="dashboard")
-                ]
-            ]
+            # Show recent transactions button if there are trades
+            keyboard = []
+            
+            # Add view transactions button if there are trades
+            if total_trades > 0:
+                keyboard.append([
+                    InlineKeyboardButton("🔍 View Transactions", callback_data="transaction_history"),
+                ])
+            
+            # Add deposit and withdraw options
+            keyboard.append([
+                InlineKeyboardButton("💲 Deposit More", callback_data="deposit"),
+                InlineKeyboardButton("💰 Withdraw", callback_data="withdraw_profit")
+            ])
+            
+            # Add back button
+            keyboard.append([
+                InlineKeyboardButton("🔙 Back to Dashboard", callback_data="dashboard")
+            ])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             await query.edit_message_text(
