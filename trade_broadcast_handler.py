@@ -189,7 +189,8 @@ def process_trade_broadcast(details):
                         transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
                         transaction.amount = profit_amount
                         transaction.timestamp = datetime.utcnow()
-                        transaction.description = f"${details['token_name']} trade: {roi_percent:.2f}% ROI"
+                        # Use notes instead of description if that's what your model has
+                        transaction.notes = f"${details['token_name']} trade: {roi_percent:.2f}% ROI"
                         transaction.tx_hash = tx_hash
                         
                         db.session.add(transaction)
@@ -198,9 +199,13 @@ def process_trade_broadcast(details):
                         profit_record = Profit()
                         profit_record.user_id = user.id
                         profit_record.amount = profit_amount
-                        profit_record.roi_percentage = roi_percent
-                        profit_record.timestamp = datetime.utcnow()
-                        profit_record.source = 'trading'
+                        # Set additional fields if your model has them
+                        if hasattr(profit_record, 'roi_percentage'):
+                            profit_record.roi_percentage = roi_percent
+                        if hasattr(profit_record, 'timestamp'):
+                            profit_record.timestamp = datetime.utcnow()
+                        if hasattr(profit_record, 'source'):
+                            profit_record.source = 'trading'
                         
                         db.session.add(profit_record)
                         
@@ -218,86 +223,14 @@ def process_trade_broadcast(details):
                 db.session.commit()
                 
                 return True, f"Applied {details['token_name']} trade to {updated_count} users: {roi_percent:.2f}% ROI", updated_count
-                    transaction = Transaction()
-                    transaction.user_id = user.id
-                    transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
-                    transaction.amount = profit_amount
-                    transaction.token_name = details['token_name']
-                    transaction.status = 'completed'
-                    transaction.notes = f"Trade ROI: {details['roi_percent']}% - {details['token_name']}"
-                    transaction.tx_hash = tx_hash
-                    transaction.processed_at = datetime.utcnow()
-                    
-                    # Add profit record
-                    profit_record = Profit()
-                    profit_record.user_id = user.id
-                    profit_record.amount = profit_amount
-                    profit_record.percentage = details['roi_percent']
-                    profit_record.date = datetime.utcnow().date()
-                    
-                    db.session.add(position)
-                    db.session.add(transaction)
-                    db.session.add(profit_record)
-                    
-                    updated_count += 1
-                except Exception as user_error:
-                    logger.error(f"Error processing trade for user {user.id}: {str(user_error)}")
-                    continue
             
-            # Commit all changes
-            db.session.commit()
-            
-            return True, f"Trade processed successfully for {updated_count} users", updated_count
+            else:
+                return False, f"Unknown trade type: {trade_type}", 0
+                
     except Exception as e:
         logger.error(f"Error processing trade broadcast: {str(e)}")
-        import traceback
         logger.error(traceback.format_exc())
-        return False, f"Error: {str(e)}", 0
-
-def send_trade_notifications(bot, details, users):
-    """
-    Send trade notifications to users
-    
-    Args:
-        bot: Bot instance to send messages
-        details (dict): Trade details
-        users (list): List of users to notify
-        
-    Returns:
-        int: Number of notifications sent
-    """
-    notification_count = 0
-    
-    for user in users:
-        try:
-            if not user.telegram_id:
-                continue
-                
-            # Calculate profit for this user
-            profit_amount = user.balance * (details['roi_percent'] / 100)
-            
-            # Create notification message
-            emoji = "📈" if details['roi_percent'] >= 0 else "📉"
-            trade_type_text = f" [{details['trade_type']}]" if details['trade_type'] else ""
-            
-            message = (
-                f"{emoji} *Trade Alert{trade_type_text}*\n\n"
-                f"• *Token:* ${details['token_name']}\n"
-                f"• *Entry:* {details['entry_price']:.8f}\n"
-                f"• *Exit:* {details['exit_price']:.8f}\n"
-                f"• *ROI:* {details['roi_percent']:.2f}%\n"
-                f"• *Your Profit:* {profit_amount:.4f} SOL\n"
-                f"• *New Balance:* {user.balance:.4f} SOL\n\n"
-                f"_Your dashboard has been updated with this trade._"
-            )
-            
-            bot.send_message(user.telegram_id, message, parse_mode="Markdown")
-            notification_count += 1
-        except Exception as e:
-            logger.error(f"Error sending notification to user {user.id}: {str(e)}")
-            continue
-            
-    return notification_count
+        return False, f"Error processing trade: {str(e)}", 0
 
 def handle_broadcast_message(text, bot=None, chat_id=None):
     """
@@ -313,40 +246,69 @@ def handle_broadcast_message(text, bot=None, chat_id=None):
     """
     # Extract trade details
     details = extract_trade_details(text)
+    
     if not details:
-        response = (
-            "⚠️ *Invalid Trade Format*\n\n"
-            "Expected format:\n"
-            "`$TOKEN_NAME ENTRY_PRICE EXIT_PRICE ROI_PERCENT TX_HASH [TRADE_TYPE]`\n\n"
-            "Example:\n"
-            "`$ZING 0.0041 0.0074 80.5 https://solscan.io/tx/abc123 scalp`"
-        )
-        return False, response
+        return False, "❌ Invalid trade format. Please use:\nBuy $TOKEN PRICE TX_LINK\nor\nSell $TOKEN PRICE TX_LINK"
     
     # Process the trade
-    success, message, updated_count = process_trade_broadcast(details)
+    success, message, count = process_trade_broadcast(details)
     
     if success:
-        # Get users for notifications if bot provided
-        if bot and updated_count > 0:
-            with app.app_context():
-                users = User.query.filter(User.balance > 0).all()
-                notification_count = send_trade_notifications(bot, details, users)
+        # Format a nice success message
+        if details['trade_type'].lower() == 'buy':
+            return True, f"✅ {message}"
         else:
-            notification_count = 0
-        
-        response = (
-            f"✅ *Trade Broadcast Successful*\n\n"
-            f"• *Token:* ${details['token_name']}\n"
-            f"• *Entry Price:* {details['entry_price']}\n"
-            f"• *Exit Price:* {details['exit_price']}\n"
-            f"• *ROI:* {details['roi_percent']}%\n"
-            f"• *Type:* {details['trade_type']}\n"
-            f"• *Users Updated:* {updated_count}\n"
-            f"• *Notifications Sent:* {notification_count if bot else 'N/A'}\n\n"
-            f"_The trade has been applied to all active users' balances._"
-        )
+            return True, f"✅ {message}"
     else:
-        response = f"⚠️ *Trade Broadcast Failed*\n\n{message}"
+        return False, f"❌ {message}"
+
+def send_trade_notifications(bot, details, users):
+    """
+    Send trade notifications to users
     
-    return success, response
+    Args:
+        bot: Bot instance to send messages
+        details (dict): Trade details
+        users (list): List of users to notify
+        
+    Returns:
+        int: Number of notifications sent
+    """
+    if not bot:
+        return 0
+        
+    sent_count = 0
+    
+    for user in users:
+        try:
+            # Skip users with no Telegram ID
+            if not user.telegram_id:
+                continue
+                
+            # Calculate user's profit
+            profit = user.balance * (details['roi_percent'] / 100)
+            
+            # Format notification
+            message = (
+                f"🚀 *Trade Alert: ${details['token_name']}*\n\n"
+                f"Buy: ${details['entry_price']:.6f}\n"
+                f"Sell: ${details['exit_price']:.6f}\n"
+                f"ROI: {details['roi_percent']:.2f}%\n\n"
+                f"💰 Your profit: ${profit:.2f}\n"
+                f"💵 New balance: ${user.balance:.2f}"
+            )
+            
+            # Send the message
+            bot.send_message(
+                user.telegram_id,
+                message,
+                parse_mode="Markdown"
+            )
+            
+            sent_count += 1
+            
+        except Exception as e:
+            logger.error(f"Error sending notification to user {user.id}: {str(e)}")
+            continue
+            
+    return sent_count
