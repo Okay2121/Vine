@@ -596,7 +596,15 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                         history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.2f} SOL\n"
                     
                     history_message += f"   *Date*: {date_str}\n"
-                    history_message += f"   *Status*: {tx.status.title()}\n\n"
+                    history_message += f"   *Status*: {tx.status.title()}\n"
+                    
+                    # Add transaction hash as clickable link if available
+                    if tx.tx_hash:
+                        # Create a Solana Explorer link for the transaction
+                        explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
+                        history_message += f"   *Track*: [View Transaction]({explorer_url})\n"
+                    
+                    history_message += "\n"
             else:
                 history_message = "📜 *Transaction History*\n\n*No transactions found.*\n\nStart trading to see your transaction history here!"
             
@@ -890,11 +898,55 @@ async def trading_history_callback(update: Update, context: ContextTypes.DEFAULT
                 if best_day_profit:
                     performance_message += f"Best Day So Far: +{best_day_profit.percentage:.1f}%\n\n"
                     
+            # Get trade statistics - count wins and losses
+            trades = Transaction.query.filter_by(
+                user_id=user.id
+            ).filter(
+                Transaction.transaction_type.in_(['buy', 'sell'])
+            ).order_by(
+                Transaction.timestamp.desc()
+            ).all()
+            
+            # Count wins and losses
+            profitable_trades = 0
+            loss_trades = 0
+            today = datetime.utcnow().date()
+            today_trades = 0
+            
+            for trade in trades:
+                if trade.transaction_type == 'sell' and hasattr(trade, 'notes') and trade.notes:
+                    # Notes field often contains profit/loss info
+                    if 'profit' in str(trade.notes).lower():
+                        profitable_trades += 1
+                    elif 'loss' in str(trade.notes).lower():
+                        loss_trades += 1
+                        
+                    # Count today's trades
+                    if trade.timestamp.date() == today:
+                        today_trades += 1
+            
+            # Add trading stats section
+            performance_message += "\n📊 *TRADING STATS*\n"
+            performance_message += f"✅ Wins: {profitable_trades}\n"
+            performance_message += f"❌ Losses: {loss_trades}\n"
+            
+            total_trades = profitable_trades + loss_trades
+            win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
+            
+            if total_trades > 0:
+                performance_message += f"Win rate: {win_rate:.0f}%\n"
+                if today_trades == 0:
+                    performance_message += "No trades completed today\n"
+                else:
+                    performance_message += f"{today_trades} trades completed today\n"
+            else:
+                performance_message += "No trading history yet\n"
+                
             # Add time left in cycle
             if days_left > 0:
-                performance_message += f"*Time Left in Cycle:*\n{days_left} {'days' if days_left > 1 else 'day'} left to complete this 7-day goal!\n"
+                performance_message += f"\n*Time Left in Cycle:*\n{days_left} {'days' if days_left > 1 else 'day'} left to complete this 7-day goal!\n"
             else:
-                performance_message += "*Time Left in Cycle:*\nYour 7-day cycle is complete! Start a new one by depositing more SOL.\n"
+                performance_message += f"\n*Time Left in Cycle:*\nYour 7-day cycle is complete! Start a new one by depositing more SOL.\n"
             
             # Create simplified keyboard with just deposit, withdraw and back options
             keyboard = [
