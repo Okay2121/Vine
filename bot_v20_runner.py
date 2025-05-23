@@ -1341,7 +1341,7 @@ def dashboard_command(update, chat_id):
                 
             # Add Autopilot Trader information
             dashboard_message += "• *Mode:* Autopilot Trader (Fully Automated)\n"
-            dashboard_message += f"• *Day:* {days_active} of 30 ({30 - days_active} days left)\n\n"
+            dashboard_message += f"• *Day:* {days_active}\n\n"
             
             dashboard_message += "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
             
