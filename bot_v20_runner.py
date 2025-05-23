@@ -5926,7 +5926,6 @@ def trading_history_handler(update, chat_id):
     # Import needed modules to avoid unbound errors
     import os
     import json
-    import logging
     import traceback
     from datetime import datetime, timedelta
     
