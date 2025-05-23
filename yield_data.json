@@ -53,11 +53,20 @@
     "losses": 0,
     "total_profit": 1592670.5157206925,
     "highest_profit_percentage": 10.703807284380783,
-    "last_updated": "2025-05-23T13:13:59.374397"
+    "last_updated": "2025-05-23T13:20:56.181658"
   },
   "1": {
-    "balance": 1.833292682926829,
+    "balance": 2.533292682926829,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "https://solscan.io/tx/abc123",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-23T13:18:50.802692"
+      },
       {
         "name": "ZING",
         "symbol": "ZING",
@@ -160,21 +169,30 @@
     ],
     "page": 0,
     "stats": {
-      "total_trades": 11,
-      "winning_trades": 11,
+      "total_trades": 12,
+      "winning_trades": 12,
       "losing_trades": 0,
       "win_rate": 100.0,
-      "total_profit": 0.024200000000000006
+      "total_profit": 0.027500000000000004
     },
-    "total_profit": 0.024200000000000006,
-    "wins": 11,
+    "total_profit": 0.027500000000000004,
+    "wins": 12,
     "losses": 0,
     "highest_profit_percentage": 80.48780487804876,
-    "last_updated": "2025-05-23T13:13:59.374551"
+    "last_updated": "2025-05-23T13:20:56.181881"
   },
   "3": {
-    "balance": 38.40471267107478,
+    "balance": 50.464712671074786,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "https://solscan.io/tx/abc123",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-23T13:18:51.196677"
+      },
       {
         "name": "ZING",
         "symbol": "ZING",
@@ -250,21 +268,30 @@
     ],
     "page": 0,
     "stats": {
-      "total_trades": 8,
-      "winning_trades": 8,
+      "total_trades": 9,
+      "winning_trades": 9,
       "losing_trades": 0,
       "win_rate": 100.0,
-      "total_profit": 0.09170260279638084
+      "total_profit": 0.09500260279638084
     },
-    "total_profit": 0.09170260279638084,
-    "wins": 8,
+    "total_profit": 0.09500260279638084,
+    "wins": 9,
     "losses": 0,
     "highest_profit_percentage": 80.48780487804876,
-    "last_updated": "2025-05-23T13:13:59.374710"
+    "last_updated": "2025-05-23T13:20:56.182044"
   },
   "4": {
-    "balance": 46.031773095129275,
+    "balance": 57.98177309512927,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "https://solscan.io/tx/abc123",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-23T13:18:51.560258"
+      },
       {
         "name": "ZING",
         "symbol": "ZING",
@@ -340,21 +367,30 @@
     ],
     "page": 0,
     "stats": {
-      "total_trades": 8,
-      "winning_trades": 8,
+      "total_trades": 9,
+      "winning_trades": 9,
       "losing_trades": 0,
       "win_rate": 100.0,
-      "total_profit": 0.029427461502331144
+      "total_profit": 0.03272746150233114
     },
-    "total_profit": 0.029427461502331144,
-    "wins": 8,
+    "total_profit": 0.03272746150233114,
+    "wins": 9,
     "losses": 0,
     "highest_profit_percentage": 80.48780487804876,
-    "last_updated": "2025-05-23T13:13:59.374851"
+    "last_updated": "2025-05-23T13:20:56.182359"
   },
   "5": {
-    "balance": 15.927678962057243,
+    "balance": 21.807678962057242,
     "trades": [
+      {
+        "name": "ZING",
+        "symbol": "ZING",
+        "mint": "https://solscan.io/tx/abc123",
+        "entry": 0.0041,
+        "exit": 0.0074,
+        "yield": 80.48780487804876,
+        "timestamp": "2025-05-23T13:18:51.919349"
+      },
       {
         "name": "ZING",
         "symbol": "ZING",
@@ -430,17 +466,17 @@
     ],
     "page": 0,
     "stats": {
-      "total_trades": 8,
-      "winning_trades": 7,
+      "total_trades": 9,
+      "winning_trades": 8,
       "losing_trades": 1,
-      "win_rate": 87.5,
-      "total_profit": 0.09705837361824825
+      "win_rate": 88.88888888888889,
+      "total_profit": 0.08339404596298537
     },
-    "total_profit": 0.09705837361824825,
-    "wins": 7,
+    "total_profit": 0.08339404596298537,
+    "wins": 8,
     "losses": 1,
     "highest_profit_percentage": 80.48780487804876,
-    "last_updated": "2025-05-23T13:13:59.374990"
+    "last_updated": "2025-05-23T13:20:56.182558"
   },
   "2": {
     "balance": 0,
