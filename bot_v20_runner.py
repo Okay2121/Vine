@@ -6109,7 +6109,7 @@ def trading_history_handler(update, chat_id):
             goal_bar = f"{'█' * goal_blocks}{'░' * (10 - goal_blocks)} {goal_progress:.0f}% complete\n\n"
             performance_message += f"{goal_bar}"
             
-            # Trading stats - clean and informative
+            # Trading stats - enhanced with more detailed information
             performance_message += "📊 *TRADING STATS*\n"
             performance_message += f"✅ Wins: {profitable_trades}\n"
             performance_message += f"❌ Losses: {loss_trades}\n"
@@ -6117,13 +6117,20 @@ def trading_history_handler(update, chat_id):
             win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
             
             if total_trades > 0:
-                performance_message += f"Win rate: {win_rate:.0f}%\n\n"
-                if win_rate >= 50:
+                performance_message += f"Win rate: {win_rate:.1f}%\n"
+                performance_message += f"Total trades today: {total_trades}\n\n"
+                
+                # Provide specific performance feedback based on win rate
+                if win_rate >= 75:
+                    performance_message += "Exceptional trading day! Your strategy is outperforming the market! 🔥📈\n"
+                elif win_rate >= 50:
                     performance_message += "Your auto-trading strategy is profitable today! 📈\n"
-                else:
+                elif win_rate >= 30:
                     performance_message += "Market conditions are challenging, but the bot is adapting. 🔄\n"
+                else:
+                    performance_message += "Volatile market today. The bot is adjusting strategy to find better opportunities. 📊\n"
             else:
-                performance_message += "No trades completed today\n"
+                performance_message += "No trades completed today. The bot is waiting for optimal market conditions. ⏳\n"
             
             # Create proper keyboard with transaction history button but no trade history button
             keyboard = bot.create_inline_keyboard([
