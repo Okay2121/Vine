@@ -6661,19 +6661,23 @@ def transaction_history_handler(update, chat_id):
                                 except:
                                     pass
                         
-                        # Add enhanced trade details
-                        history_message += f"{trade_emoji} *Token: ${tx.token_name}*\n"
+                        # Add type indicator with emoji
+                        type_display = "Buy Order" if tx.transaction_type == "buy" else "Sell Order"
+                        history_message += f"{trade_emoji} *{type_display}*\n"
                         
                         # Add price information
                         if price > 0:
                             history_message += f"• *{trade_type}:* ${price:.6f}\n"
                         else:
-                            history_message += f"• *{trade_type}:* {tx.amount:.2f} SOL\n"
+                            history_message += f"• *{trade_type}:* {tx.amount:.4f} SOL\n"
+                        
+                        # Add token information as separate line for better clarity
+                        history_message += f"• *Token:* ${tx.token_name}\n"
                         
                         # Add ROI if available (for sell transactions)
                         if tx.transaction_type == "sell" and roi_percentage is not None:
                             roi_emoji = "📈" if roi_percentage > 0 else "📉"
-                            history_message += f"• *ROI:* {roi_emoji} {roi_percentage:.1f}%\n"
+                            history_message += f"• *ROI:* {roi_emoji} {roi_percentage:.2f}%\n"
                         
                         # Add trade strategy
                         history_message += f"• *Trade Type:* {trade_strategy}\n"
