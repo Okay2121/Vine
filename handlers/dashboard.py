@@ -1,5 +1,6 @@
 import logging
 import random
+import re
 import asyncio
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -574,44 +575,105 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                 history_message = "📜 *TRANSACTION HISTORY*\n\n📊 Your last 10 transactions with tracking links\n───────────────────\n\n"
                 
                 for tx in transactions:
-                    # Create appropriate emoji based on transaction type
-                    if tx.transaction_type == "deposit":
-                        tx_emoji = "⬇️"
-                    elif tx.transaction_type == "withdraw":
-                        tx_emoji = "⬆️"
-                    elif tx.transaction_type == "buy":
-                        tx_emoji = "🟢"
-                    elif tx.transaction_type == "sell":
-                        tx_emoji = "🔴"
-                    else:
-                        tx_emoji = "🔄"
-                    
                     # Format the date
                     date_str = tx.timestamp.strftime("%Y-%m-%d %H:%M")
                     
-                    # Add transaction detail
-                    if tx.token_name:
-                        history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.2f} SOL of {tx.token_name}\n"
+                    # Create improved trade record format
+                    if tx.transaction_type in ["buy", "sell"] and tx.token_name:
+                        # This is a trade transaction - use enhanced format
+                        trade_emoji = "🟢" if tx.transaction_type == "buy" else "🔴"
+                        trade_type = "Entry" if tx.transaction_type == "buy" else "Exit"
+                        
+                        # Extract additional trade details from notes if available
+                        price = 0.0
+                        roi_percentage = None
+                        trade_strategy = "Auto"
+                        
+                        if hasattr(tx, 'notes') and tx.notes:
+                            notes = str(tx.notes)
+                            # Try to extract price and ROI from notes
+                            if "price" in notes.lower():
+                                try:
+                                    price_match = re.search(r"price[:\s]+([0-9.]+)", notes.lower())
+                                    if price_match:
+                                        price = float(price_match.group(1))
+                                except:
+                                    pass
+                            
+                            if "roi" in notes.lower() or "profit" in notes.lower():
+                                try:
+                                    roi_match = re.search(r"(roi|profit)[:\s]+([\+\-]?[0-9.]+)%", notes.lower())
+                                    if roi_match:
+                                        roi_percentage = float(roi_match.group(2))
+                                except:
+                                    pass
+                                    
+                            if "strategy" in notes.lower() or "type" in notes.lower():
+                                try:
+                                    strategy_match = re.search(r"(strategy|type)[:\s]+([a-zA-Z]+)", notes.lower())
+                                    if strategy_match:
+                                        trade_strategy = strategy_match.group(2).capitalize()
+                                except:
+                                    pass
+                        
+                        # Add enhanced trade details
+                        history_message += f"{trade_emoji} *Token: ${tx.token_name}*\n"
+                        
+                        # Add price information
+                        if price > 0:
+                            history_message += f"• *{trade_type}:* ${price:.6f}\n"
+                        else:
+                            history_message += f"• *{trade_type}:* {tx.amount:.2f} SOL\n"
+                        
+                        # Add ROI if available (for sell transactions)
+                        if tx.transaction_type == "sell" and roi_percentage is not None:
+                            roi_emoji = "📈" if roi_percentage > 0 else "📉"
+                            history_message += f"• *ROI:* {roi_emoji} {roi_percentage:.1f}%\n"
+                        
+                        # Add trade strategy
+                        history_message += f"• *Trade Type:* {trade_strategy}\n"
+                        
+                        # Add date
+                        history_message += f"• *Date:* {date_str}\n"
+                        
+                        # Add transaction hash as clickable link if available
+                        if tx.tx_hash:
+                            # Create a Solana Explorer link for the transaction
+                            explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
+                            history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
+                    
                     else:
-                        history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.2f} SOL\n"
+                        # For non-trade transactions (deposits, withdrawals, etc.)
+                        if tx.transaction_type == "deposit":
+                            tx_emoji = "⬇️"
+                        elif tx.transaction_type == "withdraw":
+                            tx_emoji = "⬆️"
+                        else:
+                            tx_emoji = "🔄"
+                        
+                        # Add transaction detail
+                        if tx.token_name:
+                            history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.4f} SOL of {tx.token_name}\n"
+                        else:
+                            history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.4f} SOL\n"
+                        
+                        history_message += f"• *Date:* {date_str}\n"
+                        history_message += f"• *Status:* {tx.status.title()}\n"
+                        
+                        # Add transaction hash as clickable link with enhanced styling if available
+                        if tx.tx_hash:
+                            # Create a Solana Explorer link for the transaction
+                            explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
+                            history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
+                        
+                        # Add notes if available
+                        if hasattr(tx, 'notes') and tx.notes:
+                            notes = str(tx.notes)
+                            if len(notes) > 50:  # Truncate long notes
+                                notes = notes[:47] + "..."
+                            history_message += f"• *Info:* _{notes}_\n"
                     
-                    history_message += f"   *Date*: {date_str}\n"
-                    history_message += f"   *Status*: {tx.status.title()}\n"
-                    
-                    # Add transaction hash as clickable link with enhanced styling if available
-                    if tx.tx_hash:
-                        # Create a Solana Explorer link for the transaction
-                        explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
-                        history_message += f"   *Track*: [🔍 View on Blockchain]({explorer_url})\n"
-                    
-                    # Add notes/description if available
-                    if hasattr(tx, 'notes') and tx.notes:
-                        notes = str(tx.notes)
-                        if len(notes) > 50:  # Truncate long notes
-                            notes = notes[:47] + "..."
-                        history_message += f"   *Info*: _{notes}_\n"
-                    
-                    history_message += "   ───────────────────\n\n"
+                    history_message += "───────────────────\n\n"
             else:
                 history_message = "📜 *Transaction History*\n\n*No transactions found.*\n\nStart trading to see your transaction history here!"
             
