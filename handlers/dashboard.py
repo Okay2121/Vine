@@ -152,7 +152,7 @@ async def show_dashboard(context, chat_id, message_id=None, user_id=None):
             
             # Add 7-Day 2x ROI plan details
             dashboard_message += f"• *ROI Plan:* 2x in 7 Days\n"
-            dashboard_message += f"• *Day:* {days_active} of 7 ({days_left} days left)\n\n"
+            dashboard_message += f"• *Day:* {days_active}\n\n"
             
             # Add 2x goal progress bar with animations
             dashboard_message += "• *Progress Toward 2x Goal:*\n"

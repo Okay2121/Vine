@@ -1319,8 +1319,7 @@ def dashboard_command(update, chat_id):
             current_amount = user.balance
             
             # Days active calculation based on join date
-            days_active = min(30, (datetime.utcnow().date() - user.joined_at.date()).days)
-            days_left = max(0, 30 - days_active)
+            days_active = (datetime.utcnow().date() - user.joined_at.date()).days + 1
             
             # Format the dashboard message
             current_balance = user.balance + total_profit_amount
