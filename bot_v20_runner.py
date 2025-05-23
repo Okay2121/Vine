@@ -4783,14 +4783,16 @@ def admin_broadcast_trade_handler(update, chat_id):
         # Show input form with instructions for new BUY/SELL format
         instructions = (
             "📈 *Broadcast Trade Alert - New Format*\n\n"
-            "Send the trade details in the following format:\n"
-            "`$TOKEN_NAME ENTRY_PRICE EXIT_PRICE TX_HASH [OPTIONAL:TRADE_TYPE]`\n\n"
+            "Send the trade details in one of these formats:\n\n"
+            "`Buy $TOKEN PRICE TX_LINK`\n"
+            "`Sell $TOKEN PRICE TX_LINK`\n\n"
             "Examples:\n"
-            "`$ZING 0.0041 0.0074 https://solscan.io/tx/abc123`\n"
-            "`$ZING 0.0041 0.0074 https://solscan.io/tx/abc123 scalp`\n\n"
-            "Trade Types: scalp, snipe, dip, reversal\n\n"
-            "✅ ROI will be calculated automatically: ((Exit - Entry) / Entry) × 100\n"
-            "✅ No manual ROI input needed - prevents calculation conflicts\n\n"
+            "`Buy $ZING 0.0041 https://solscan.io/tx/abc123`\n"
+            "`Sell $ZING 0.0074 https://solscan.io/tx/def456`\n\n"
+            "For Buy orders: Records the transaction for future matching\n"
+            "For Sell orders: Matches with previous Buy and calculates ROI\n\n"
+            "✅ ROI calculated automatically when matching Buy/Sell pairs\n"
+            "✅ Timestamps recorded for entry/exit timing analysis\n\n"
             "This will be broadcast to all active users with personalized profit calculations based on their balance."
         )
         
@@ -4818,9 +4820,9 @@ def admin_broadcast_trade_handler(update, chat_id):
 def admin_broadcast_trade_message_handler(update, chat_id, text):
     """
     Process and send the trade information broadcast to all active users with personalized profit calculations.
-    Format: TOKEN ENTRY EXIT ROI_PERCENT TX_LINK [OPTIONAL:TRADE_TYPE]
+    Format: Buy $TOKEN PRICE TX_LINK or Sell $TOKEN PRICE TX_LINK
     
-    Example: $ZING 0.0041 0.0074 8.5 0xabc123 scalp
+    Example: Buy $ZING 0.0041 https://solscan.io/tx/abc123
     """
     try:
         # Remove the message listener
@@ -4830,21 +4832,28 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         processing_msg = "⏳ Processing trade broadcast..."
         bot.send_message(chat_id, processing_msg)
         
-        # Record broadcast time for tracking purposes
-        with app.app_context():
-            from models import SystemSettings
-            from datetime import datetime
+        # Use the trade broadcast handler to process the message
+        import trade_broadcast_handler
         
-        # Parse the trade information (new format without manual ROI)
-        parts = text.strip().split()
-        if len(parts) < 4:
-            bot.send_message(chat_id, "⚠️ Invalid format. Please provide: TOKEN ENTRY EXIT TX_LINK [OPTIONAL:TRADE_TYPE]")
-            return
+        # Process the trade message
+        success, response = trade_broadcast_handler.handle_broadcast_message(text, bot, chat_id)
+        
+        # Send the response to the admin
+        bot.send_message(chat_id, response, parse_mode="Markdown")
+        
+        # If successful, add a button to return to the admin panel
+        if success:
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🔙 Back to Admin Panel", "callback_data": "admin_broadcast"}]
+            ])
             
-        token = parts[0]  # Token name
-        entry = float(parts[1])  # Entry price
-        exit_price = float(parts[2])  # Exit price
-        tx_link = parts[3]  # Transaction hash link
+            bot.send_message(
+                chat_id,
+                "What would you like to do next?",
+                reply_markup=keyboard
+            )
+            
+        return
         
         # Calculate ROI automatically
         roi_percent = ((exit_price - entry) / entry) * 100
