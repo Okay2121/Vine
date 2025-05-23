@@ -142,7 +142,12 @@
       "losing_trades": 0,
       "win_rate": 100.0,
       "total_profit": 0.5832926829268292
-    }
+    },
+    "total_profit": 0.5832926829268292,
+    "wins": 5,
+    "losses": 0,
+    "highest_profit_percentage": 80.48780487804876,
+    "last_updated": "2025-05-23T00:40:02.275254"
   },
   "3": {
     "balance": 17.054712671074782,
@@ -209,7 +214,12 @@
       "losing_trades": 0,
       "win_rate": 100.0,
       "total_profit": 17.054712671074782
-    }
+    },
+    "total_profit": 17.054712671074782,
+    "wins": 5,
+    "losses": 0,
+    "highest_profit_percentage": 80.48780487804876,
+    "last_updated": "2025-05-23T00:40:02.276564"
   },
   "4": {
     "balance": 24.871773095129278,
@@ -276,7 +286,12 @@
       "losing_trades": 0,
       "win_rate": 100.0,
       "total_profit": 24.871773095129278
-    }
+    },
+    "total_profit": 24.871773095129278,
+    "wins": 5,
+    "losses": 0,
+    "highest_profit_percentage": 80.48780487804876,
+    "last_updated": "2025-05-23T00:40:02.277238"
   },
   "5": {
     "balance": 5.507678962057243,
@@ -343,7 +358,12 @@
       "losing_trades": 1,
       "win_rate": 80.0,
       "total_profit": 5.507678962057243
-    }
+    },
+    "total_profit": 5.507678962057243,
+    "wins": 4,
+    "losses": 1,
+    "highest_profit_percentage": 80.48780487804876,
+    "last_updated": "2025-05-23T00:40:02.277882"
   },
   "2": {
     "balance": 0,
@@ -355,6 +375,11 @@
       "losing_trades": 0,
       "win_rate": 0,
       "total_profit": 0
-    }
+    },
+    "total_profit": 0,
+    "wins": 0,
+    "losses": 0,
+    "highest_profit_percentage": 0,
+    "last_updated": "2025-05-23T00:40:02.275930"
   }
 }
