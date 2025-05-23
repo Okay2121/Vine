@@ -6037,7 +6037,7 @@ def trading_history_handler(update, chat_id):
                         yield_data_path = path
                         break
                 
-                if os.path.exists(yield_data_path):
+                if yield_data_path and os.path.exists(yield_data_path):
                     with open(yield_data_path, 'r') as f:
                         yield_data = json.load(f)
                     
@@ -6047,10 +6047,12 @@ def trading_history_handler(update, chat_id):
                         # Get wins and losses from yield_data
                         profitable_trades = user_data.get('wins', 0)
                         loss_trades = user_data.get('losses', 0)
-                        logging.info(f"Got stats from yield_data.json: {profitable_trades} wins, {loss_trades} losses")
+                        # Use print instead of logging to avoid errors
+                        print(f"Got stats from yield_data.json: {profitable_trades} wins, {loss_trades} losses")
                         
             except Exception as e:
-                logging.error(f"Error reading yield_data.json: {e}")
+                # Use print instead of logging to avoid errors
+                print(f"Error reading yield_data.json: {e}")
                 
             # Fallback to calculating from today's trades if we didn't get stats from yield_data.json
             if profitable_trades == 0 and loss_trades == 0:
