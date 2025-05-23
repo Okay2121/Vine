@@ -5923,12 +5923,6 @@ def withdraw_profit_handler(update, chat_id):
 
 def trading_history_handler(update, chat_id):
     """Handle the request to view trading history."""
-    # Import needed modules to avoid unbound errors
-    import os
-    import json
-    import traceback
-    from datetime import datetime, timedelta
-    
     try:
         user_id = update['callback_query']['from']['id']
         with app.app_context():
@@ -6086,6 +6080,7 @@ def trading_history_handler(update, chat_id):
             )
             
     except Exception as e:
+        import traceback
         print(f"Error in trading_history_handler: {e}")
         print(traceback.format_exc())
         bot.send_message(chat_id, f"Error displaying performance data: {str(e)}")
