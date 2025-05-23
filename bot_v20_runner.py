@@ -5922,100 +5922,28 @@ def withdraw_profit_handler(update, chat_id):
         bot.send_message(chat_id, f"Error displaying withdrawal options: {str(e)}")
 
 def trading_history_handler(update, chat_id):
-    """Show the performance page with trading history and Autopilot Dashboard tracking."""
+    """Handle the request to view trading history."""
+    # Import needed modules to avoid unbound errors
+    import os
+    import json
+    import logging
+    import traceback
+    from datetime import datetime, timedelta
+    
     try:
+        user_id = update['callback_query']['from']['id']
         with app.app_context():
-            from models import User, Profit, Transaction
-            from datetime import datetime, timedelta
-            from sqlalchemy import func
-            
-            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            # Get user from database
+            user = User.query.filter_by(telegram_id=str(user_id)).first()
             
             if not user:
-                bot.send_message(chat_id, "Please start the bot with /start first.")
+                bot.send_message(chat_id, "⚠️ User not found in database.")
                 return
             
-            # Calculate overall performance metrics
-            total_profit_amount = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id).scalar() or 0
-            total_profit_percentage = (total_profit_amount / user.initial_deposit) * 100 if user.initial_deposit > 0 else 0
+            # Get today's date for filtering trades
+            today_date = datetime.now().date()
             
-            # Calculate active days for Autopilot Dashboard
-            days_active = min(30, (datetime.utcnow().date() - user.joined_at.date()).days)
-            days_left = max(0, 30 - days_active)
-            
-            # Calculate current balance
-            current_balance = user.balance + total_profit_amount
-            
-            # Get daily profit data for visualization (last 14 days)
-            daily_profits = []
-            current_date = datetime.utcnow().date()
-            
-            # Define the next milestone target - 10% of initial deposit or minimum 0.05 SOL
-            milestone_target = max(user.initial_deposit * 0.1, 0.05)
-            
-            # Calculate progress toward the next milestone
-            milestone_progress = min(100, (total_profit_amount / milestone_target) * 100) if milestone_target > 0 else 0
-            
-            # Get the recent trade transactions (buy/sell)
-            recent_trades = []
-            transactions = Transaction.query.filter_by(
-                user_id=user.id
-            ).filter(
-                Transaction.transaction_type.in_(['buy', 'sell'])
-            ).order_by(
-                Transaction.timestamp.desc()
-            ).limit(5).all()
-            
-            # Format the transactions to show as trades
-            for tx in transactions:
-                if tx.transaction_type == 'buy':
-                    action = "BUY"
-                    emoji = "🟢"
-                else:
-                    action = "SELL"
-                    emoji = "🔴"
-                
-                date_str = tx.timestamp.strftime("%Y-%m-%d")
-                amount_str = f"{abs(tx.amount):.4f}"
-                token_name = tx.token_name or "Unknown"
-                
-                trade_info = f"{emoji} {date_str}: {action} {token_name} ({amount_str} SOL)"
-                recent_trades.append(trade_info)
-            
-            # Collect daily performance data for the last 14 days
-            for i in range(min(14, days_active)):
-                day_date = current_date - timedelta(days=i)
-                day_profit = Profit.query.filter_by(user_id=user.id, date=day_date).first()
-                if day_profit:
-                    percentage = day_profit.percentage
-                    amount = day_profit.amount
-                    day_data = f"Day {i+1}: +{percentage:.1f}% (+{amount:.4f} SOL)"
-                    daily_profits.insert(0, day_data)  # Insert at beginning to maintain chronological order
-            
-            # Calculate current streak
-            streak = 0
-            current_date = datetime.utcnow().date()
-            while True:
-                profit = Profit.query.filter_by(user_id=user.id, date=current_date).first()
-                if profit and profit.amount > 0:
-                    streak += 1
-                    current_date -= timedelta(days=1)
-                else:
-                    break
-                    
-            # Get today's profit data
-            today_date = datetime.utcnow().date()
-            today_profit = Profit.query.filter_by(user_id=user.id, date=today_date).first()
-            today_profit_amount = today_profit.amount if today_profit else 0
-            today_profit_percentage = today_profit.percentage if today_profit else 0
-            
-            # Calculate yesterday's balance as starting point for today
-            yesterday_balance = current_balance - today_profit_amount
-            
-            # Calculate today's goal progress (assuming 1% daily target)
-            daily_goal_progress = min(100, (today_profit_percentage / 1.0) * 100) if today_profit_percentage > 0 else 0
-            
-            # Get trades for today to calculate accuracy
+            # Get all trades for today
             trades_today = Transaction.query.filter(
                 Transaction.user_id == user.id,
                 Transaction.transaction_type.in_(['buy', 'sell']),
@@ -6047,12 +5975,10 @@ def trading_history_handler(update, chat_id):
                         # Get wins and losses from yield_data
                         profitable_trades = user_data.get('wins', 0)
                         loss_trades = user_data.get('losses', 0)
-                        # Use print instead of logging to avoid errors
-                        print(f"Got stats from yield_data.json: {profitable_trades} wins, {loss_trades} losses")
+                        logger.info(f"Got stats from yield_data.json: {profitable_trades} wins, {loss_trades} losses")
                         
             except Exception as e:
-                # Use print instead of logging to avoid errors
-                print(f"Error reading yield_data.json: {e}")
+                logger.error(f"Error reading yield_data.json: {e}")
                 
             # Fallback to calculating from today's trades if we didn't get stats from yield_data.json
             if profitable_trades == 0 and loss_trades == 0:
@@ -6073,16 +5999,38 @@ def trading_history_handler(update, chat_id):
             # Balance section - highlight the important numbers
             performance_message += "💰 *BALANCE*\n"
             performance_message += f"Initial: {user.initial_deposit:.2f} SOL\n"
-            performance_message += f"Current: {current_balance:.2f} SOL\n"
+            performance_message += f"Current: {user.balance:.2f} SOL\n"
+            
+            # Get total profit
+            total_profit_amount = user.balance - user.initial_deposit
+            total_profit_percentage = (total_profit_amount / user.initial_deposit * 100) if user.initial_deposit > 0 else 0
+            
             performance_message += f"Profit: +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n\n"
+            
+            # Get today's profit data
+            today_profit = Profit.query.filter_by(user_id=user.id, date=today_date).first()
+            today_profit_amount = today_profit.amount if today_profit else 0
+            today_profit_percentage = today_profit.percentage if today_profit else 0
             
             # Today's profit - emphasized and eye-catching
             performance_message += "📈 *TODAY'S PERFORMANCE*\n"
             if today_profit_amount > 0:
                 performance_message += f"Profit: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n\n"
             else:
+                yesterday_balance = user.balance - today_profit_amount
                 performance_message += "No profit recorded yet today\n"
                 performance_message += f"Starting: {yesterday_balance:.2f} SOL\n\n"
+            
+            # Calculate current streak
+            streak = 0
+            current_date = datetime.utcnow().date()
+            while True:
+                profit = Profit.query.filter_by(user_id=user.id, date=current_date).first()
+                if profit and profit.amount > 0:
+                    streak += 1
+                    current_date -= timedelta(days=1)
+                else:
+                    break
             
             # Profit streak - motivational and prominent
             performance_message += "🔥 *WINNING STREAK*\n"
@@ -6096,32 +6044,26 @@ def trading_history_handler(update, chat_id):
             else:
                 performance_message += "Start your streak today with your first profit!\n\n"
             
-
-            
-
-            
             # Trading stats - enhanced with more detailed information
             performance_message += "📊 *TRADING STATS*\n"
             performance_message += f"✅ Wins: {profitable_trades}\n"
             performance_message += f"❌ Losses: {loss_trades}\n"
-            total_trades = profitable_trades + loss_trades
-            win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
             
             if total_trades > 0:
                 performance_message += f"Win rate: {win_rate:.1f}%\n"
-                performance_message += f"Total trades today: {total_trades}\n\n"
+                performance_message += f"Total trades: {total_trades}\n\n"
                 
                 # Provide specific performance feedback based on win rate
                 if win_rate >= 75:
-                    performance_message += "Exceptional trading day! Your strategy is outperforming the market! 🔥📈\n"
+                    performance_message += "Exceptional trading! Your strategy is outperforming the market! 🔥📈\n"
                 elif win_rate >= 50:
-                    performance_message += "Your auto-trading strategy is profitable today! 📈\n"
+                    performance_message += "Your auto-trading strategy is profitable! 📈\n"
                 elif win_rate >= 30:
                     performance_message += "Market conditions are challenging, but the bot is adapting. 🔄\n"
                 else:
-                    performance_message += "Volatile market today. The bot is adjusting strategy to find better opportunities. 📊\n"
+                    performance_message += "Volatile market. The bot is adjusting strategy to find better opportunities. 📊\n"
             else:
-                performance_message += "No trades completed today. The bot is waiting for optimal market conditions. ⏳\n"
+                performance_message += "No trades completed yet. The bot is waiting for optimal market conditions. ⏳\n"
             
             # Create proper keyboard with transaction history button but no trade history button
             keyboard = bot.create_inline_keyboard([
@@ -6145,10 +6087,8 @@ def trading_history_handler(update, chat_id):
             )
             
     except Exception as e:
-        import logging
-        logging.error(f"Error in trading_history_handler: {e}")
-        import traceback
-        logging.error(traceback.format_exc())
+        logger.error(f"Error in trading_history_handler: {e}")
+        logger.error(traceback.format_exc())
         bot.send_message(chat_id, f"Error displaying performance data: {str(e)}")
 
 def support_handler(update, chat_id):
