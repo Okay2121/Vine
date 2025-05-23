@@ -5964,9 +5964,19 @@ def trading_history_handler(update, chat_id):
                     user_id_str = str(user.id)
                     if user_id_str in yield_data:
                         user_data = yield_data[user_id_str]
-                        # Get wins and losses from yield_data
-                        profitable_trades = user_data.get('wins', 0)
-                        loss_trades = user_data.get('losses', 0)
+                        
+                        # Calculate wins and losses from actual trade data
+                        profitable_trades = 0
+                        loss_trades = 0
+                        trades = user_data.get('trades', [])
+                        
+                        for trade in trades:
+                            yield_percentage = trade.get('yield', 0)
+                            if yield_percentage > 0:
+                                profitable_trades += 1
+                            elif yield_percentage < 0:
+                                loss_trades += 1
+                        
                         logger.info(f"Got stats from yield_data.json: {profitable_trades} wins, {loss_trades} losses")
                         
             except Exception as e:
