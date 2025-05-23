@@ -135,7 +135,14 @@
         "timestamp": "2025-05-21T23:28:49.627124"
       }
     ],
-    "page": 0
+    "page": 0,
+    "stats": {
+      "total_trades": 3,
+      "winning_trades": 3,
+      "losing_trades": 0,
+      "win_rate": 100.0,
+      "total_profit": 0.5832926829268292
+    }
   },
   "3": {
     "balance": 17.054712671074782,
@@ -195,7 +202,14 @@
         "timestamp": "2025-05-22T14:58:10.562584"
       }
     ],
-    "page": 0
+    "page": 0,
+    "stats": {
+      "total_trades": 5,
+      "winning_trades": 5,
+      "losing_trades": 0,
+      "win_rate": 100.0,
+      "total_profit": 17.054712671074782
+    }
   },
   "4": {
     "balance": 24.871773095129278,
@@ -255,7 +269,14 @@
         "timestamp": "2025-05-22T14:58:11.027618"
       }
     ],
-    "page": 0
+    "page": 0,
+    "stats": {
+      "total_trades": 5,
+      "winning_trades": 5,
+      "losing_trades": 0,
+      "win_rate": 100.0,
+      "total_profit": 24.871773095129278
+    }
   },
   "5": {
     "balance": 5.507678962057243,
@@ -315,6 +336,25 @@
         "timestamp": "2025-05-22T14:58:11.535003"
       }
     ],
-    "page": 0
+    "page": 0,
+    "stats": {
+      "total_trades": 5,
+      "winning_trades": 4,
+      "losing_trades": 1,
+      "win_rate": 80.0,
+      "total_profit": 5.507678962057243
+    }
+  },
+  "2": {
+    "balance": 0,
+    "trades": [],
+    "page": 0,
+    "stats": {
+      "total_trades": 0,
+      "winning_trades": 0,
+      "losing_trades": 0,
+      "win_rate": 0,
+      "total_profit": 0
+    }
   }
 }
