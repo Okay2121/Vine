@@ -92,6 +92,13 @@ class TradingPosition(db.Model):
     current_price = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='open')  # open, closed
+    trade_type = db.Column(db.String(20), nullable=True)  # scalp, snipe, dip, reversal
+    buy_tx_hash = db.Column(db.String(128), nullable=True)  # Transaction hash for the buy
+    sell_tx_hash = db.Column(db.String(128), nullable=True)  # Transaction hash for the sell
+    buy_timestamp = db.Column(db.DateTime, nullable=True)  # When the buy was executed
+    sell_timestamp = db.Column(db.DateTime, nullable=True)  # When the sell was executed
+    roi_percentage = db.Column(db.Float, nullable=True)  # Calculated ROI percentage
+    paired_position_id = db.Column(db.Integer, nullable=True)  # For linking related buy/sell positions
     
     def __repr__(self):
         return f'<TradingPosition {self.token_name} {self.amount}>'
