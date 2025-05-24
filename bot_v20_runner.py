@@ -54,6 +54,7 @@ class SimpleTelegramBot:
         self.token = token
         self.api_url = f"https://api.telegram.org/bot{self.token}"
         self.running = False
+        self._processed_messages = set()  # Cache for processed message IDs
         self.offset = 0
         self.handlers = {}
         self.user_states = {}  # Track conversation states for each user
@@ -72,6 +73,9 @@ class SimpleTelegramBot:
     
     def add_message_listener(self, chat_id, listener_type, callback):
         """Add a listener for non-command messages."""
+        # Remove existing listener if exists to prevent duplicates
+        if chat_id in self.wallet_listeners:
+            logger.debug(f"Replacing existing listener for chat {chat_id}")
         self.wallet_listeners[chat_id] = (listener_type, callback)
         logger.info(f"Added {listener_type} listener for chat {chat_id}")
     
@@ -192,6 +196,16 @@ class SimpleTelegramBot:
     def process_update(self, update):
         """Process a single update."""
         try:
+            # Check if we have already processed this message
+            if "message" in update and "message_id" in update["message"]:
+                message_id = update["message"]["message_id"]
+                if message_id in self._processed_messages:
+                    logger.debug(f"Skipping already processed message {message_id}")
+                    return
+                self._processed_messages.add(message_id)
+                # Limit cache size
+                if len(self._processed_messages) > 1000:
+                    self._processed_messages = set(list(self._processed_messages)[-500:])
             # Handle messages
             if 'message' in update and 'text' in update['message']:
                 text = update['message']['text']
