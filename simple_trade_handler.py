@@ -1,21 +1,17 @@
 """
-Simple Trade Handler for Admin Messages
-----------------------------------------
-This module implements a simple handler for admin trade messages
-with the format: Buy/Sell $TOKEN PRICE TX_LINK
-
-Features:
-- Automatic message parsing for Buy/Sell trades
-- Trade pairing for calculating ROI
-- Updating user balances based on trade performance
-- Notifications for users about their profits
-- Duplicate transaction prevention
+Simple Trade Message Handler
+---------------------------
+Handles admin trade messages in the format:
+Buy $TOKEN PRICE TX_LINK or Sell $TOKEN PRICE TX_LINK
 """
 
 import logging
+import re
 from datetime import datetime
+import traceback
+from sqlalchemy import desc
 from app import app, db
-from models import User, TradingPosition, Transaction, Profit
+from models import User, Transaction, TradingPosition
 
 # Configure logging
 logging.basicConfig(
@@ -24,418 +20,315 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def extract_trade_details(text):
+def handle_trade_message(message_text, user_id, bot=None):
     """
-    Extract trade details from a message with format:
-    Buy/Sell $TOKEN PRICE TX_LINK
+    Process an admin trade message in the format:
+    Buy $TOKEN PRICE TX_LINK or Sell $TOKEN PRICE TX_LINK
     
     Args:
-        text (str): The message text
+        message_text (str): The message text containing the trade
+        user_id (str): The user ID who sent the message
+        bot: The Telegram bot instance (optional)
         
     Returns:
-        dict: Trade details or None if format is invalid
+        tuple: (success, message, details)
+            - success (bool): Whether the trade was successful
+            - message (str): The response message
+            - details (dict): Details about the trade if successful
     """
-    # Clean and normalize the text
-    if not text:
-        return None
-        
-    parts = text.strip().split()
-    if len(parts) < 4:
-        return None
-        
-    # Extract components
-    trade_type = parts[0].lower()
-    if trade_type not in ['buy', 'sell']:
-        return None
-        
-    token = parts[1]
-    # Ensure token starts with $
+    if not message_text:
+        return False, "❌ Empty message", None
+    
+    # Parse the message
+    trade_type, token, price, tx_link = parse_trade_message(message_text)
+    
+    if not trade_type or not token or not price or not tx_link:
+        return False, "❌ Invalid trade format. Use: Buy/Sell $TOKEN PRICE TX_LINK", None
+    
+    # Validate token name and price
     if not token.startswith('$'):
-        return None
-        
-    # Try to parse price
+        token = f"${token}"
+    
     try:
-        price = float(parts[2])
+        price = float(price)
+        if price <= 0:
+            return False, "❌ Price must be greater than zero", None
     except ValueError:
-        return None
-        
-    # Extract transaction link (can contain multiple parts if URL has parameters)
-    tx_link = ' '.join(parts[3:])
-    
-    # Normalize token name to uppercase without losing the $ prefix
-    token = '$' + token.replace('$', '').upper()
-    
-    return {
-        'trade_type': trade_type,
-        'token': token,
-        'price': price,
-        'tx_link': tx_link
-    }
-
-def process_buy_trade(token, price, tx_link, admin_id=None):
-    """
-    Process a BUY trade and store it for future matching with a SELL
-    
-    The function creates a record of the buy position with:
-    - Token name
-    - Entry price
-    - Transaction hash/link
-    - Timestamp (automatically recorded)
-    
-    Args:
-        token (str): Token name with $ prefix
-        price (float): Entry price
-        tx_link (str): Transaction link
-        admin_id (str, optional): Admin ID who initiated the trade
-        
-    Returns:
-        tuple: (success, message, position object or None)
-    """
-    try:
-        with app.app_context():
-            # Clean token name (remove $ if needed for db storage)
-            clean_token = token.replace('$', '')
-            
-            # Extract tx hash from link if it's a URL
-            tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
-            
-            # Check if this transaction was already processed
-            existing = TradingPosition.query.filter_by(buy_tx_hash=tx_hash).first()
-            if existing:
-                return (False, f"This transaction was already processed for {existing.token_name}", None)
-            
-            # Get current timestamp for accurate tracking
-            now = datetime.utcnow()
-            
-            # Create a new position
-            position = TradingPosition()
-            position.user_id = 1  # Placeholder - will link to specific users on SELL
-            position.token_name = clean_token
-            position.amount = 1.0  # Placeholder amount
-            position.entry_price = price
-            position.current_price = price
-            position.timestamp = now
-            position.status = 'open'
-            position.trade_type = 'scalp'  # Default trade type
-            position.buy_tx_hash = tx_hash
-            position.buy_timestamp = now
-            
-            db.session.add(position)
-            db.session.commit()
-            
-            logger.info(f"Recorded BUY position for {token} at {price} (TX: {tx_hash})")
-            return (True, f"BUY position for {token} at {price} recorded successfully", position)
-    except Exception as e:
-        logger.error(f"Error processing BUY trade: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        db.session.rollback()
-        return (False, f"Error processing BUY trade: {str(e)}", None)
-
-def process_sell_trade(token, price, tx_link, admin_id=None):
-    """
-    Process a SELL trade and match with previous BUY to calculate ROI
-    
-    This function:
-    1. Finds the oldest unmatched BUY order for the same token
-    2. Calculates the ROI percentage: ((Sell Price - Buy Price) / Buy Price) × 100
-    3. Updates the position status to 'closed'
-    4. Records sell transaction details and timestamps
-    
-    Args:
-        token (str): Token name with $ prefix
-        price (float): Exit price
-        tx_link (str): Transaction link
-        admin_id (str, optional): Admin ID who initiated the trade
-        
-    Returns:
-        tuple: (success, message, matched position, roi percentage)
-    """
-    try:
-        with app.app_context():
-            # Clean token name (remove $ if needed for db storage)
-            clean_token = token.replace('$', '')
-            
-            # Extract tx hash from link if it's a URL
-            tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
-            
-            # Check if this transaction was already processed
-            existing = TradingPosition.query.filter_by(sell_tx_hash=tx_hash).first()
-            if existing:
-                return (False, f"This SELL transaction was already processed", None, 0)
-            
-            # Find the matching BUY position - get the oldest unmatched buy for this token
-            position = TradingPosition.query.filter_by(
-                token_name=clean_token,
-                status='open'
-            ).order_by(TradingPosition.buy_timestamp.asc()).first()
-            
-            if not position:
-                return (False, f"No open BUY position found for {token}", None, 0)
-            
-            # Calculate ROI percentage
-            roi_percentage = ((price - position.entry_price) / position.entry_price) * 100
-            
-            # Get current timestamp for accurate tracking
-            now = datetime.utcnow()
-            
-            # Update the position
-            position.current_price = price
-            position.status = 'closed'
-            position.sell_tx_hash = tx_hash
-            position.sell_timestamp = now
-            position.roi_percentage = roi_percentage
-            
-            db.session.commit()
-            
-            logger.info(f"Processed SELL for {token} at {price}, ROI: {roi_percentage:.2f}% (TX: {tx_hash})")
-            return (True, f"SELL processed for {token}, ROI: {roi_percentage:.2f}%", position, roi_percentage)
-    except Exception as e:
-        logger.error(f"Error processing SELL trade: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        db.session.rollback()
-        return (False, f"Error processing SELL trade: {str(e)}", None, 0)
-
-def apply_trade_profit_to_users(position, bot=None):
-    """
-    Apply the profit from a closed trade to all active users and immediately update their transaction history
-    
-    This function ensures that trade results are immediately reflected in:
-    1. User balance updates
-    2. Transaction history records
-    3. Trading position history
-    4. Profit tracking
-    
-    Args:
-        position (TradingPosition): The closed trade position
-        bot: Optional bot instance for sending notifications
-        
-    Returns:
-        tuple: (success, message, number of users updated)
-    """
-    try:
-        with app.app_context():
-            # Get all active users with positive balance
-            users = User.query.filter(User.balance > 0).all()
-            
-            if not users:
-                return (False, "No active users found to apply profit to", 0)
-            
-            # Calculate ROI percentage and convert to decimal
-            roi_decimal = position.roi_percentage / 100
-            
-            # Get current timestamp for consistency
-            now = datetime.utcnow()
-            today = now.date()
-            
-            # Apply profit to each user
-            updated_count = 0
-            for user in users:
-                try:
-                    # Calculate profit amount for this user based on their balance
-                    profit_amount = user.balance * roi_decimal
-                    
-                    # Update user balance
-                    old_balance = user.balance
-                    user.balance += profit_amount
-                    
-                    # Create detailed transaction record with all trade information
-                    transaction = Transaction()
-                    transaction.user_id = user.id
-                    transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
-                    transaction.amount = profit_amount
-                    transaction.token_name = position.token_name
-                    transaction.price = position.current_price  # Store the exit price
-                    transaction.status = 'completed'
-                    transaction.notes = f"Trade ROI: {position.roi_percentage:.2f}% for {position.token_name} (Buy: {position.entry_price}, Sell: {position.current_price})"
-                    transaction.tx_hash = position.sell_tx_hash
-                    transaction.processed_at = now
-                    
-                    # For better tracking, also log the buy transaction in the notes
-                    if position.buy_tx_hash:
-                        transaction.notes += f" - Buy TX: {position.buy_tx_hash}"
-                    
-                    # Create a user-specific trading position record for history tracking
-                    user_position = TradingPosition()
-                    user_position.user_id = user.id
-                    user_position.token_name = position.token_name
-                    
-                    # Calculate theoretical token amount based on profit
-                    if position.current_price != position.entry_price:
-                        token_amount = abs(profit_amount / (position.current_price - position.entry_price))
-                    else:
-                        token_amount = 1.0  # Fallback if prices are identical
-                    
-                    user_position.amount = token_amount
-                    user_position.entry_price = position.entry_price
-                    user_position.current_price = position.current_price
-                    user_position.timestamp = now
-                    user_position.status = 'closed'
-                    user_position.trade_type = position.trade_type if position.trade_type else 'scalp'
-                    user_position.buy_tx_hash = position.buy_tx_hash
-                    user_position.sell_tx_hash = position.sell_tx_hash
-                    user_position.buy_timestamp = position.buy_timestamp
-                    user_position.sell_timestamp = position.sell_timestamp
-                    user_position.roi_percentage = position.roi_percentage
-                    user_position.paired_position_id = position.id
-                    
-                    # Add profit record for performance tracking
-                    profit_record = Profit()
-                    profit_record.user_id = user.id
-                    profit_record.amount = profit_amount
-                    profit_record.percentage = position.roi_percentage
-                    profit_record.date = today
-                    
-                    db.session.add(transaction)
-                    db.session.add(user_position)
-                    db.session.add(profit_record)
-                    
-                    # Send personalized notification to user if bot is provided
-                    if bot and user.telegram_id:
-                        try:
-                            # Choose emoji based on profit/loss
-                            emoji = "📈" if position.roi_percentage >= 0 else "📉"
-                            
-                            # Format values for readability
-                            formatted_entry = f"{position.entry_price:.8f}".rstrip('0').rstrip('.')
-                            formatted_exit = f"{position.current_price:.8f}".rstrip('0').rstrip('.')
-                            
-                            # Create personalized message with real-time transaction info
-                            message = (
-                                f"{emoji} *Real-Time Trade Alert*\n\n"
-                                f"• *Token:* ${position.token_name}\n"
-                                f"• *Entry:* {formatted_entry}\n"
-                                f"• *Exit:* {formatted_exit}\n"
-                                f"• *ROI:* {position.roi_percentage:.2f}%\n"
-                                f"• *Your Profit:* {profit_amount:.4f} SOL\n"
-                                f"• *Previous Balance:* {old_balance:.4f} SOL\n"
-                                f"• *New Balance:* {user.balance:.4f} SOL\n\n"
-                                f"_Your transaction history has been updated with this trade._"
-                            )
-                            bot.send_message(user.telegram_id, message, parse_mode="Markdown")
-                        except Exception as notify_error:
-                            logger.error(f"Error notifying user {user.id}: {str(notify_error)}")
-                    
-                    updated_count += 1
-                except Exception as user_error:
-                    logger.error(f"Error applying profit to user {user.id}: {str(user_error)}")
-                    continue
-            
-            # Commit all changes
-            db.session.commit()
-            
-            return (True, f"Applied profit to {updated_count} users", updated_count)
-    except Exception as e:
-        logger.error(f"Error applying trade profit: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        db.session.rollback()
-        return (False, f"Error applying trade profit: {str(e)}", 0)
-
-def handle_trade_message(message_text, admin_id=None, bot=None):
-    """
-    Process a trade message and execute the appropriate actions
-    
-    Args:
-        message_text (str): Message text with the trade details
-        admin_id (str, optional): Admin ID who sent the message
-        bot: Optional bot instance for sending notifications
-        
-    Returns:
-        tuple: (success, response_message, details_dict)
-    """
-    # Extract trade details
-    details = extract_trade_details(message_text)
-    if not details:
-        return (False, "Invalid trade format. Expected: Buy/Sell $TOKEN PRICE TX_LINK", None)
-    
-    # Log the trade message processing
-    logger.info(f"Processing trade message: {details['trade_type']} {details['token']} at {details['price']}")
+        return False, f"❌ Invalid price: {price}", None
     
     # Process based on trade type
-    if details['trade_type'] == 'buy':
-        success, message, position = process_buy_trade(
-            details['token'], 
-            details['price'], 
-            details['tx_link'],
-            admin_id
+    with app.app_context():
+        if trade_type.lower() == 'buy':
+            return process_buy_trade(token, price, tx_link, user_id, bot)
+        elif trade_type.lower() == 'sell':
+            return process_sell_trade(token, price, tx_link, user_id, bot)
+        else:
+            return False, f"❌ Unknown trade type: {trade_type}", None
+
+def parse_trade_message(message_text):
+    """
+    Parse a trade message into its components
+    
+    Args:
+        message_text (str): Message in the format "Buy/Sell $TOKEN PRICE TX_LINK"
+        
+    Returns:
+        tuple: (trade_type, token, price, tx_link)
+    """
+    # Check for correct format
+    pattern = r'(buy|sell)\s+(\$?\w+)\s+([\d.]+)\s+(https?://\S+)'
+    match = re.search(pattern, message_text.lower())
+    
+    if match:
+        trade_type = match.group(1).capitalize()
+        token = match.group(2)
+        price = match.group(3)
+        tx_link = match.group(4)
+        return trade_type, token, price, tx_link
+    
+    return None, None, None, None
+
+def process_buy_trade(token, price, tx_link, admin_id, bot=None):
+    """
+    Process a BUY trade
+    
+    Args:
+        token (str): Token name (with $ prefix)
+        price (float): Purchase price
+        tx_link (str): Transaction link
+        admin_id (str): Admin ID who sent the message
+        bot: Telegram bot instance (optional)
+        
+    Returns:
+        tuple: (success, message, details)
+    """
+    try:
+        # Check if this transaction has already been processed
+        existing_position = TradingPosition.query.filter_by(
+            buy_tx_hash=tx_link,
+            token_name=token
+        ).first()
+        
+        if existing_position:
+            return False, f"❌ This {token} BUY transaction has already been recorded (ID: {existing_position.id})", None
+        
+        # Create a new trading position
+        position = TradingPosition()
+        position.token_name = token
+        position.entry_price = price
+        position.buy_tx_hash = tx_link
+        position.buy_timestamp = datetime.utcnow()
+        position.admin_id = admin_id
+        position.status = 'open'  # New position, waiting for SELL
+        
+        # Add to database and commit
+        db.session.add(position)
+        db.session.commit()
+        
+        # Format confirmation message
+        message = (
+            f"✅ *BUY* position recorded\n\n"
+            f"*Token:* {token}\n"
+            f"*Entry Price:* {price}\n"
+            f"*TX:* [View Transaction]({tx_link})\n"
+            f"*Position ID:* {position.id}\n"
+            f"*Status:* Waiting for SELL"
         )
         
-        if success:
-            # Format timestamp for display
-            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
-            
-            # Format price for better readability
-            formatted_price = f"{details['price']:.8f}".rstrip('0').rstrip('.')
-            
-            response = (
-                f"✅ *BUY Order Recorded*\n\n"
-                f"• *Token:* {details['token']}\n"
-                f"• *Entry Price:* {formatted_price}\n"
-                f"• *Transaction:* [View on Explorer]({details['tx_link']})\n"
-                f"• *Timestamp:* {timestamp}\n\n"
-                f"_This BUY will be matched with a future SELL order._"
-            )
-        else:
-            response = f"⚠️ *Error Recording BUY*\n\n{message}"
-            
-        return (success, response, {
+        details = {
             'trade_type': 'buy',
-            'token': details['token'],
-            'price': details['price'],
-            'position_id': position.id if position else None
-        })
+            'token': token,
+            'price': price,
+            'tx_link': tx_link,
+            'position_id': position.id
+        }
+        
+        return True, message, details
+        
+    except Exception as e:
+        logger.error(f"Error processing BUY trade: {e}")
+        logger.error(traceback.format_exc())
+        return False, f"❌ Error processing trade: {str(e)}", None
+
+def process_sell_trade(token, price, tx_link, admin_id, bot=None):
+    """
+    Process a SELL trade and match with a previous BUY
     
-    elif details['trade_type'] == 'sell':
-        success, message, position, roi = process_sell_trade(
-            details['token'],
-            details['price'],
-            details['tx_link'],
-            admin_id
+    Args:
+        token (str): Token name (with $ prefix)
+        price (float): Sell price
+        tx_link (str): Transaction link
+        admin_id (str): Admin ID who sent the message
+        bot: Telegram bot instance (optional)
+        
+    Returns:
+        tuple: (success, message, details)
+    """
+    try:
+        # Check if this transaction has already been processed
+        existing_position = TradingPosition.query.filter_by(
+            sell_tx_hash=tx_link,
+            token_name=token
+        ).first()
+        
+        if existing_position:
+            return False, f"❌ This {token} SELL transaction has already been recorded (ID: {existing_position.id})", None
+        
+        # Find the oldest open BUY position for this token
+        buy_position = TradingPosition.query.filter_by(
+            token_name=token,
+            status='open'
+        ).order_by(TradingPosition.buy_timestamp).first()
+        
+        if not buy_position:
+            return False, f"❌ No open BUY position found for {token}", None
+        
+        # Update the BUY position with SELL details
+        buy_position.exit_price = price
+        buy_position.sell_tx_hash = tx_link
+        buy_position.sell_timestamp = datetime.utcnow()
+        buy_position.status = 'closed'
+        
+        # Calculate ROI
+        entry_price = buy_position.entry_price
+        exit_price = price
+        roi_percentage = ((exit_price - entry_price) / entry_price) * 100
+        buy_position.roi_percentage = roi_percentage
+        
+        # Update database
+        db.session.commit()
+        
+        # Format confirmation message with ROI
+        roi_display = f"+{roi_percentage:.2f}%" if roi_percentage >= 0 else f"{roi_percentage:.2f}%"
+        roi_emoji = "📈" if roi_percentage >= 0 else "📉"
+        
+        message = (
+            f"✅ *SELL* position matched\n\n"
+            f"*Token:* {token}\n"
+            f"*Entry Price:* {entry_price}\n"
+            f"*Exit Price:* {exit_price}\n"
+            f"*ROI:* {roi_emoji} {roi_display}\n"
+            f"*TX:* [View Transaction]({tx_link})\n"
+            f"*Position ID:* {buy_position.id}\n"
+            f"*Status:* Closed"
         )
         
-        if success and position:
-            # Apply profit to all active users
-            apply_success, apply_message, user_count = apply_trade_profit_to_users(position, bot)
-            
-            # Format values for better readability
-            formatted_exit_price = f"{details['price']:.8f}".rstrip('0').rstrip('.')
-            formatted_entry_price = f"{position.entry_price:.8f}".rstrip('0').rstrip('.')
-            
-            if apply_success:
-                # Success emoji based on ROI
-                emoji = "📈" if roi > 0 else "📉" if roi < 0 else "🔄"
-                
-                response = (
-                    f"{emoji} *SELL Order Processed*\n\n"
-                    f"• *Token:* {details['token']}\n"
-                    f"• *Exit Price:* {formatted_exit_price}\n"
-                    f"• *Entry Price:* {formatted_entry_price}\n"
-                    f"• *ROI:* {roi:.2f}%\n"
-                    f"• *Users Updated:* {user_count}\n"
-                    f"• *Transaction:* [View on Explorer]({details['tx_link']})\n\n"
-                    f"_Trade profit has been applied to all active users._"
-                )
-            else:
-                response = (
-                    f"⚠️ *SELL Processed with Warnings*\n\n"
-                    f"• *Token:* {details['token']}\n"
-                    f"• *Exit Price:* {formatted_exit_price}\n"
-                    f"• *Entry Price:* {formatted_entry_price}\n"
-                    f"• *ROI:* {roi:.2f}%\n"
-                    f"• *Warning:* {apply_message}\n\n"
-                    f"_Please check user accounts manually._"
-                )
-        else:
-            response = f"⚠️ *Error Processing SELL*\n\n{message}"
-            
-        return (success, response, {
+        details = {
             'trade_type': 'sell',
-            'token': details['token'],
-            'price': details['price'],
-            'roi_percentage': roi if success else 0,
-            'position_id': position.id if position else None
-        })
+            'token': token,
+            'price': price,
+            'tx_link': tx_link,
+            'position_id': buy_position.id,
+            'entry_price': entry_price,
+            'roi_percentage': roi_percentage
+        }
+        
+        # Apply profit/loss to all users (run in the background)
+        apply_trade_to_users(buy_position, roi_percentage, bot)
+        
+        return True, message, details
+        
+    except Exception as e:
+        logger.error(f"Error processing SELL trade: {e}")
+        logger.error(traceback.format_exc())
+        return False, f"❌ Error processing trade: {str(e)}", None
+
+def apply_trade_to_users(position, roi_percentage, bot=None):
+    """
+    Apply the trade profit/loss to all active users
     
-    return (False, "Unknown trade type", None)
+    Args:
+        position (TradingPosition): The completed trade position
+        roi_percentage (float): The ROI percentage
+        bot: Telegram bot instance (optional)
+    """
+    try:
+        # Get all active users
+        users = User.query.filter(User.balance > 0).all()
+        
+        for user in users:
+            try:
+                # Calculate profit/loss for this user
+                user_profit = (user.balance * roi_percentage) / 100
+                
+                # Skip very small profits/losses
+                if abs(user_profit) < 0.000001:
+                    continue
+                
+                # Update user balance using direct SQL for reliability
+                original_balance = user.balance
+                
+                # Use direct SQL update to ensure reliable balance updates
+                sql = text("UPDATE user SET balance = balance + :amount WHERE id = :user_id")
+                db.session.execute(sql, {"amount": user_profit, "user_id": user.id})
+                
+                # Create transaction record
+                transaction = Transaction()
+                transaction.user_id = user.id
+                transaction.transaction_type = 'trade_profit' if user_profit >= 0 else 'trade_loss'
+                transaction.amount = abs(user_profit)
+                transaction.token_name = "SOL"
+                transaction.timestamp = datetime.utcnow()
+                transaction.status = 'completed'
+                transaction.notes = f"Trade {position.token_name} - ROI: {roi_percentage:.2f}%"
+                transaction.related_trade_id = position.id
+                
+                # Add to database
+                db.session.add(transaction)
+                
+                # Notify user if bot is provided
+                if bot and user.telegram_id:
+                    try:
+                        action = "added to" if user_profit >= 0 else "deducted from"
+                        emoji = "📈" if user_profit >= 0 else "📉"
+                        
+                        notification = (
+                            f"{emoji} *Trade Completed*\n\n"
+                            f"*Token:* {position.token_name}\n"
+                            f"*ROI:* {roi_percentage:.2f}%\n"
+                            f"*Impact:* {abs(user_profit):.6f} SOL {action} your balance\n"
+                            f"*Previous Balance:* {original_balance:.6f} SOL\n"
+                            f"*New Balance:* {user.balance:.6f} SOL"
+                        )
+                        
+                        bot.send_message(
+                            user.telegram_id,
+                            notification,
+                            parse_mode="Markdown"
+                        )
+                    except Exception as notify_error:
+                        logger.error(f"Error notifying user {user.id}: {notify_error}")
+                
+            except Exception as user_error:
+                logger.error(f"Error processing trade for user {user.id}: {user_error}")
+                continue
+        
+        # Commit all changes
+        db.session.commit()
+        logger.info(f"Trade applied to {len(users)} users. Token: {position.token_name}, ROI: {roi_percentage:.2f}%")
+        
+    except Exception as e:
+        logger.error(f"Error applying trade to users: {e}")
+        logger.error(traceback.format_exc())
+        db.session.rollback()
+
+# Testing function
+def test_trade_handler():
+    """Test the trade handler with sample messages"""
+    test_messages = [
+        "Buy $SOL 123.45 https://solscan.io/tx/abc123",
+        "Sell $SOL 150.00 https://solscan.io/tx/def456",
+        "Buy $MEME 0.0041 https://solscan.io/tx/ghi789",
+        "Sell $MEME 0.0065 https://solscan.io/tx/jkl012",
+        "Invalid message"
+    ]
+    
+    for msg in test_messages:
+        success, response, details = handle_trade_message(msg, "12345")
+        print(f"\nMessage: {msg}")
+        print(f"Success: {success}")
+        print(f"Response: {response}")
+        print(f"Details: {details}")
+
+if __name__ == "__main__":
+    test_trade_handler()

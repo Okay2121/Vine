@@ -327,12 +327,16 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             # Store original balance for logging
             original_balance = user.balance
             
-            # Update user balance
-            user.balance += amount
+            # Update user balance - store the new value directly
+            new_balance = user.balance + amount
+            user.balance = new_balance
+            
+            # Force an immediate flush to ensure the database sees the change
+            db.session.flush()
             
             if not silent:
                 # Print confirmation of user dashboard update
-                logging.info(f"User dashboard updated. User ID: {user.telegram_id}, New Balance: {user.balance:.4f}")
+                logging.info(f"User dashboard updated. User ID: {user.telegram_id}, New Balance: {new_balance:.4f}")
                 logging.info("Bot is fully responsive.")
             
             # Determine transaction type
