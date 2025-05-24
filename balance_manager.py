@@ -378,7 +378,7 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             # Log the adjustment (admin-only)
             action_type = "added to" if amount > 0 else "deducted from"
             log_message = (
-                f"BALANCE ADJUSTMENT\n"
+                f"BALANCE ADJUSTMENT SUCCESSFUL\n"
                 f"User: {user.username} (ID: {user.id}, Telegram ID: {user.telegram_id})\n"
                 f"{abs(amount):.4f} SOL {action_type} balance\n"
                 f"Previous balance: {original_balance:.4f} SOL\n"
