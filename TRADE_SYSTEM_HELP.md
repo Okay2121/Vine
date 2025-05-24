@@ -42,4 +42,4 @@ Sell $ZING 0.0065 https://solscan.io/tx/def456
 
 ## Admin-Only Access
 
-This feature is restricted to admin users only for security reasons.
+This feature is restricted to admin users only for security reasons

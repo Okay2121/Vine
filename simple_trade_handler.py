@@ -3,6 +3,13 @@ Simple Trade Handler for Admin Messages
 ----------------------------------------
 This module implements a simple handler for admin trade messages
 with the format: Buy/Sell $TOKEN PRICE TX_LINK
+
+Features:
+- Automatic message parsing for Buy/Sell trades
+- Trade pairing for calculating ROI
+- Updating user balances based on trade performance
+- Notifications for users about their profits
+- Duplicate transaction prevention
 """
 
 import logging
@@ -55,6 +62,9 @@ def extract_trade_details(text):
     # Extract transaction link (can contain multiple parts if URL has parameters)
     tx_link = ' '.join(parts[3:])
     
+    # Normalize token name to uppercase without losing the $ prefix
+    token = '$' + token.replace('$', '').upper()
+    
     return {
         'trade_type': trade_type,
         'token': token,
@@ -88,6 +98,9 @@ def process_buy_trade(token, price, tx_link, admin_id=None):
             if existing:
                 return (False, f"This transaction was already processed for {existing.token_name}", None)
             
+            # Get current timestamp for accurate tracking
+            now = datetime.utcnow()
+            
             # Create a new position
             position = TradingPosition()
             position.user_id = 1  # Placeholder - will link to specific users on SELL
@@ -95,21 +108,22 @@ def process_buy_trade(token, price, tx_link, admin_id=None):
             position.amount = 1.0  # Placeholder amount
             position.entry_price = price
             position.current_price = price
-            position.timestamp = datetime.utcnow()
+            position.timestamp = now
             position.status = 'open'
             position.trade_type = 'scalp'  # Default trade type
             position.buy_tx_hash = tx_hash
-            position.buy_timestamp = datetime.utcnow()
+            position.buy_timestamp = now
             
             db.session.add(position)
             db.session.commit()
             
-            logger.info(f"Recorded BUY position for {token} at {price}")
+            logger.info(f"Recorded BUY position for {token} at {price} (TX: {tx_hash})")
             return (True, f"BUY position for {token} at {price} recorded successfully", position)
     except Exception as e:
         logger.error(f"Error processing BUY trade: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
+        db.session.rollback()
         return (False, f"Error processing BUY trade: {str(e)}", None)
 
 def process_sell_trade(token, price, tx_link, admin_id=None):
@@ -138,7 +152,7 @@ def process_sell_trade(token, price, tx_link, admin_id=None):
             if existing:
                 return (False, f"This SELL transaction was already processed", None, 0)
             
-            # Find the matching BUY position
+            # Find the matching BUY position - get the oldest unmatched buy for this token
             position = TradingPosition.query.filter_by(
                 token_name=clean_token,
                 status='open'
@@ -147,24 +161,28 @@ def process_sell_trade(token, price, tx_link, admin_id=None):
             if not position:
                 return (False, f"No open BUY position found for {token}", None, 0)
             
-            # Calculate ROI
+            # Calculate ROI percentage
             roi_percentage = ((price - position.entry_price) / position.entry_price) * 100
+            
+            # Get current timestamp for accurate tracking
+            now = datetime.utcnow()
             
             # Update the position
             position.current_price = price
             position.status = 'closed'
             position.sell_tx_hash = tx_hash
-            position.sell_timestamp = datetime.utcnow()
+            position.sell_timestamp = now
             position.roi_percentage = roi_percentage
             
             db.session.commit()
             
-            logger.info(f"Processed SELL for {token} at {price}, ROI: {roi_percentage:.2f}%")
+            logger.info(f"Processed SELL for {token} at {price}, ROI: {roi_percentage:.2f}% (TX: {tx_hash})")
             return (True, f"SELL processed for {token}, ROI: {roi_percentage:.2f}%", position, roi_percentage)
     except Exception as e:
         logger.error(f"Error processing SELL trade: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
+        db.session.rollback()
         return (False, f"Error processing SELL trade: {str(e)}", None, 0)
 
 def apply_trade_profit_to_users(position, bot=None):
@@ -189,11 +207,15 @@ def apply_trade_profit_to_users(position, bot=None):
             # Calculate ROI percentage and convert to decimal
             roi_decimal = position.roi_percentage / 100
             
+            # Get current timestamp for consistency
+            now = datetime.utcnow()
+            today = now.date()
+            
             # Apply profit to each user
             updated_count = 0
             for user in users:
                 try:
-                    # Calculate profit amount for this user
+                    # Calculate profit amount for this user based on their balance
                     profit_amount = user.balance * roi_decimal
                     
                     # Update user balance
@@ -206,19 +228,27 @@ def apply_trade_profit_to_users(position, bot=None):
                     transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
                     transaction.amount = profit_amount
                     transaction.token_name = position.token_name
+                    transaction.price = position.current_price  # Store the exit price
                     transaction.status = 'completed'
                     transaction.notes = f"Trade ROI: {position.roi_percentage:.2f}% for {position.token_name}"
                     transaction.tx_hash = position.sell_tx_hash
-                    transaction.processed_at = datetime.utcnow()
+                    transaction.processed_at = now
                     
-                    # Create a user-specific trading position record
+                    # Create a user-specific trading position record for history tracking
                     user_position = TradingPosition()
                     user_position.user_id = user.id
                     user_position.token_name = position.token_name
-                    user_position.amount = abs(profit_amount / (position.current_price - position.entry_price)) if position.current_price != position.entry_price else 1.0
+                    
+                    # Calculate theoretical token amount based on profit
+                    if position.current_price != position.entry_price:
+                        token_amount = abs(profit_amount / (position.current_price - position.entry_price))
+                    else:
+                        token_amount = 1.0  # Fallback if prices are identical
+                    
+                    user_position.amount = token_amount
                     user_position.entry_price = position.entry_price
                     user_position.current_price = position.current_price
-                    user_position.timestamp = datetime.utcnow()
+                    user_position.timestamp = now
                     user_position.status = 'closed'
                     user_position.trade_type = position.trade_type if position.trade_type else 'scalp'
                     user_position.buy_tx_hash = position.buy_tx_hash
@@ -228,26 +258,33 @@ def apply_trade_profit_to_users(position, bot=None):
                     user_position.roi_percentage = position.roi_percentage
                     user_position.paired_position_id = position.id
                     
-                    # Add profit record
+                    # Add profit record for performance tracking
                     profit_record = Profit()
                     profit_record.user_id = user.id
                     profit_record.amount = profit_amount
                     profit_record.percentage = position.roi_percentage
-                    profit_record.date = datetime.utcnow().date()
+                    profit_record.date = today
                     
                     db.session.add(transaction)
                     db.session.add(user_position)
                     db.session.add(profit_record)
                     
-                    # Send notification to user if bot is provided
+                    # Send personalized notification to user if bot is provided
                     if bot and user.telegram_id:
                         try:
+                            # Choose emoji based on profit/loss
                             emoji = "📈" if position.roi_percentage >= 0 else "📉"
+                            
+                            # Format values for readability
+                            formatted_entry = f"{position.entry_price:.8f}".rstrip('0').rstrip('.')
+                            formatted_exit = f"{position.current_price:.8f}".rstrip('0').rstrip('.')
+                            
+                            # Create personalized message
                             message = (
                                 f"{emoji} *Trade Alert*\n\n"
-                                f"• *Token:* {position.token_name}\n"
-                                f"• *Entry:* {position.entry_price:.8f}\n"
-                                f"• *Exit:* {position.current_price:.8f}\n"
+                                f"• *Token:* ${position.token_name}\n"
+                                f"• *Entry:* {formatted_entry}\n"
+                                f"• *Exit:* {formatted_exit}\n"
                                 f"• *ROI:* {position.roi_percentage:.2f}%\n"
                                 f"• *Your Profit:* {profit_amount:.4f} SOL\n"
                                 f"• *New Balance:* {user.balance:.4f} SOL\n\n"
@@ -290,6 +327,9 @@ def handle_trade_message(message_text, admin_id=None, bot=None):
     if not details:
         return (False, "Invalid trade format. Expected: Buy/Sell $TOKEN PRICE TX_LINK", None)
     
+    # Log the trade message processing
+    logger.info(f"Processing trade message: {details['trade_type']} {details['token']} at {details['price']}")
+    
     # Process based on trade type
     if details['trade_type'] == 'buy':
         success, message, position = process_buy_trade(
@@ -300,12 +340,18 @@ def handle_trade_message(message_text, admin_id=None, bot=None):
         )
         
         if success:
+            # Format timestamp for display
+            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+            
+            # Format price for better readability
+            formatted_price = f"{details['price']:.8f}".rstrip('0').rstrip('.')
+            
             response = (
                 f"✅ *BUY Order Recorded*\n\n"
                 f"• *Token:* {details['token']}\n"
-                f"• *Entry Price:* {details['price']}\n"
+                f"• *Entry Price:* {formatted_price}\n"
                 f"• *Transaction:* [View on Explorer]({details['tx_link']})\n"
-                f"• *Timestamp:* {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"• *Timestamp:* {timestamp}\n\n"
                 f"_This BUY will be matched with a future SELL order._"
             )
         else:
@@ -330,12 +376,19 @@ def handle_trade_message(message_text, admin_id=None, bot=None):
             # Apply profit to all active users
             apply_success, apply_message, user_count = apply_trade_profit_to_users(position, bot)
             
+            # Format values for better readability
+            formatted_exit_price = f"{details['price']:.8f}".rstrip('0').rstrip('.')
+            formatted_entry_price = f"{position.entry_price:.8f}".rstrip('0').rstrip('.')
+            
             if apply_success:
+                # Success emoji based on ROI
+                emoji = "📈" if roi > 0 else "📉" if roi < 0 else "🔄"
+                
                 response = (
-                    f"✅ *SELL Order Processed*\n\n"
+                    f"{emoji} *SELL Order Processed*\n\n"
                     f"• *Token:* {details['token']}\n"
-                    f"• *Exit Price:* {details['price']}\n"
-                    f"• *Entry Price:* {position.entry_price}\n"
+                    f"• *Exit Price:* {formatted_exit_price}\n"
+                    f"• *Entry Price:* {formatted_entry_price}\n"
                     f"• *ROI:* {roi:.2f}%\n"
                     f"• *Users Updated:* {user_count}\n"
                     f"• *Transaction:* [View on Explorer]({details['tx_link']})\n\n"
@@ -345,7 +398,8 @@ def handle_trade_message(message_text, admin_id=None, bot=None):
                 response = (
                     f"⚠️ *SELL Processed with Warnings*\n\n"
                     f"• *Token:* {details['token']}\n"
-                    f"• *Exit Price:* {details['price']}\n"
+                    f"• *Exit Price:* {formatted_exit_price}\n"
+                    f"• *Entry Price:* {formatted_entry_price}\n"
                     f"• *ROI:* {roi:.2f}%\n"
                     f"• *Warning:* {apply_message}\n\n"
                     f"_Please check user accounts manually._"
