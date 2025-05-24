@@ -377,12 +377,24 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             
             # Log the adjustment (admin-only)
             action_type = "added to" if amount > 0 else "deducted from"
+            # Reload the user to get the most current balance
+            try:
+                db.session.refresh(user)
+                actual_balance = user.balance
+            except:
+                # Fallback to querying again if refresh fails
+                try:
+                    current_user = User.query.get(user.id)
+                    actual_balance = current_user.balance if current_user else user.balance
+                except:
+                    actual_balance = user.balance  # Use the original if all else fails
+            
             log_message = (
                 f"BALANCE ADJUSTMENT SUCCESSFUL\n"
                 f"User: {user.username} (ID: {user.id}, Telegram ID: {user.telegram_id})\n"
                 f"{abs(amount):.4f} SOL {action_type} balance\n"
                 f"Previous balance: {original_balance:.4f} SOL\n"
-                f"New balance: {user.balance:.4f} SOL\n"
+                f"New balance: {actual_balance:.4f} SOL\n"
                 f"Reason: {reason}\n"
                 f"Transaction ID: {new_transaction.id}"
             )
