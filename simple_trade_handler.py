@@ -74,7 +74,13 @@ def extract_trade_details(text):
 
 def process_buy_trade(token, price, tx_link, admin_id=None):
     """
-    Process a BUY trade
+    Process a BUY trade and store it for future matching with a SELL
+    
+    The function creates a record of the buy position with:
+    - Token name
+    - Entry price
+    - Transaction hash/link
+    - Timestamp (automatically recorded)
     
     Args:
         token (str): Token name with $ prefix
@@ -128,7 +134,13 @@ def process_buy_trade(token, price, tx_link, admin_id=None):
 
 def process_sell_trade(token, price, tx_link, admin_id=None):
     """
-    Process a SELL trade and match with previous BUY
+    Process a SELL trade and match with previous BUY to calculate ROI
+    
+    This function:
+    1. Finds the oldest unmatched BUY order for the same token
+    2. Calculates the ROI percentage: ((Sell Price - Buy Price) / Buy Price) × 100
+    3. Updates the position status to 'closed'
+    4. Records sell transaction details and timestamps
     
     Args:
         token (str): Token name with $ prefix
@@ -187,7 +199,13 @@ def process_sell_trade(token, price, tx_link, admin_id=None):
 
 def apply_trade_profit_to_users(position, bot=None):
     """
-    Apply the profit from a closed trade to all active users
+    Apply the profit from a closed trade to all active users and immediately update their transaction history
+    
+    This function ensures that trade results are immediately reflected in:
+    1. User balance updates
+    2. Transaction history records
+    3. Trading position history
+    4. Profit tracking
     
     Args:
         position (TradingPosition): The closed trade position
@@ -222,7 +240,7 @@ def apply_trade_profit_to_users(position, bot=None):
                     old_balance = user.balance
                     user.balance += profit_amount
                     
-                    # Create transaction record
+                    # Create detailed transaction record with all trade information
                     transaction = Transaction()
                     transaction.user_id = user.id
                     transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
@@ -230,9 +248,13 @@ def apply_trade_profit_to_users(position, bot=None):
                     transaction.token_name = position.token_name
                     transaction.price = position.current_price  # Store the exit price
                     transaction.status = 'completed'
-                    transaction.notes = f"Trade ROI: {position.roi_percentage:.2f}% for {position.token_name}"
+                    transaction.notes = f"Trade ROI: {position.roi_percentage:.2f}% for {position.token_name} (Buy: {position.entry_price}, Sell: {position.current_price})"
                     transaction.tx_hash = position.sell_tx_hash
                     transaction.processed_at = now
+                    
+                    # For better tracking, also log the buy transaction in the notes
+                    if position.buy_tx_hash:
+                        transaction.notes += f" - Buy TX: {position.buy_tx_hash}"
                     
                     # Create a user-specific trading position record for history tracking
                     user_position = TradingPosition()
@@ -279,16 +301,17 @@ def apply_trade_profit_to_users(position, bot=None):
                             formatted_entry = f"{position.entry_price:.8f}".rstrip('0').rstrip('.')
                             formatted_exit = f"{position.current_price:.8f}".rstrip('0').rstrip('.')
                             
-                            # Create personalized message
+                            # Create personalized message with real-time transaction info
                             message = (
-                                f"{emoji} *Trade Alert*\n\n"
+                                f"{emoji} *Real-Time Trade Alert*\n\n"
                                 f"• *Token:* ${position.token_name}\n"
                                 f"• *Entry:* {formatted_entry}\n"
                                 f"• *Exit:* {formatted_exit}\n"
                                 f"• *ROI:* {position.roi_percentage:.2f}%\n"
                                 f"• *Your Profit:* {profit_amount:.4f} SOL\n"
+                                f"• *Previous Balance:* {old_balance:.4f} SOL\n"
                                 f"• *New Balance:* {user.balance:.4f} SOL\n\n"
-                                f"_Your dashboard has been updated with this trade._"
+                                f"_Your transaction history has been updated with this trade._"
                             )
                             bot.send_message(user.telegram_id, message, parse_mode="Markdown")
                         except Exception as notify_error:

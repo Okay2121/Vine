@@ -32,6 +32,14 @@ Sell $ZING 0.0065 https://solscan.io/tx/def456
 4. **Profit Distribution**: Applied to all active users' balances proportionally
 5. **Notifications**: Users receive personalized trade alerts with their specific profits
 
+## Real-Time Transaction Updates
+
+When a trade is completed (BUY + SELL):
+- User balances are updated instantly
+- Transaction history is updated immediately for each user
+- Trading positions are recorded with complete details
+- Users receive immediate personalized notifications
+
 ## Features
 
 - Timestamps are recorded automatically
@@ -39,6 +47,8 @@ Sell $ZING 0.0065 https://solscan.io/tx/def456
 - Duplicate transactions are automatically detected and prevented
 - Trade pairs are properly matched for accurate ROI tracking
 - All user balances are updated with appropriate profit/loss amounts
+- Each user's transaction history reflects trades in real-time
+- Detailed profit tracking with entry and exit prices
 
 ## Admin-Only Access
 
