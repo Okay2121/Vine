@@ -9,7 +9,7 @@ import logging
 import re
 from datetime import datetime
 import traceback
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 from app import app, db
 from models import User, Transaction, TradingPosition
 

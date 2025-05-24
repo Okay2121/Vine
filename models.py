@@ -53,7 +53,7 @@ class User(db.Model):
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    transaction_type = db.Column(db.String(20), nullable=False)  # deposit, withdraw, buy, sell, admin_credit, admin_debit
+    transaction_type = db.Column(db.String(20), nullable=False)  # deposit, withdraw, buy, sell, admin_credit, admin_debit, trade_profit, trade_loss
     amount = db.Column(db.Float, nullable=False)
     token_name = db.Column(db.String(64))  # For buy/sell transactions
     price = db.Column(db.Float, nullable=True)  # Token price for buy/sell transactions
@@ -62,6 +62,7 @@ class Transaction(db.Model):
     notes = db.Column(db.Text, nullable=True)  # For storing reasons or additional information
     tx_hash = db.Column(db.String(128), nullable=True, unique=True, index=True)  # Unique to prevent duplicate processing
     processed_at = db.Column(db.DateTime, nullable=True)  # When the transaction was actually processed
+    related_trade_id = db.Column(db.Integer, nullable=True)  # Link to the TradingPosition that generated this transaction
     
     # Create indexes for common query patterns
     __table_args__ = (
@@ -100,6 +101,8 @@ class TradingPosition(db.Model):
     sell_timestamp = db.Column(db.DateTime, nullable=True)  # When the sell was executed
     roi_percentage = db.Column(db.Float, nullable=True)  # Calculated ROI percentage
     paired_position_id = db.Column(db.Integer, nullable=True)  # For linking related buy/sell positions
+    admin_id = db.Column(db.String(64), nullable=True)  # Admin who created this position
+    exit_price = db.Column(db.Float, nullable=True)  # Price at exit (sell)
     
     def __repr__(self):
         return f'<TradingPosition {self.token_name} {self.amount}>'
