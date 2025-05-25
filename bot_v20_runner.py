@@ -341,16 +341,16 @@ class SimpleTelegramBot:
                                             previous_balance = user.balance
                                             user.balance += profit_amount
                                             
-                                            # Record transaction
-                                            transaction = Transaction()
-                                            transaction.user_id = user.id
-                                            transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
-                                            transaction.amount = profit_amount
-                                            transaction.token_name = clean_token
-                                            transaction.status = 'completed'
-                                            transaction.notes = f"Trade ROI: {roi_percentage:.2f}% - {clean_token}"
-                                            transaction.tx_hash = tx_hash
-                                            transaction.processed_at = datetime.utcnow()
+                                            # Record transaction - DISABLED (using enhanced trade broadcast)
+                                            # transaction = Transaction()
+                                            # transaction.user_id = user.id
+                                            # transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
+                                            # transaction.amount = profit_amount
+                                            # transaction.token_name = clean_token
+                                            # transaction.status = 'completed'
+                                            # transaction.notes = f"Trade ROI: {roi_percentage:.2f}% - {clean_token}"
+                                            # transaction.tx_hash = tx_hash
+                                            # transaction.processed_at = datetime.utcnow()
                                             
                                             # Create user position record
                                             user_position = TradingPosition()
@@ -376,7 +376,7 @@ class SimpleTelegramBot:
                                             profit_record.percentage = roi_percentage
                                             profit_record.date = datetime.utcnow().date()
                                             
-                                            db.session.add(transaction)
+                                            # db.session.add(transaction)  # DISABLED
                                             db.session.add(user_position)
                                             db.session.add(profit_record)
                                             
