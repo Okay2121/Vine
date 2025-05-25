@@ -6873,11 +6873,23 @@ def transaction_history_handler(update, chat_id):
                         else:
                             tx_emoji = "🔄"
                         
+                        # Create user-friendly transaction type mapping
+                        transaction_type_map = {
+                            "admin_credit": "Deposit",
+                            "trade_buy": "Buy",
+                            "trade_loss": "Sell",
+                            "deposit": "Deposit",
+                            "withdraw": "Withdraw"
+                        }
+                        
+                        # Get user-friendly transaction type
+                        display_type = transaction_type_map.get(tx.transaction_type.lower(), tx.transaction_type.title())
+                        
                         # Add transaction detail
                         if tx.token_name:
-                            history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.4f} SOL of {tx.token_name}\n"
+                            history_message += f"{tx_emoji} *{display_type}*: {tx.amount:.4f} SOL of {tx.token_name}\n"
                         else:
-                            history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.4f} SOL\n"
+                            history_message += f"{tx_emoji} *{display_type}*: {tx.amount:.4f} SOL\n"
                         
                         history_message += f"• *Date:* {date_str}\n"
                         history_message += f"• *Status:* {tx.status.title()}\n"
