@@ -28,8 +28,9 @@ def start_bot():
         bot = bot_v20_runner.SimpleTelegramBot('7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ')
         logger.info("Bot initialized, starting polling...")
         
-        # Run the bot
-        bot.run()
+        # Run the bot using the correct method
+        import bot_v20_runner
+        bot_v20_runner.run_polling()
         
     except Exception as e:
         logger.error(f"Bot error: {e}")
