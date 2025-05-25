@@ -579,10 +579,14 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                     date_str = tx.timestamp.strftime("%Y-%m-%d %H:%M")
                     
                     # Create improved trade record format
-                    if tx.transaction_type in ["buy", "sell"] and tx.token_name:
+                    if tx.transaction_type in ["trade_buy", "trade_sell", "trade_loss", "trade_profit", "buy", "sell"] and tx.token_name:
                         # This is a trade transaction - use enhanced format
-                        trade_emoji = "🟢" if tx.transaction_type == "buy" else "🔴"
-                        trade_type = "Entry" if tx.transaction_type == "buy" else "Exit"
+                        if tx.transaction_type in ["trade_buy", "buy"]:
+                            trade_emoji = "🟢"
+                            display_type = "Buy"
+                        else:
+                            trade_emoji = "🔴"
+                            display_type = "Sell"
                         
                         # Extract additional trade details from notes if available
                         price = 0.0
@@ -617,61 +621,48 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                                     pass
                         
                         # Add enhanced trade details
-                        history_message += f"{trade_emoji} *Token: ${tx.token_name}*\n"
+                        history_message += f"{trade_emoji} *{display_type}*: {abs(tx.amount):.4f} SOL of {tx.token_name}\n"
                         
-                        # Add price information
-                        if price > 0:
-                            history_message += f"• *{trade_type}:* ${price:.6f}\n"
-                        else:
-                            history_message += f"• *{trade_type}:* {tx.amount:.2f} SOL\n"
-                        
-                        # Add ROI if available (for sell transactions)
-                        if tx.transaction_type == "sell" and roi_percentage is not None:
-                            roi_emoji = "📈" if roi_percentage > 0 else "📉"
-                            history_message += f"• *ROI:* {roi_emoji} {roi_percentage:.1f}%\n"
-                        
-                        # Add trade strategy
-                        history_message += f"• *Trade Type:* {trade_strategy}\n"
-                        
-                        # Add date
+                        # Add date and status
                         history_message += f"• *Date:* {date_str}\n"
+                        history_message += f"• *Status:* {tx.status.title()}\n"
                         
                         # Add transaction hash as clickable link if available
-                        if tx.tx_hash:
+                        if tx.tx_hash and not tx.tx_hash.startswith('zin_sell_'):
                             # Create a Solana Explorer link for the transaction
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
                             history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
+                        
+                        # Add ROI info for sell transactions
+                        if tx.transaction_type in ["trade_loss", "trade_profit"] and tx.notes:
+                            history_message += f"• *Info:* {tx.notes}\n"
                     
                     else:
                         # For non-trade transactions (deposits, withdrawals, etc.)
-                        if tx.transaction_type == "deposit":
+                        if tx.transaction_type in ["deposit", "admin_credit"]:
                             tx_emoji = "⬇️"
+                            display_name = "Deposit"
                         elif tx.transaction_type == "withdraw":
                             tx_emoji = "⬆️"
+                            display_name = "Withdraw"
                         else:
                             tx_emoji = "🔄"
+                            display_name = tx.transaction_type.title()
                         
                         # Add transaction detail
                         if tx.token_name:
-                            history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.4f} SOL of {tx.token_name}\n"
+                            history_message += f"{tx_emoji} *{display_name}*: {tx.amount:.4f} SOL of {tx.token_name}\n"
                         else:
-                            history_message += f"{tx_emoji} *{tx.transaction_type.title()}*: {tx.amount:.4f} SOL\n"
+                            history_message += f"{tx_emoji} *{display_name}*: {tx.amount:.4f} SOL\n"
                         
                         history_message += f"• *Date:* {date_str}\n"
                         history_message += f"• *Status:* {tx.status.title()}\n"
                         
-                        # Add transaction hash as clickable link with enhanced styling if available
-                        if tx.tx_hash:
+                        # Add transaction hash as clickable link if available and valid
+                        if tx.tx_hash and not any(prefix in tx.tx_hash for prefix in ['zin_sell_', 'admin_', 'test_']):
                             # Create a Solana Explorer link for the transaction
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
                             history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
-                        
-                        # Add notes if available
-                        if hasattr(tx, 'notes') and tx.notes:
-                            notes = str(tx.notes)
-                            if len(notes) > 50:  # Truncate long notes
-                                notes = notes[:47] + "..."
-                            history_message += f"• *Info:* _{notes}_\n"
                     
                     history_message += "───────────────────\n\n"
             else:
