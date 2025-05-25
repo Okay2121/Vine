@@ -222,7 +222,7 @@ def apply_trade_to_users(position, user_filter=None):
                 previous_balance = user.balance
                 user.balance += profit_amount
                 
-                # Create transaction record
+                # Create transaction record with unique identifier
                 transaction = Transaction()
                 transaction.user_id = user.id
                 transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
@@ -230,7 +230,8 @@ def apply_trade_to_users(position, user_filter=None):
                 transaction.token_name = position.token_name
                 transaction.status = 'completed'
                 transaction.notes = f"Trade ROI: {roi_percentage:.2f}% - {position.token_name}"
-                transaction.tx_hash = position.sell_tx_hash
+                # Create unique tx_hash by combining sell hash with user ID
+                transaction.tx_hash = f"{position.sell_tx_hash}_u{user.id}"
                 transaction.processed_at = datetime.utcnow()
                 
                 # Create a completed trading position linked to this user

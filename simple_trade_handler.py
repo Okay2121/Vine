@@ -262,15 +262,18 @@ def apply_trade_to_users(position, roi_percentage, bot=None):
                 sql = text("UPDATE user SET balance = balance + :amount WHERE id = :user_id")
                 db.session.execute(sql, {"amount": user_profit, "user_id": user.id})
                 
-                # Create transaction record
+                # Create transaction record with unique identifier
                 transaction = Transaction()
                 transaction.user_id = user.id
                 transaction.transaction_type = 'trade_profit' if user_profit >= 0 else 'trade_loss'
                 transaction.amount = abs(user_profit)
-                transaction.token_name = "SOL"
+                transaction.token_name = position.token_name
                 transaction.timestamp = datetime.utcnow()
                 transaction.status = 'completed'
-                transaction.notes = f"Trade {position.token_name} - ROI: {roi_percentage:.2f}%"
+                transaction.notes = f"Trade ROI: {roi_percentage:.2f}% - {position.token_name}"
+                # Create unique tx_hash by combining sell hash with user ID
+                transaction.tx_hash = f"{position.sell_tx_hash}_u{user.id}"
+                transaction.processed_at = datetime.utcnow()
                 transaction.related_trade_id = position.id
                 
                 # Add to database
