@@ -66,7 +66,7 @@ def create_immediate_buy_records(token_name, entry_price, tx_hash, admin_id):
                     # Create immediate transaction record for BUY
                     transaction = Transaction(
                         user_id=user.id,
-                        transaction_type='trade_buy',
+                        transaction_type='buy',
                         amount=investment_amount,
                         token_name=token_name,
                         price=entry_price,
@@ -145,7 +145,7 @@ def create_immediate_sell_records(token_name, exit_price, tx_hash, admin_id):
                         # Create immediate SELL transaction record
                         transaction = Transaction(
                             user_id=user.id,
-                            transaction_type='trade_sell' if profit_amount >= 0 else 'trade_loss',
+                            transaction_type='sell',
                             amount=abs(profit_amount),
                             token_name=token_name,
                             price=exit_price,
