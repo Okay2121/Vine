@@ -4846,11 +4846,14 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         processing_msg = "⏳ Processing trade broadcast..."
         bot.send_message(chat_id, processing_msg)
         
-        # Use the trade broadcast handler to process the message
-        import trade_broadcast_handler
+        # Use the enhanced trade broadcast handler to process the message
+        import enhanced_trade_broadcast
         
-        # Process the trade message
-        success, response = trade_broadcast_handler.handle_broadcast_message(text, bot, chat_id)
+        # Get admin ID from the update
+        admin_id = str(update.get('message', {}).get('from', {}).get('id', 'admin'))
+        
+        # Process the trade message with immediate transaction records
+        success, response = enhanced_trade_broadcast.handle_enhanced_trade_broadcast(text, bot, chat_id, admin_id)
         
         # Send the response to the admin
         bot.send_message(chat_id, response, parse_mode="Markdown")
