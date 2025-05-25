@@ -6900,16 +6900,8 @@ def transaction_history_handler(update, chat_id):
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
                             history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
                         
-                        # Only add notes for non-admin related messages
-                        if hasattr(tx, 'notes') and tx.notes:
-                            notes = str(tx.notes)
-                            # Don't show admin approval messages to users
-                            if not ("pending admin approval" in notes.lower() or 
-                                    "admin" in notes.lower() or 
-                                    "approval" in notes.lower()):
-                                if len(notes) > 50:  # Truncate long notes
-                                    notes = notes[:47] + "..."
-                                history_message += f"• *Info:* _{notes}_\n"
+                        # Remove info/notes section to keep transaction history clean
+                        # (No longer showing technical notes like "Testing fixed balance update")
                     
                     history_message += "───────────────────\n\n"
             else:
