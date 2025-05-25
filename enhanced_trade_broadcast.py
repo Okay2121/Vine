@@ -66,16 +66,13 @@ def create_immediate_buy_records(token_name, entry_price, tx_hash, admin_id):
                     # Create immediate transaction record for BUY
                     transaction = Transaction(
                         user_id=user.id,
-                        transaction_type='buy',
+                        transaction_type='trade_buy',  # Use consistent transaction type
                         amount=investment_amount,
                         token_name=token_name,
-                        price=entry_price,
                         timestamp=datetime.utcnow(),
                         status='completed',
                         notes=f'BUY Order: {tokens_bought:.6f} {token_name} @ ${entry_price}',
-                        tx_hash=f"{tx_hash}_buy_{user.id}_{int(datetime.utcnow().timestamp())}",  # Make unique per user and time
-                        processed_at=datetime.utcnow(),
-                        related_trade_id=None
+                        tx_hash=f"{tx_hash}_buy_{user.id}_{int(datetime.utcnow().timestamp())}"
                     )
                     db.session.add(transaction)
                     
@@ -143,18 +140,22 @@ def create_immediate_sell_records(token_name, exit_price, tx_hash, admin_id):
                         user.balance += profit_amount
                         
                         # Create immediate SELL transaction record
+                        if profit_amount >= 0:
+                            transaction_type = 'trade_profit'
+                            amount = profit_amount
+                        else:
+                            transaction_type = 'trade_loss'
+                            amount = abs(profit_amount)
+                        
                         transaction = Transaction(
                             user_id=user.id,
-                            transaction_type='sell',
-                            amount=abs(profit_amount),
+                            transaction_type=transaction_type,
+                            amount=amount,
                             token_name=token_name,
-                            price=exit_price,
                             timestamp=datetime.utcnow(),
                             status='completed',
                             notes=f'SELL Order: {position.amount:.6f} {token_name} @ ${exit_price} (ROI: {roi_percentage:.2f}%)',
-                            tx_hash=f"{tx_hash}_sell_{user.id}_{int(datetime.utcnow().timestamp())}",  # Make unique per user and time
-                            processed_at=datetime.utcnow(),
-                            related_trade_id=position.id
+                            tx_hash=f"{tx_hash}_sell_{user.id}_{int(datetime.utcnow().timestamp())}"
                         )
                         db.session.add(transaction)
                         
