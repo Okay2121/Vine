@@ -8073,9 +8073,7 @@ def admin_deposit_logs_handler(update, chat_id):
                             f"   📅 {timestamp} · {transaction.status.upper()}\n"
                         )
                         
-                        # Add notes if any
-                        if transaction.notes:
-                            message += f"   _Note: {transaction.notes}_\n"
+                        # Remove notes display to keep deposit logs clean
                         
                         # Add a separator except for the last item
                         if i < len(deposits):

@@ -633,9 +633,7 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
                             history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
                         
-                        # Add ROI info for sell transactions
-                        if tx.transaction_type in ["trade_loss", "trade_profit"] and tx.notes:
-                            history_message += f"• *Info:* {tx.notes}\n"
+                        # Remove info/notes section to keep transaction history clean
                     
                     else:
                         # For non-trade transactions (deposits, withdrawals, etc.)
