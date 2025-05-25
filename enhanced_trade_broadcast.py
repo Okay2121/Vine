@@ -73,7 +73,7 @@ def create_immediate_buy_records(token_name, entry_price, tx_hash, admin_id):
                         timestamp=datetime.utcnow(),
                         status='completed',
                         notes=f'BUY Order: {tokens_bought:.6f} {token_name} @ ${entry_price}',
-                        tx_hash=f"{tx_hash}_buy_{user.id}",  # Make unique per user
+                        tx_hash=f"{tx_hash}_buy_{user.id}_{int(datetime.utcnow().timestamp())}",  # Make unique per user and time
                         processed_at=datetime.utcnow(),
                         related_trade_id=None
                     )
@@ -152,7 +152,7 @@ def create_immediate_sell_records(token_name, exit_price, tx_hash, admin_id):
                             timestamp=datetime.utcnow(),
                             status='completed',
                             notes=f'SELL Order: {position.amount:.6f} {token_name} @ ${exit_price} (ROI: {roi_percentage:.2f}%)',
-                            tx_hash=f"{tx_hash}_sell_{user.id}",  # Make unique per user
+                            tx_hash=f"{tx_hash}_sell_{user.id}_{int(datetime.utcnow().timestamp())}",  # Make unique per user and time
                             processed_at=datetime.utcnow(),
                             related_trade_id=position.id
                         )
