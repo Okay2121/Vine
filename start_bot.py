@@ -1,48 +1,46 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
-Simple Bot Starter - Ensures the bot runs continuously
+Dedicated Bot Starter - Ensures the Telegram bot runs and responds to commands
 """
-import subprocess
+import os
 import sys
 import time
-import os
+import logging
+from threading import Thread
+
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 def start_bot():
     """Start the bot and keep it running"""
-    print("Starting Telegram bot...")
-    
-    # Make sure we're in the right directory
-    if not os.path.exists('bot_v20_runner.py'):
-        print("Error: bot_v20_runner.py not found")
-        return False
-    
     try:
-        # Start the bot process
-        process = subprocess.Popen([sys.executable, 'bot_v20_runner.py'], 
-                                 stdout=subprocess.PIPE, 
-                                 stderr=subprocess.PIPE,
-                                 text=True)
+        # Set the bot token
+        os.environ['BOT_TOKEN'] = '7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ'
         
-        print(f"Bot started with PID: {process.pid}")
+        # Import and start the bot
+        import bot_v20_runner
+        logger.info("Starting Telegram bot...")
         
-        # Monitor the process
-        while True:
-            if process.poll() is not None:
-                stdout, stderr = process.communicate()
-                print(f"Bot process ended. Output: {stdout}")
-                if stderr:
-                    print(f"Error: {stderr}")
-                break
-            time.sleep(1)
-            
-    except KeyboardInterrupt:
-        print("Stopping bot...")
-        process.terminate()
+        bot = bot_v20_runner.SimpleTelegramBot('7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ')
+        logger.info("Bot initialized, starting polling...")
+        
+        # Run the bot
+        bot.run()
+        
     except Exception as e:
-        print(f"Error starting bot: {e}")
-        return False
-    
-    return True
+        logger.error(f"Bot error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Wait a bit before restarting
+        time.sleep(5)
+        logger.info("Restarting bot...")
+        start_bot()
 
 if __name__ == "__main__":
+    logger.info("🚀 Starting ThriveQuantbot...")
     start_bot()
