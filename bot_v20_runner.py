@@ -4884,9 +4884,9 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         # Get admin ID from the update
         admin_id = str(update.get('message', {}).get('from', {}).get('id', 'admin'))
         
-        # Parse the trade message using the correct patterns
-        buy_pattern = re.compile(r'^Buy\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
-        sell_pattern = re.compile(r'^Sell\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
+        # Parse the trade message using the correct patterns - Updated format with amount
+        buy_pattern = re.compile(r'^Buy\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
+        sell_pattern = re.compile(r'^Sell\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
         
         buy_match = buy_pattern.match(text.strip())
         sell_match = sell_pattern.match(text.strip())
@@ -4895,8 +4895,9 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         response = ""
         
         if buy_match:
-            token_name, price_str, tx_link = buy_match.groups()
+            token_name, price_str, amount_str, tx_link = buy_match.groups()
             entry_price = float(price_str)
+            token_amount = float(amount_str)
             tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
             
             # Create immediate BUY transaction records for all users
@@ -4908,14 +4909,12 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                 
                 for user in users:
                     try:
-                        # Calculate tokens purchased
-                        tokens_purchased = user.balance / entry_price if entry_price > 0 else 1000000
-                        
+                        # Use the actual token amount from the broadcast
                         # Create trading position that shows immediately in Position feed
                         position = TradingPosition(
                             user_id=user.id,
                             token_name=token_name,
-                            amount=tokens_purchased,
+                            amount=token_amount,  # Use actual amount from broadcast
                             entry_price=entry_price,
                             current_price=entry_price,
                             timestamp=datetime.utcnow(),
@@ -4950,8 +4949,9 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                 )
                 
         elif sell_match:
-            token_name, price_str, tx_link = sell_match.groups()
+            token_name, price_str, amount_str, tx_link = sell_match.groups()
             exit_price = float(price_str)
+            token_amount = float(amount_str)
             tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
             
             # Create immediate SELL transaction records and close positions
@@ -5034,7 +5034,8 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
             success = False
             response = (
                 "❌ *Invalid Format*\n\n"
-                "Use: `Buy $TOKEN PRICE TX_LINK` or `Sell $TOKEN PRICE TX_LINK`"
+                "Use: `Buy $TOKEN PRICE AMOUNT TX_LINK` or `Sell $TOKEN PRICE AMOUNT TX_LINK`\n\n"
+                "Example: `Buy $ZING 0.004107 812345 https://solscan.io/tx/abc123`"
             )
         
         # Send the response to the admin
