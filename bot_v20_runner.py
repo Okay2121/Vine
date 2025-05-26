@@ -6261,54 +6261,53 @@ def trading_history_handler(update, chat_id):
                 Transaction.timestamp >= datetime.combine(today_date, datetime.min.time())
             ).all()
             
-            # Get trading stats from yield_data.json instead of just today's trades
+            # Get real trading statistics from database
             profitable_trades = 0
             loss_trades = 0
             
-            # Try to get stats from yield_data.json file first
+            # Get all closed trading positions for real statistics
             try:
-                # Try multiple possible locations for yield_data.json
-                possible_paths = ['yield_data.json', '/home/runner/workspace/yield_data.json', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yield_data.json')]
+                closed_positions = TradingPosition.query.filter_by(
+                    user_id=user.id,
+                    status='closed'
+                ).all()
                 
-                yield_data_path = None
-                for path in possible_paths:
-                    if os.path.exists(path):
-                        yield_data_path = path
-                        break
-                
-                if yield_data_path and os.path.exists(yield_data_path):
-                    with open(yield_data_path, 'r') as f:
-                        yield_data = json.load(f)
-                    
-                    user_id_str = str(user.id)
-                    if user_id_str in yield_data:
-                        user_data = yield_data[user_id_str]
-                        
-                        # Calculate wins and losses from actual trade data
-                        profitable_trades = 0
-                        loss_trades = 0
-                        trades = user_data.get('trades', [])
-                        
-                        for trade in trades:
-                            yield_percentage = trade.get('yield', 0)
-                            if yield_percentage > 0:
-                                profitable_trades += 1
-                            elif yield_percentage < 0:
-                                loss_trades += 1
-                        
-                        logger.info(f"Got stats from yield_data.json: {profitable_trades} wins, {loss_trades} losses")
-                        
-            except Exception as e:
-                logger.error(f"Error reading yield_data.json: {e}")
-                
-            # Fallback to calculating from today's trades if we didn't get stats from yield_data.json
-            if profitable_trades == 0 and loss_trades == 0:
-                for tx in trades_today:
-                    if hasattr(tx, 'profit_amount') and tx.profit_amount is not None:
-                        if tx.profit_amount > 0:
+                for position in closed_positions:
+                    if hasattr(position, 'roi_percentage') and position.roi_percentage is not None:
+                        if position.roi_percentage > 0:
                             profitable_trades += 1
-                        elif tx.profit_amount < 0:
+                        else:
                             loss_trades += 1
+                    elif hasattr(position, 'current_price') and hasattr(position, 'entry_price'):
+                        # Calculate profit/loss from price difference
+                        if position.current_price > position.entry_price:
+                            profitable_trades += 1
+                        else:
+                            loss_trades += 1
+                            
+                logger.info(f"Real database stats: {profitable_trades} wins, {loss_trades} losses from {len(closed_positions)} positions")
+                
+            except Exception as e:
+                logger.error(f"Error getting real trading data: {e}")
+                
+            # Also check profit transactions for additional wins/losses
+            try:
+                profit_transactions = Transaction.query.filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type.in_(['trade_buy', 'trade_loss'])
+                ).all()
+                
+                for tx in profit_transactions:
+                    if tx.transaction_type == 'trade_buy' and tx.amount > 0:
+                        # This represents a profitable trade completion
+                        if profitable_trades == 0 and loss_trades == 0:  # Only if we haven't counted from positions
+                            profitable_trades += 1
+                    elif tx.transaction_type == 'trade_loss':
+                        if profitable_trades == 0 and loss_trades == 0:  # Only if we haven't counted from positions
+                            loss_trades += 1
+                            
+            except Exception as e:
+                logger.error(f"Error getting profit transactions: {e}")
             
             # Calculate win rate
             total_trades = profitable_trades + loss_trades
@@ -6878,8 +6877,11 @@ def transaction_history_handler(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
             
-            # Get user's transactions
+            # Get user's real transactions from database
             transactions = Transaction.query.filter_by(user_id=user.id).order_by(Transaction.timestamp.desc()).limit(10).all()
+            
+            # Also get trading positions for complete transaction history
+            trading_positions = TradingPosition.query.filter_by(user_id=user.id).order_by(TradingPosition.timestamp.desc()).limit(5).all()
             
             if transactions:
                 history_message = "📜 *TRANSACTION HISTORY*\n\n📊 Your last 10 transactions with tracking links\n\n"
