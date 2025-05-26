@@ -4852,18 +4852,18 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     # Update user's balance with the profit
                     user.balance += profit_amount
                     
-                    # Create a transaction record
-                    transaction_type = "buy" if profit_amount > 0 else "sell"
-                    new_transaction = Transaction(
-                        user_id=user.id,
-                        transaction_type=transaction_type,
-                        amount=abs(profit_amount),
-                        token_name=token,
-                        timestamp=datetime.utcnow(),
-                        status="completed",
-                        notes=f"Auto trade: entry {entry}, exit {exit_price}",
-                        tx_hash=tx_link
-                    )
+                    # Create a transaction record that will immediately show in user history
+                    transaction_type = "trade_profit" if profit_amount > 0 else "trade_loss"
+                    new_transaction = Transaction()
+                    new_transaction.user_id = user.id
+                    new_transaction.transaction_type = transaction_type
+                    new_transaction.amount = abs(profit_amount)
+                    new_transaction.token_name = token
+                    new_transaction.timestamp = datetime.utcnow()
+                    new_transaction.status = "completed"
+                    new_transaction.notes = f"Trade ROI: {roi_percent:.2f}% - {token} (Entry: {entry}, Exit: {exit_price})"
+                    new_transaction.tx_hash = f"{tx_link}_u{user.id}" if tx_link else f"trade_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_u{user.id}"
+                    new_transaction.processed_at = datetime.utcnow()
                     db.session.add(new_transaction)
                     
                     # Create profit record for today
