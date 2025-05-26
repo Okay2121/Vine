@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bot Configuration
-BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ')
 ADMIN_USER_ID = os.environ.get('ADMIN_USER_ID', '5488280696')  # Admin Telegram ID
 ADMIN_IDS = [os.environ.get('ADMIN_USER_ID', '5488280696')]  # List of authorized admin IDs
 

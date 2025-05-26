@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 # Load environment variables from .env file
 load_dotenv()
 
-# Get the bot token from environment variables
-BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+# Get the bot token from environment variables with fallback
+BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ')
 
 # Global flag to track if bot is running
 bot_running = False
@@ -111,7 +111,7 @@ def start_bot_thread():
     global bot_running
     
     # Use polling instead of webhook to ensure the bot can respond reliably
-    token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ')
     
     if not token:
         logger.warning("No valid Telegram bot token provided. Bot will not start.")
@@ -177,6 +177,26 @@ def start_bot_on_first_request():
     bot_thread = threading.Thread(target=start_bot_thread)
     bot_thread.daemon = True  # Thread will exit when main thread exits
     bot_thread.start()
+
+# Auto-start the bot immediately when the module is imported
+def auto_start_bot():
+    """Auto-start the bot when the application starts"""
+    global bot_running
+    if not bot_running:
+        # Check if we have a valid token before trying to start
+        token = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ')
+        if token and token != '':
+            logger.info(f"Auto-starting bot on application startup with token: {token[:10]}...")
+            bot_thread = threading.Thread(target=start_bot_thread)
+            bot_thread.daemon = True
+            bot_thread.start()
+        else:
+            logger.warning("No bot token available for auto-start")
+
+# Call auto-start when this module is imported (delay slightly to ensure env vars are loaded)
+import time
+time.sleep(0.1)  # Small delay to ensure environment is ready
+auto_start_bot()
 
 # Route to manually start the bot
 @app.route('/start_bot')
