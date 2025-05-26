@@ -4908,32 +4908,27 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                 
                 for user in users:
                     try:
-                        # Create immediate BUY transaction record that shows in history
-                        transaction = Transaction(
-                            user_id=user.id,
-                            transaction_type='buy',  # Use 'buy' to match transaction history display
-                            amount=user.balance,  # Investment amount
-                            token_name=token_name,
-                            timestamp=datetime.utcnow(),
-                            status='completed',
-                            notes=f'BUY Order: {token_name} @ ${entry_price}',
-                            tx_hash=f"{tx_hash}_buy_{user.id}_{int(datetime.utcnow().timestamp())}"
-                        )
-                        db.session.add(transaction)
+                        # Calculate tokens purchased
+                        tokens_purchased = user.balance / entry_price if entry_price > 0 else 1000000
                         
-                        # Also create trading position for future SELL matching
+                        # Create trading position that shows immediately in Position feed
                         position = TradingPosition(
                             user_id=user.id,
                             token_name=token_name,
-                            amount=user.balance / entry_price,  # Tokens bought
+                            amount=tokens_purchased,
                             entry_price=entry_price,
                             current_price=entry_price,
                             timestamp=datetime.utcnow(),
-                            status='open',
-                            trade_type='buy',
-                            buy_tx_hash=tx_hash,
-                            buy_timestamp=datetime.utcnow()
+                            status='holding',
+                            position_type='buy',
+                            tx_hash=tx_link
                         )
+                        
+                        # Add buy-specific fields for Position display
+                        if hasattr(position, 'buy_tx_hash'):
+                            position.buy_tx_hash = tx_link
+                        if hasattr(position, 'buy_timestamp'):
+                            position.buy_timestamp = datetime.utcnow()
                         db.session.add(position)
                         
                         created_count += 1
@@ -4980,12 +4975,18 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                             roi_percentage = ((exit_price - position.entry_price) / position.entry_price) * 100
                             profit_amount = position.amount * (exit_price - position.entry_price)
                             
-                            # Update position to closed
-                            position.status = 'closed'
+                            # Update position to show SELL in Position feed
+                            position.status = 'completed'
                             position.current_price = exit_price
-                            position.sell_tx_hash = tx_hash
-                            position.sell_timestamp = datetime.utcnow()
+                            position.position_type = 'sell'
+                            position.tx_hash = tx_link
                             position.roi_percentage = roi_percentage
+                            
+                            # Add sell-specific fields for Position display
+                            if hasattr(position, 'sell_tx_hash'):
+                                position.sell_tx_hash = tx_link
+                            if hasattr(position, 'sell_timestamp'):
+                                position.sell_timestamp = datetime.utcnow()
                             
                             # Update user balance and create transaction record
                             user = User.query.get(position.user_id)
