@@ -1615,10 +1615,13 @@ def dashboard_command(update, chat_id):
                 ],
                 [
                     {"text": "📊 Performance", "callback_data": "trading_history"},
-                    {"text": "👥 Referral", "callback_data": "referral"}
+                    {"text": "🎯 Position", "callback_data": "live_positions"}
                 ],
                 [
-                    {"text": "🛟 Customer Support", "callback_data": "support"},
+                    {"text": "👥 Referral", "callback_data": "referral"},
+                    {"text": "🛟 Customer Support", "callback_data": "support"}
+                ],
+                [
                     {"text": "❓ FAQ", "callback_data": "faqs"}
                 ]
             ])
@@ -4440,6 +4443,103 @@ def admin_broadcast_announcement_handler(update, chat_id):
         logging.error(f"Error in admin_broadcast_announcement_handler: {e}")
         bot.send_message(chat_id, f"Error setting up announcement broadcast: {str(e)}")
 
+def live_positions_handler(update, chat_id):
+    """Handle the Position button - Display live trade broadcasts immediately."""
+    try:
+        with app.app_context():
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            # Get live trading positions from TradingPosition table
+            from models import TradingPosition
+            from datetime import datetime, timedelta
+            from sqlalchemy import desc
+            
+            # Get recent positions (both buys and sells) ordered by most recent
+            recent_positions = TradingPosition.query.filter_by(user_id=user.id).order_by(desc(TradingPosition.timestamp)).limit(10).all()
+            
+            position_message = "🎯 *LIVE POSITIONS*\n\n"
+            
+            if not recent_positions:
+                position_message += (
+                    "🔍 *No active positions yet*\n\n"
+                    "Your live trade broadcasts will appear here instantly when executed.\n\n"
+                    "• Buy signals show immediately with entry price\n"
+                    "• Sell signals auto-calculate profit/loss\n"
+                    "• All transactions link to Solscan\n\n"
+                    "_Deposit SOL to activate live trading_"
+                )
+            else:
+                position_message += "⚡ *LIVE TRADE FEED* ⚡\n\n"
+                
+                for position in recent_positions:
+                    # Format timestamp
+                    time_str = position.timestamp.strftime("%b %d – %H:%M UTC")
+                    
+                    # Determine if this is a buy or sell based on position data
+                    if hasattr(position, 'sell_timestamp') and position.sell_timestamp:
+                        # This is a SELL (exit)
+                        profit_pct = ((position.current_price / position.entry_price) - 1) * 100 if position.entry_price > 0 else 0
+                        profit_emoji = "🟢" if profit_pct > 0 else "🔴"
+                        
+                        position_message += f"[EXIT SNIPE] — ${position.token_name}\n"
+                        position_message += f"Exit: {position.current_price:.6f} | Amount: {position.amount:,.0f} {position.token_name}\n"
+                        position_message += f"Profit: {profit_emoji}{profit_pct:+.2f}% (Auto-calculated)\n"
+                        
+                        if hasattr(position, 'sell_tx_hash') and position.sell_tx_hash:
+                            if position.sell_tx_hash.startswith('http'):
+                                position_message += f"Sell TX: {position.sell_tx_hash}\n"
+                            else:
+                                position_message += f"Sell TX: https://solscan.io/tx/{position.sell_tx_hash}\n"
+                        
+                        position_message += f"Time: {time_str}\n\n"
+                        
+                    else:
+                        # This is a BUY (entry)
+                        sol_spent = position.amount * position.entry_price if position.entry_price > 0 else 0
+                        
+                        position_message += f"[LIVE SNIPE] — ${position.token_name}\n"
+                        position_message += f"Entry: {position.entry_price:.6f} | Amount: {position.amount:,.0f} {position.token_name} | Spent: {sol_spent:.2f} SOL\n"
+                        
+                        if hasattr(position, 'buy_tx_hash') and position.buy_tx_hash:
+                            if position.buy_tx_hash.startswith('http'):
+                                position_message += f"TX: {position.buy_tx_hash}\n"
+                            else:
+                                position_message += f"TX: https://solscan.io/tx/{position.buy_tx_hash}\n"
+                        elif position.tx_hash:
+                            if position.tx_hash.startswith('http'):
+                                position_message += f"TX: {position.tx_hash}\n"
+                            else:
+                                position_message += f"TX: https://solscan.io/tx/{position.tx_hash}\n"
+                        
+                        position_message += f"Status: Holding\n"
+                        position_message += f"Time: {time_str}\n\n"
+                
+                position_message += "⚡ *Live feed updates automatically*\n"
+                position_message += "_Refresh to see latest positions_"
+            
+            # Create keyboard
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "🔄 Refresh", "callback_data": "live_positions"},
+                    {"text": "📊 Performance", "callback_data": "trading_history"}
+                ],
+                [
+                    {"text": "🏠 Dashboard", "callback_data": "view_dashboard"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, position_message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in live_positions_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error displaying live positions: {str(e)}")
+
 def is_admin(telegram_id):
     """Check if the given Telegram ID belongs to an admin."""
     # Convert to string if it's not already
@@ -6058,6 +6158,9 @@ def run_polling():
     
     # Trade history button handler
     bot.add_callback_handler("view_trade_history", trade_history_display_handler)
+    
+    # Live positions handler - displays immediate trade broadcasts
+    bot.add_callback_handler("live_positions", live_positions_handler)
 # Admin panel handlers
     bot.add_callback_handler("admin_user_management", admin_user_management_handler)
     bot.add_callback_handler("admin_wallet_settings", admin_wallet_settings_handler)
