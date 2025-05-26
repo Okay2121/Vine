@@ -1615,13 +1615,10 @@ def dashboard_command(update, chat_id):
                 ],
                 [
                     {"text": "📊 Performance", "callback_data": "trading_history"},
-                    {"text": "🎯 Position", "callback_data": "live_positions"}
+                    {"text": "👥 Referral", "callback_data": "referral"}
                 ],
                 [
-                    {"text": "👥 Referral", "callback_data": "referral"},
-                    {"text": "🛟 Customer Support", "callback_data": "support"}
-                ],
-                [
+                    {"text": "🛟 Customer Support", "callback_data": "support"},
                     {"text": "❓ FAQ", "callback_data": "faqs"}
                 ]
             ])
@@ -6510,13 +6507,14 @@ def trading_history_handler(update, chat_id):
             else:
                 performance_message += "⏳ No token trades completed yet. Scanning for profitable opportunities!\n"
             
-            # Create proper keyboard with transaction history button but no trade history button
+            # Create proper keyboard with Position button for live trade broadcasts
             keyboard = bot.create_inline_keyboard([
                 [
                     {"text": "💲 Deposit More", "callback_data": "deposit"},
                     {"text": "💰 Withdraw", "callback_data": "withdraw_profit"}
                 ],
                 [
+                    {"text": "🎯 Position", "callback_data": "live_positions"},
                     {"text": "📜 Transaction History", "callback_data": "transaction_history"}
                 ],
                 [
