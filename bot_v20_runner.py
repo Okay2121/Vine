@@ -4918,8 +4918,8 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                             entry_price=entry_price,
                             current_price=entry_price,
                             timestamp=datetime.utcnow(),
-                            status='holding',
-                            position_type='buy',
+                            status='open',
+                            trade_type='buy',
                             tx_hash=tx_link
                         )
                         
@@ -4976,9 +4976,9 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                             profit_amount = position.amount * (exit_price - position.entry_price)
                             
                             # Update position to show SELL in Position feed
-                            position.status = 'completed'
+                            position.status = 'closed'
                             position.current_price = exit_price
-                            position.position_type = 'sell'
+                            position.trade_type = 'sell'
                             position.tx_hash = tx_link
                             position.roi_percentage = roi_percentage
                             
