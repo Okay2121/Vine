@@ -4781,14 +4781,163 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         processing_msg = "⏳ Processing trade broadcast..."
         bot.send_message(chat_id, processing_msg)
         
-        # Use the enhanced trade broadcast handler to process the message
-        import enhanced_trade_broadcast
+        # Process the trade message directly to create immediate transaction records
+        import re
         
         # Get admin ID from the update
         admin_id = str(update.get('message', {}).get('from', {}).get('id', 'admin'))
         
-        # Process the trade message with immediate transaction records
-        success, response = enhanced_trade_broadcast.handle_enhanced_trade_broadcast(text, bot, chat_id, admin_id)
+        # Parse the trade message using the correct patterns
+        buy_pattern = re.compile(r'^Buy\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
+        sell_pattern = re.compile(r'^Sell\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
+        
+        buy_match = buy_pattern.match(text.strip())
+        sell_match = sell_pattern.match(text.strip())
+        
+        success = False
+        response = ""
+        
+        if buy_match:
+            token_name, price_str, tx_link = buy_match.groups()
+            entry_price = float(price_str)
+            tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
+            
+            # Create immediate BUY transaction records for all users
+            with app.app_context():
+                from models import User, TradingPosition, Transaction
+                
+                users = User.query.filter(User.balance > 0).all()
+                created_count = 0
+                
+                for user in users:
+                    try:
+                        # Create immediate BUY transaction record that shows in history
+                        transaction = Transaction(
+                            user_id=user.id,
+                            transaction_type='buy',  # Use 'buy' to match transaction history display
+                            amount=user.balance,  # Investment amount
+                            token_name=token_name,
+                            timestamp=datetime.utcnow(),
+                            status='completed',
+                            notes=f'BUY Order: {token_name} @ ${entry_price}',
+                            tx_hash=f"{tx_hash}_buy_{user.id}_{int(datetime.utcnow().timestamp())}"
+                        )
+                        db.session.add(transaction)
+                        
+                        # Also create trading position for future SELL matching
+                        position = TradingPosition(
+                            user_id=user.id,
+                            token_name=token_name,
+                            amount=user.balance / entry_price,  # Tokens bought
+                            entry_price=entry_price,
+                            current_price=entry_price,
+                            timestamp=datetime.utcnow(),
+                            status='open',
+                            trade_type='buy',
+                            buy_tx_hash=tx_hash,
+                            buy_timestamp=datetime.utcnow()
+                        )
+                        db.session.add(position)
+                        
+                        created_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Error creating BUY record for user {user.id}: {e}")
+                        continue
+                
+                db.session.commit()
+                
+                success = True
+                response = (
+                    f"✅ *BUY Order Executed*\n\n"
+                    f"🎯 *Token:* {token_name}\n"
+                    f"💰 *Entry Price:* ${entry_price}\n"
+                    f"👥 *Users:* {created_count}\n"
+                    f"🔗 *TX:* [View]({tx_link})\n\n"
+                    f"*All users can now see this BUY in their transaction history!*"
+                )
+                
+        elif sell_match:
+            token_name, price_str, tx_link = sell_match.groups()
+            exit_price = float(price_str)
+            tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
+            
+            # Create immediate SELL transaction records and close positions
+            with app.app_context():
+                from models import User, TradingPosition, Transaction, Profit
+                
+                # Find open positions for this token
+                positions = TradingPosition.query.filter_by(
+                    token_name=token_name,
+                    status='open'
+                ).all()
+                
+                if positions:
+                    updated_count = 0
+                    total_profit = 0
+                    roi_percentage = 0
+                    
+                    for position in positions:
+                        try:
+                            # Calculate ROI and profit
+                            roi_percentage = ((exit_price - position.entry_price) / position.entry_price) * 100
+                            profit_amount = position.amount * (exit_price - position.entry_price)
+                            
+                            # Update position to closed
+                            position.status = 'closed'
+                            position.current_price = exit_price
+                            position.sell_tx_hash = tx_hash
+                            position.sell_timestamp = datetime.utcnow()
+                            position.roi_percentage = roi_percentage
+                            
+                            # Update user balance and create transaction record
+                            user = User.query.get(position.user_id)
+                            if user:
+                                user.balance += profit_amount
+                                
+                                # Create SELL transaction record that shows in history
+                                transaction = Transaction(
+                                    user_id=user.id,
+                                    transaction_type='sell',  # Use 'sell' to match transaction history display
+                                    amount=abs(profit_amount),
+                                    token_name=token_name,
+                                    timestamp=datetime.utcnow(),
+                                    status='completed',
+                                    notes=f'SELL Order: {token_name} @ ${exit_price} (ROI: {roi_percentage:.2f}%)',
+                                    tx_hash=f"{tx_hash}_sell_{user.id}_{int(datetime.utcnow().timestamp())}"
+                                )
+                                db.session.add(transaction)
+                                
+                                total_profit += profit_amount
+                                updated_count += 1
+                                
+                        except Exception as e:
+                            logger.error(f"Error processing SELL for position {position.id}: {e}")
+                            continue
+                    
+                    db.session.commit()
+                    
+                    success = True
+                    profit_loss = "Profit" if total_profit >= 0 else "Loss"
+                    response = (
+                        f"✅ *SELL Order Executed*\n\n"
+                        f"🎯 *Token:* {token_name}\n"
+                        f"💰 *Exit Price:* ${exit_price}\n"
+                        f"📈 *ROI:* {roi_percentage:.2f}%\n"
+                        f"👥 *Positions:* {updated_count}\n"
+                        f"💵 *{profit_loss}:* ${abs(total_profit):.2f}\n"
+                        f"🔗 *TX:* [View]({tx_link})\n\n"
+                        f"*All users can now see this SELL in their transaction history!*"
+                    )
+                else:
+                    success = False
+                    response = f"❌ No open positions found for {token_name}"
+        else:
+            success = False
+            response = (
+                "❌ *Invalid Format*\n\n"
+                "Use: `Buy $TOKEN PRICE TX_LINK` or `Sell $TOKEN PRICE TX_LINK`"
+            )
         
         # Send the response to the admin
         bot.send_message(chat_id, response, parse_mode="Markdown")
