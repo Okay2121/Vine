@@ -196,6 +196,19 @@ class SimpleTelegramBot:
     def process_update(self, update):
         """Process a single update."""
         try:
+            # Check for duplicate callback queries to prevent double responses
+            if "callback_query" in update:
+                callback_id = update["callback_query"]["id"]
+                if hasattr(self, '_processed_callbacks') and callback_id in self._processed_callbacks:
+                    logger.debug(f"Skipping already processed callback {callback_id}")
+                    return
+                if not hasattr(self, '_processed_callbacks'):
+                    self._processed_callbacks = set()
+                self._processed_callbacks.add(callback_id)
+                # Limit cache size
+                if len(self._processed_callbacks) > 1000:
+                    self._processed_callbacks = set(list(self._processed_callbacks)[-500:])
+            
             # Check if we have already processed this message
             if "message" in update and "message_id" in update["message"]:
                 message_id = update["message"]["message_id"]
