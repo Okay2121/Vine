@@ -2750,7 +2750,7 @@ def admin_adjust_balance_reason_handler(update, chat_id, text):
         bot.remove_listener(chat_id)
 
 def admin_confirm_adjustment_handler(update, chat_id):
-    """Emergency non-blocking balance adjustment handler."""
+    """Fixed balance adjustment handler using working_balance_manager."""
     import threading
     import logging
     
@@ -2759,7 +2759,7 @@ def admin_confirm_adjustment_handler(update, chat_id):
         global admin_target_user_id, admin_adjust_telegram_id, admin_adjust_current_balance
         global admin_adjustment_amount, admin_adjustment_reason
         
-        # Check if we already have data to process - avoid double processing
+        # Check if we already have data to process
         if admin_target_user_id is None or admin_adjustment_amount is None:
             bot.send_message(
                 chat_id,
@@ -2771,9 +2771,7 @@ def admin_confirm_adjustment_handler(update, chat_id):
             return
             
         # Store values locally
-        target_id = admin_target_user_id
         tg_id = admin_adjust_telegram_id
-        current_balance = admin_adjust_current_balance
         amount = admin_adjustment_amount
         reason = admin_adjustment_reason or "Admin adjustment"
         
@@ -2797,111 +2795,35 @@ def admin_confirm_adjustment_handler(update, chat_id):
         def process_adjustment():
             try:
                 logging.info("Starting balance adjustment in background thread")
+                logging.info(f"Processing balance adjustment for {tg_id} with amount {amount}")
                 
-                # Process the adjustment using fixed_balance_manager
-                try:
-                    # Try to import the fixed balance manager first
-                    import fixed_balance_manager as manager
-                except ImportError:
-                    try:
-                        import enhanced_balance_manager as manager
-                    except ImportError:
-                        import balance_manager as manager
-                
-                # Use telegram_id as identifier
-                identifier = tg_id
-                
-                # Process adjustment with fixed balance manager
-                logging.info(f"Processing balance adjustment for {identifier} with amount {amount}")
-                
-                # Get user details from database for verification
-                with app.app_context():
-                    user_before = User.query.filter_by(telegram_id=str(identifier)).first()
-                    if user_before:
-                        balance_before = user_before.balance
-                        logging.info(f"Balance before adjustment: {balance_before}")
-                    else:
-                        logging.error(f"User not found with identifier: {identifier}")
-                        bot.send_message(
-                            chat_id,
-                            f"❌ Error: User with ID {identifier} not found in database",
-                            reply_markup=bot.create_inline_keyboard([
-                                [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
-                            ])
-                        )
-                        return
+                # Use the working balance manager
+                from working_balance_manager import adjust_balance_fixed
                 
                 # Process the adjustment
-                success, message = manager.adjust_balance(identifier, amount, reason)
-                
-                # Verify the adjustment was actually saved to database
-                with app.app_context():
-                    # Clear previous session to avoid caching issues
-                    db.session.close()
-                    
-                    # Force a refresh from database to see updated values
-                    user_after = User.query.filter_by(telegram_id=str(identifier)).first()
-                    
-                    if user_after:
-                        balance_after = user_after.balance
-                        logging.info(f"Balance after adjustment: {balance_after}")
-                        expected_balance = balance_before + amount
-                        
-                        # Verify change was actually made
-                        if abs(balance_after - expected_balance) < 0.0001:
-                            success = True
-                            message = f"✅ Balance verified in database: {balance_before:.4f} → {balance_after:.4f} SOL"
-                        else:
-                            # Attempt to manually update if we see a mismatch
-                            try:
-                                logging.warning(f"Balance mismatch detected. Expected: {expected_balance:.4f}, Got: {balance_after:.4f}")
-                                
-                                # Use a direct SQL update to avoid any ORM caching issues
-                                from sqlalchemy import text
-                                sql = text("UPDATE user SET balance = :new_balance WHERE telegram_id = :tg_id")
-                                db.session.execute(sql, {"new_balance": expected_balance, "tg_id": str(identifier)})
-                                db.session.commit()
-                                
-                                # Verify the fix worked
-                                db.session.expire_all()  # Clear session cache
-                                fixed_user = User.query.filter_by(telegram_id=str(identifier)).first()
-                                if fixed_user and abs(fixed_user.balance - expected_balance) < 0.0001:
-                                    message = f"⚠️ Balance fixed manually: {balance_before:.4f} → {fixed_user.balance:.4f} SOL"
-                                    success = True
-                                else:
-                                    fixed_balance = fixed_user.balance if fixed_user else "unknown"
-                                    message = f"⚠️ Manual fix attempted: Got {fixed_balance} (expected {expected_balance:.4f})"
-                                    success = False
-                                    
-                            except Exception as db_error:
-                                logging.error(f"Error fixing balance: {db_error}")
-                                import traceback
-                                logging.error(traceback.format_exc())
-                                message = f"❌ Balance update failed: {balance_before:.4f} → expected {expected_balance:.4f}, got {balance_after:.4f} SOL"
-                                success = False
+                success, message = adjust_balance_fixed(tg_id, amount, reason)
                 
                 # Send response to admin
                 if success:
+                    action = "added" if amount > 0 else "deducted"
                     bot.send_message(
                         chat_id,
-                        f"✅ Balance adjustment completed: {abs(amount):.4f} SOL {'added' if amount > 0 else 'deducted'}\n\n{message}",
+                        f"✅ Balance adjustment completed!\n\n{abs(amount):.4f} SOL {action}\n\n{message}",
                         reply_markup=bot.create_inline_keyboard([
                             [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
                         ])
                     )
-                    
-                    # We don't need to send notifications to users
-                    # Balance will be updated in the database and will show in their dashboard
-                    # when they next view it
-                    logging.info(f"User balance updated silently, will reflect in dashboard")
+                    logging.info(f"Balance adjustment successful for {tg_id}")
                 else:
                     bot.send_message(
                         chat_id,
-                        f"❌ Error adjusting balance: {message}",
+                        f"❌ Balance adjustment failed: {message}",
                         reply_markup=bot.create_inline_keyboard([
                             [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
                         ])
                     )
+                    logging.error(f"Balance adjustment failed for {tg_id}: {message}")
+                    
             except Exception as e:
                 logging.error(f"Error in adjustment thread: {e}")
                 try:
@@ -2924,7 +2846,7 @@ def admin_confirm_adjustment_handler(update, chat_id):
         return
     
     except Exception as e:
-        logging.error(f"Error in emergency handler: {e}")
+        logging.error(f"Error in balance adjustment handler: {e}")
         # Reset globals if there's an error
         admin_target_user_id = None
         admin_adjust_telegram_id = None
