@@ -6316,14 +6316,30 @@ def trading_history_handler(update, chat_id):
             # Build a visually stunning and user-friendly performance dashboard
             performance_message = "🚀 *PERFORMANCE DASHBOARD* 🚀\n\n"
             
+            # Calculate actual initial deposit from deposit transactions if not set
+            actual_initial_deposit = user.initial_deposit
+            if actual_initial_deposit <= 0:
+                # Calculate from actual deposit transactions
+                deposit_transactions = Transaction.query.filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type.in_(['deposit', 'admin_credit']),
+                    Transaction.amount > 0
+                ).all()
+                actual_initial_deposit = sum(tx.amount for tx in deposit_transactions)
+                
+                # Update user's initial deposit if we found deposits
+                if actual_initial_deposit > 0:
+                    user.initial_deposit = actual_initial_deposit
+                    db.session.commit()
+            
             # Balance section - highlight the important numbers
             performance_message += "💰 *BALANCE*\n"
-            performance_message += f"Initial: {user.initial_deposit:.2f} SOL\n"
+            performance_message += f"Initial: {actual_initial_deposit:.2f} SOL\n"
             performance_message += f"Current: {user.balance:.2f} SOL\n"
             
-            # Get total profit
-            total_profit_amount = user.balance - user.initial_deposit
-            total_profit_percentage = (total_profit_amount / user.initial_deposit * 100) if user.initial_deposit > 0 else 0
+            # Get total profit with correct initial deposit
+            total_profit_amount = user.balance - actual_initial_deposit
+            total_profit_percentage = (total_profit_amount / actual_initial_deposit * 100) if actual_initial_deposit > 0 else 0
             
             # Show profit with proper formatting and percentage
             if total_profit_amount >= 0:
