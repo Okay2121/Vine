@@ -4970,8 +4970,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                             current_price=entry_price,
                             timestamp=datetime.utcnow(),
                             status='open',
-                            trade_type='buy',
-                            tx_hash=tx_link
+                            trade_type='buy'
                         )
                         
                         # Add buy-specific fields for Position display
