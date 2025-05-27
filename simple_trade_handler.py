@@ -332,10 +332,10 @@ def apply_trade_to_users(position, roi_percentage, bot=None):
 def test_trade_handler():
     """Test the trade handler with sample messages"""
     test_messages = [
-        "Buy $SOL 123.45 https://solscan.io/tx/abc123",
-        "Sell $SOL 150.00 https://solscan.io/tx/def456",
-        "Buy $MEME 0.0041 https://solscan.io/tx/ghi789",
-        "Sell $MEME 0.0065 https://solscan.io/tx/jkl012",
+        "Buy $ZING 0.004107 812345 https://solscan.io/tx/9xJ12abc",
+        "Sell $ZING 0.006834 812345 https://solscan.io/tx/Z7xxFdef",
+        "Buy $MEME 0.0041 500000 https://solscan.io/tx/ghi789",
+        "Sell $MEME 0.0065 500000 https://solscan.io/tx/jkl012",
         "Invalid message"
     ]
     
