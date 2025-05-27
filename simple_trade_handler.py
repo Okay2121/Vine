@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def handle_trade_message(message_text, user_id, bot=None):
     """
     Process an admin trade message in the format:
-    Buy $TOKEN PRICE TX_LINK or Sell $TOKEN PRICE TX_LINK
+    Buy $TOKEN PRICE AMOUNT TX_LINK or Sell $TOKEN PRICE AMOUNT TX_LINK
     
     Args:
         message_text (str): The message text containing the trade
@@ -40,10 +40,10 @@ def handle_trade_message(message_text, user_id, bot=None):
         return False, "❌ Empty message", None
     
     # Parse the message
-    trade_type, token, price, tx_link = parse_trade_message(message_text)
+    trade_type, token, price, amount, tx_link = parse_trade_message(message_text)
     
-    if not trade_type or not token or not price or not tx_link:
-        return False, "❌ Invalid trade format. Use: Buy/Sell $TOKEN PRICE TX_LINK", None
+    if not trade_type or not token or not price or not amount or not tx_link:
+        return False, "❌ Invalid trade format. Use: Buy/Sell $TOKEN PRICE AMOUNT TX_LINK", None
     
     # Validate token name and price
     if not token.startswith('$'):
@@ -56,12 +56,19 @@ def handle_trade_message(message_text, user_id, bot=None):
     except ValueError:
         return False, f"❌ Invalid price: {price}", None
     
+    try:
+        amount = float(amount)
+        if amount <= 0:
+            return False, "❌ Amount must be greater than zero", None
+    except ValueError:
+        return False, f"❌ Invalid amount: {amount}", None
+    
     # Process based on trade type
     with app.app_context():
         if trade_type.lower() == 'buy':
-            return process_buy_trade(token, price, tx_link, user_id, bot)
+            return process_buy_trade(token, price, amount, tx_link, user_id, bot)
         elif trade_type.lower() == 'sell':
-            return process_sell_trade(token, price, tx_link, user_id, bot)
+            return process_sell_trade(token, price, amount, tx_link, user_id, bot)
         else:
             return False, f"❌ Unknown trade type: {trade_type}", None
 
@@ -70,31 +77,33 @@ def parse_trade_message(message_text):
     Parse a trade message into its components
     
     Args:
-        message_text (str): Message in the format "Buy/Sell $TOKEN PRICE TX_LINK"
+        message_text (str): Message in the format "Buy/Sell $TOKEN PRICE AMOUNT TX_LINK"
         
     Returns:
-        tuple: (trade_type, token, price, tx_link)
+        tuple: (trade_type, token, price, amount, tx_link)
     """
-    # Check for correct format
-    pattern = r'(buy|sell)\s+(\$?\w+)\s+([\d.]+)\s+(https?://\S+)'
+    # Check for correct format: Buy/Sell $TOKEN PRICE AMOUNT TX_LINK
+    pattern = r'(buy|sell)\s+(\$?\w+)\s+([\d.]+)\s+([\d.]+)\s+(https?://\S+)'
     match = re.search(pattern, message_text.lower())
     
     if match:
         trade_type = match.group(1).capitalize()
         token = match.group(2)
         price = match.group(3)
-        tx_link = match.group(4)
-        return trade_type, token, price, tx_link
+        amount = match.group(4)
+        tx_link = match.group(5)
+        return trade_type, token, price, amount, tx_link
     
-    return None, None, None, None
+    return None, None, None, None, None
 
-def process_buy_trade(token, price, tx_link, admin_id, bot=None):
+def process_buy_trade(token, price, amount, tx_link, admin_id, bot=None):
     """
     Process a BUY trade
     
     Args:
         token (str): Token name (with $ prefix)
         price (float): Purchase price
+        amount (float): Token amount
         tx_link (str): Transaction link
         admin_id (str): Admin ID who sent the message
         bot: Telegram bot instance (optional)
@@ -116,6 +125,7 @@ def process_buy_trade(token, price, tx_link, admin_id, bot=None):
         position = TradingPosition()
         position.token_name = token
         position.entry_price = price
+        position.amount = amount
         position.buy_tx_hash = tx_link
         position.buy_timestamp = datetime.utcnow()
         position.admin_id = admin_id
@@ -130,6 +140,7 @@ def process_buy_trade(token, price, tx_link, admin_id, bot=None):
             f"✅ *BUY* position recorded\n\n"
             f"*Token:* {token}\n"
             f"*Entry Price:* {price}\n"
+            f"*Amount:* {amount}\n"
             f"*TX:* [View Transaction]({tx_link})\n"
             f"*Position ID:* {position.id}\n"
             f"*Status:* Waiting for SELL"
@@ -150,13 +161,14 @@ def process_buy_trade(token, price, tx_link, admin_id, bot=None):
         logger.error(traceback.format_exc())
         return False, f"❌ Error processing trade: {str(e)}", None
 
-def process_sell_trade(token, price, tx_link, admin_id, bot=None):
+def process_sell_trade(token, price, amount, tx_link, admin_id, bot=None):
     """
     Process a SELL trade and match with a previous BUY
     
     Args:
         token (str): Token name (with $ prefix)
         price (float): Sell price
+        amount (float): Token amount
         tx_link (str): Transaction link
         admin_id (str): Admin ID who sent the message
         bot: Telegram bot instance (optional)
@@ -207,6 +219,7 @@ def process_sell_trade(token, price, tx_link, admin_id, bot=None):
             f"*Token:* {token}\n"
             f"*Entry Price:* {entry_price}\n"
             f"*Exit Price:* {exit_price}\n"
+            f"*Amount:* {amount}\n"
             f"*ROI:* {roi_emoji} {roi_display}\n"
             f"*TX:* [View Transaction]({tx_link})\n"
             f"*Position ID:* {buy_position.id}\n"
