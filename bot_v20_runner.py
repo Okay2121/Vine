@@ -4472,12 +4472,8 @@ def live_positions_handler(update, chat_id):
                     "Your live sniper feed will appear here instantly when trades execute.\n\n"
                     "• LIVE SNIPE entries show immediately\n"
                     "• EXIT SNIPE auto-calculates P/L\n"
-                    "• Real TX mapping with Solscan links\n"
-                    "• Professional trader commentary\n\n"
-                    "_Deposit SOL to activate live trading_\n\n"
-                    "---\n\n"
-                    "⚡️ *Tip:* All trades are tracked from on-chain with TX mapping. Real bag tracking, no copy-paste.\n"
-                    "*Bot:* ThriveSync v2.1 | Powered by Solana TX + Chainstack"
+                    "• Real TX mapping with Solscan links\n\n"
+                    "_Deposit SOL to activate live trading_"
                 )
             else:
                 # Sort positions to show EXIT trades first, then LIVE trades
@@ -4508,17 +4504,7 @@ def live_positions_handler(update, chat_id):
                     roi_sign = "+" if roi_pct >= 0 else ""
                     pl_sign = "+" if pl_sol >= 0 else "–"
                     
-                    # Random trader comments for realism
-                    comments = [
-                        "Slipped early. Watching next chart rotation.",
-                        "Quick scalp. Good liquidity exit.",
-                        "Took profit at resistance. Clean exit.",
-                        "Early exit on volume spike. Preserved capital.",
-                        "Perfect timing on that dip. Textbook trade.",
-                        "Momentum shift caught early. Smart exit.",
-                        "Volume dried up. Good risk management.",
-                        "Support held strong. Solid profit take."
-                    ]
+
                     
                     # Get TX link
                     tx_link = "solscan.io/tx/unavailable"
@@ -4534,8 +4520,7 @@ def live_positions_handler(update, chat_id):
                         f"Spent: {spent_sol:.2f} SOL | Returned: {returned_sol:.3f} SOL\n"
                         f"Profit: {roi_emoji} {roi_sign}{roi_pct:.2f}% (Auto) | P/L: {pl_sign}{abs(pl_sol):.3f} SOL\n"
                         f"TX: {tx_link}\n"
-                        f"Closed: {time_str}\n"
-                        f"Comment: {random.choice(comments)}\n\n\n\n"
+                        f"Closed: {time_str}\n\n\n\n"
                     )
                 
                 # Display LIVE SNIPE trades
@@ -4547,17 +4532,7 @@ def live_positions_handler(update, chat_id):
                     amount = position.amount or 0
                     spent_sol = amount * entry_price if entry_price > 0 else 0
                     
-                    # Random trader comments for live positions
-                    live_comments = [
-                        "Good entry. Strong memetic spread + buyer wall.",
-                        "Clean breakout. Watching for volume confirmation.",
-                        "Support level entry. Risk/reward looking solid.",
-                        "Early bird on this one. Community momentum building.",
-                        "Technical setup looking prime. Holding for pump.",
-                        "Dev team active. Marketing push incoming.",
-                        "Whale accumulation pattern. Patience required.",
-                        "Chart setup textbook. Waiting for catalyst."
-                    ]
+
                     
                     # Get TX link
                     tx_link = "solscan.io/tx/unavailable"
@@ -4578,16 +4553,10 @@ def live_positions_handler(update, chat_id):
                         f"Spent: {spent_sol:.2f} SOL | Est. Value: Pending\n"
                         f"TX: {tx_link}\n"
                         f"Status: Holding\n"
-                        f"Opened: {time_str}\n"
-                        f"Comment: {random.choice(live_comments)}\n\n\n\n"
+                        f"Opened: {time_str}\n\n\n\n"
                     )
                 
-                # Professional footer
-                position_message += (
-                    "---\n\n"
-                    "⚡️ *Tip:* All trades are tracked from on-chain with TX mapping. Real bag tracking, no copy-paste.\n"
-                    "*Bot:* ThriveSync v2.1 | Powered by Solana TX + Chainstack"
-                )
+
             
             # Create keyboard with professional styling
             keyboard = bot.create_inline_keyboard([
