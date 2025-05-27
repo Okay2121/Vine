@@ -7065,11 +7065,11 @@ def transaction_history_handler(update, chat_id):
                         if tx.transaction_type in ["buy", "trade_buy"]:
                             trade_emoji = "🔄"
                             type_display = "Buy"
-                            amount_display = f"{abs(tx.amount):.4f} SOL of {tx.token_name}"
+                            amount_display = f"{abs(tx.amount):.4f} {tx.token_name}"
                         else:
                             trade_emoji = "🔄"
                             type_display = "Sell"
-                            amount_display = f"{abs(tx.amount):.4f} SOL of {tx.token_name}"
+                            amount_display = f"{abs(tx.amount):.4f} {tx.token_name}"
                         
                         history_message += f"{trade_emoji} *{type_display}:* {amount_display}\n"
                         history_message += f"• *Date:* {date_str}\n"
