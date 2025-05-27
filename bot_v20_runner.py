@@ -7082,7 +7082,7 @@ def transaction_history_handler(update, chat_id):
                         
                     elif tx.transaction_type == "deposit" or tx.transaction_type == "admin_credit":
                         # Deposit transaction
-                        history_message += f"🔄 *Deposit:* {abs(tx.amount):.4f} SOL of SOL\n"
+                        history_message += f"🔄 *Deposit:* {abs(tx.amount):.4f} SOL\n"
                         history_message += f"• *Date:* {date_str}\n"
                         history_message += f"• *Status:* Completed\n"
                         
