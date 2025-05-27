@@ -4953,6 +4953,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
             # Create immediate BUY transaction records for all users
             with app.app_context():
                 from models import User, TradingPosition, Transaction
+                from datetime import datetime
                 
                 users = User.query.filter(User.balance > 0).all()
                 created_count = 0
