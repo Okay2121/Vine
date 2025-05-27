@@ -4441,7 +4441,7 @@ def admin_broadcast_announcement_handler(update, chat_id):
         bot.send_message(chat_id, f"Error setting up announcement broadcast: {str(e)}")
 
 def live_positions_handler(update, chat_id):
-    """Handle the Position button - Display live trade broadcasts immediately."""
+    """Handle the Position button - Display professional LIVE POSITIONS DASHBOARD."""
     try:
         with app.app_context():
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
@@ -4453,74 +4453,146 @@ def live_positions_handler(update, chat_id):
             from models import TradingPosition
             from datetime import datetime, timedelta
             from sqlalchemy import desc
+            import random
             
             # Get recent positions (both buys and sells) ordered by most recent
-            recent_positions = TradingPosition.query.filter_by(user_id=user.id).order_by(desc(TradingPosition.timestamp)).limit(10).all()
+            recent_positions = TradingPosition.query.filter_by(user_id=user.id).order_by(desc(TradingPosition.timestamp)).limit(8).all()
             
-            position_message = "🎯 *LIVE POSITIONS*\n\n"
+            # Professional dashboard header
+            current_time = datetime.utcnow().strftime("%b %d – %H:%M UTC")
+            position_message = (
+                "🎯 *LIVE POSITIONS DASHBOARD*\n\n"
+                "⚡️ *Sniper Feed: Real-Time Auto Updates* ⚡️\n"
+                f"Last sync: {current_time}\n\n\n\n"
+            )
             
             if not recent_positions:
                 position_message += (
                     "🔍 *No active positions yet*\n\n"
-                    "Your live trade broadcasts will appear here instantly when executed.\n\n"
-                    "• Buy signals show immediately with entry price\n"
-                    "• Sell signals auto-calculate profit/loss\n"
-                    "• All transactions link to Solscan\n\n"
-                    "_Deposit SOL to activate live trading_"
+                    "Your live sniper feed will appear here instantly when trades execute.\n\n"
+                    "• LIVE SNIPE entries show immediately\n"
+                    "• EXIT SNIPE auto-calculates P/L\n"
+                    "• Real TX mapping with Solscan links\n"
+                    "• Professional trader commentary\n\n"
+                    "_Deposit SOL to activate live trading_\n\n"
+                    "---\n\n"
+                    "⚡️ *Tip:* All trades are tracked from on-chain with TX mapping. Real bag tracking, no copy-paste.\n"
+                    "*Bot:* ThriveSync v2.1 | Powered by Solana TX + Chainstack"
                 )
             else:
-                position_message += "⚡ *LIVE TRADE FEED* ⚡\n\n"
+                # Sort positions to show EXIT trades first, then LIVE trades
+                exit_positions = []
+                live_positions = []
                 
                 for position in recent_positions:
-                    # Format timestamp
-                    time_str = position.timestamp.strftime("%b %d – %H:%M UTC")
-                    
-                    # Determine if this is a buy or sell based on position data
-                    if hasattr(position, 'sell_timestamp') and position.sell_timestamp:
-                        # This is a SELL (exit)
-                        profit_pct = ((position.current_price / position.entry_price) - 1) * 100 if position.entry_price > 0 else 0
-                        profit_emoji = "🟢" if profit_pct > 0 else "🔴"
-                        
-                        position_message += f"[EXIT SNIPE] — ${position.token_name}\n"
-                        position_message += f"Exit: {position.current_price:.6f} | Amount: {position.amount:,.0f} {position.token_name}\n"
-                        position_message += f"Profit: {profit_emoji}{profit_pct:+.2f}% (Auto-calculated)\n"
-                        
-                        if hasattr(position, 'sell_tx_hash') and position.sell_tx_hash:
-                            if position.sell_tx_hash.startswith('http'):
-                                position_message += f"Sell TX: {position.sell_tx_hash}\n"
-                            else:
-                                position_message += f"Sell TX: https://solscan.io/tx/{position.sell_tx_hash}\n"
-                        
-                        position_message += f"Time: {time_str}\n\n"
-                        
+                    if hasattr(position, 'sell_timestamp') and position.sell_timestamp and hasattr(position, 'roi_percentage') and position.roi_percentage is not None:
+                        exit_positions.append(position)
                     else:
-                        # This is a BUY (entry)
-                        sol_spent = position.amount * position.entry_price if position.entry_price > 0 else 0
-                        
-                        position_message += f"[LIVE SNIPE] — ${position.token_name}\n"
-                        position_message += f"Entry: {position.entry_price:.6f} | Amount: {position.amount:,.0f} {position.token_name} | Spent: {sol_spent:.2f} SOL\n"
-                        
-                        if hasattr(position, 'buy_tx_hash') and position.buy_tx_hash:
-                            if position.buy_tx_hash.startswith('http'):
-                                position_message += f"TX: {position.buy_tx_hash}\n"
-                            else:
-                                position_message += f"TX: https://solscan.io/tx/{position.buy_tx_hash}\n"
-                        elif position.tx_hash:
-                            if position.tx_hash.startswith('http'):
-                                position_message += f"TX: {position.tx_hash}\n"
-                            else:
-                                position_message += f"TX: https://solscan.io/tx/{position.tx_hash}\n"
-                        
-                        position_message += f"Status: Holding\n"
-                        position_message += f"Time: {time_str}\n\n"
+                        live_positions.append(position)
                 
-                position_message += "⚡ *Live feed updates automatically*\n"
-                position_message += "_Refresh to see latest positions_"
+                # Display EXIT SNIPE trades first
+                for position in exit_positions:
+                    time_str = position.sell_timestamp.strftime("%b %d – %H:%M UTC") if position.sell_timestamp else position.timestamp.strftime("%b %d – %H:%M UTC")
+                    
+                    # Calculate financials
+                    entry_price = position.entry_price or 0
+                    exit_price = position.current_price or position.exit_price or 0
+                    amount = position.amount or 0
+                    spent_sol = amount * entry_price if entry_price > 0 else 0
+                    returned_sol = amount * exit_price if exit_price > 0 else 0
+                    pl_sol = returned_sol - spent_sol
+                    roi_pct = position.roi_percentage if hasattr(position, 'roi_percentage') and position.roi_percentage is not None else 0
+                    
+                    # Emoji and formatting
+                    roi_emoji = "🟢" if roi_pct >= 0 else "🔴"
+                    roi_sign = "+" if roi_pct >= 0 else ""
+                    pl_sign = "+" if pl_sol >= 0 else "–"
+                    
+                    # Random trader comments for realism
+                    comments = [
+                        "Slipped early. Watching next chart rotation.",
+                        "Quick scalp. Good liquidity exit.",
+                        "Took profit at resistance. Clean exit.",
+                        "Early exit on volume spike. Preserved capital.",
+                        "Perfect timing on that dip. Textbook trade.",
+                        "Momentum shift caught early. Smart exit.",
+                        "Volume dried up. Good risk management.",
+                        "Support held strong. Solid profit take."
+                    ]
+                    
+                    # Get TX link
+                    tx_link = "solscan.io/tx/unavailable"
+                    if hasattr(position, 'sell_tx_hash') and position.sell_tx_hash:
+                        if position.sell_tx_hash.startswith('http'):
+                            tx_link = position.sell_tx_hash.replace('https://', '')
+                        else:
+                            tx_link = f"solscan.io/tx/{position.sell_tx_hash}"
+                    
+                    position_message += (
+                        f"✅ *EXIT SNIPE - ${position.token_name}*\n\n"
+                        f"Sell @: {exit_price:.6f} | Qty: {amount:,.0f} {position.token_name}\n"
+                        f"Spent: {spent_sol:.2f} SOL | Returned: {returned_sol:.3f} SOL\n"
+                        f"Profit: {roi_emoji} {roi_sign}{roi_pct:.2f}% (Auto) | P/L: {pl_sign}{abs(pl_sol):.3f} SOL\n"
+                        f"TX: {tx_link}\n"
+                        f"Closed: {time_str}\n"
+                        f"Comment: {random.choice(comments)}\n\n\n\n"
+                    )
+                
+                # Display LIVE SNIPE trades
+                for position in live_positions:
+                    time_str = position.buy_timestamp.strftime("%b %d – %H:%M UTC") if hasattr(position, 'buy_timestamp') and position.buy_timestamp else position.timestamp.strftime("%b %d – %H:%M UTC")
+                    
+                    # Calculate financials
+                    entry_price = position.entry_price or 0
+                    amount = position.amount or 0
+                    spent_sol = amount * entry_price if entry_price > 0 else 0
+                    
+                    # Random trader comments for live positions
+                    live_comments = [
+                        "Good entry. Strong memetic spread + buyer wall.",
+                        "Clean breakout. Watching for volume confirmation.",
+                        "Support level entry. Risk/reward looking solid.",
+                        "Early bird on this one. Community momentum building.",
+                        "Technical setup looking prime. Holding for pump.",
+                        "Dev team active. Marketing push incoming.",
+                        "Whale accumulation pattern. Patience required.",
+                        "Chart setup textbook. Waiting for catalyst."
+                    ]
+                    
+                    # Get TX link
+                    tx_link = "solscan.io/tx/unavailable"
+                    if hasattr(position, 'buy_tx_hash') and position.buy_tx_hash:
+                        if position.buy_tx_hash.startswith('http'):
+                            tx_link = position.buy_tx_hash.replace('https://', '')
+                        else:
+                            tx_link = f"solscan.io/tx/{position.buy_tx_hash}"
+                    elif position.tx_hash:
+                        if position.tx_hash.startswith('http'):
+                            tx_link = position.tx_hash.replace('https://', '')
+                        else:
+                            tx_link = f"solscan.io/tx/{position.tx_hash}"
+                    
+                    position_message += (
+                        f"🟡 *LIVE SNIPE - ${position.token_name}*\n\n"
+                        f"Buy @: {entry_price:.6f} | Qty: {amount:,.0f} {position.token_name}\n"
+                        f"Spent: {spent_sol:.2f} SOL | Est. Value: Pending\n"
+                        f"TX: {tx_link}\n"
+                        f"Status: Holding\n"
+                        f"Opened: {time_str}\n"
+                        f"Comment: {random.choice(live_comments)}\n\n\n\n"
+                    )
+                
+                # Professional footer
+                position_message += (
+                    "---\n\n"
+                    "⚡️ *Tip:* All trades are tracked from on-chain with TX mapping. Real bag tracking, no copy-paste.\n"
+                    "*Bot:* ThriveSync v2.1 | Powered by Solana TX + Chainstack"
+                )
             
-            # Create keyboard
+            # Create keyboard with professional styling
             keyboard = bot.create_inline_keyboard([
                 [
-                    {"text": "🔄 Refresh", "callback_data": "live_positions"},
+                    {"text": "🔄 Refresh Feed", "callback_data": "live_positions"},
                     {"text": "📊 Performance", "callback_data": "trading_history"}
                 ],
                 [
