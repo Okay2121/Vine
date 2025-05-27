@@ -648,7 +648,7 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                             display_name = tx.transaction_type.title()
                         
                         # Add transaction detail
-                        if tx.token_name:
+                        if tx.token_name and tx.token_name.upper() != "SOL":
                             history_message += f"{tx_emoji} *{display_name}*: {tx.amount:.4f} SOL of {tx.token_name}\n"
                         else:
                             history_message += f"{tx_emoji} *{display_name}*: {tx.amount:.4f} SOL\n"

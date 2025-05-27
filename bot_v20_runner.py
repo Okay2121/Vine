@@ -18,6 +18,9 @@ from config import BOT_TOKEN, MIN_DEPOSIT
 from app import app, db
 from models import User, UserStatus, Profit, Transaction, TradingPosition, ReferralCode, CycleStatus, BroadcastMessage, AdminMessage
 
+# Import smart balance allocation system
+from smart_balance_allocator import process_smart_buy_broadcast, process_smart_sell_broadcast
+
 # Global variables for context storage (used by some handlers)
 roi_update_context = None
 
