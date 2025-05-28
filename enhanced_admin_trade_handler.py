@@ -224,8 +224,9 @@ def broadcast_personalized_notifications(trade_data, bot):
                     if not user or not user.telegram_id:
                         continue
                     
-                    # Generate personalized message
-                    message = generate_personalized_position_message(
+                    # Generate realistic personalized message with proper spending amounts
+                    from smart_balance_allocator import generate_realistic_trade_notification
+                    message = generate_realistic_trade_notification(
                         user, 
                         position, 
                         trade_data['trade_type']

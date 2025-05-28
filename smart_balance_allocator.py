@@ -47,26 +47,27 @@ def calculate_smart_allocation(user_balance, entry_price, add_randomization=True
                 'risk_level': 'none'
             }
         
-        # Define allocation strategy based on balance tiers
+        # Define realistic allocation strategy based on balance tiers
+        # Using more conservative percentages to keep alerts believable
         if user_balance >= 10:
-            # Whales: Conservative 15-35% allocation
-            alloc_percent = random.uniform(0.15, 0.35)
+            # Whales: Very conservative 5-15% allocation
+            alloc_percent = random.uniform(0.05, 0.15)
             risk_level = "conservative"
         elif user_balance >= 5:
-            # Medium holders: Moderate 20-50% allocation
-            alloc_percent = random.uniform(0.20, 0.50)
+            # Medium holders: Conservative 8-25% allocation
+            alloc_percent = random.uniform(0.08, 0.25)
             risk_level = "moderate"
         elif user_balance >= 2:
-            # Small holders: Aggressive 40-70% allocation
-            alloc_percent = random.uniform(0.40, 0.70)
+            # Small holders: Moderate 15-35% allocation
+            alloc_percent = random.uniform(0.15, 0.35)
             risk_level = "aggressive"
         elif user_balance >= 0.5:
-            # Tiny holders: Very aggressive 60-90% allocation
-            alloc_percent = random.uniform(0.60, 0.90)
+            # Tiny holders: Higher 25-50% allocation
+            alloc_percent = random.uniform(0.25, 0.50)
             risk_level = "very_aggressive"
         else:
-            # Micro holders: Ultra aggressive 80-95% allocation
-            alloc_percent = random.uniform(0.80, 0.95)
+            # Micro holders: Maximum 40-70% allocation (still leaving buffer)
+            alloc_percent = random.uniform(0.40, 0.70)
             risk_level = "ultra_aggressive"
         
         # Add slight randomization to make each trade unique
@@ -74,8 +75,8 @@ def calculate_smart_allocation(user_balance, entry_price, add_randomization=True
             randomization_factor = random.uniform(0.95, 1.05)  # ±5% variance
             alloc_percent *= randomization_factor
             
-            # Ensure we don't exceed 95% allocation for safety
-            alloc_percent = min(alloc_percent, 0.95)
+            # Ensure we don't exceed 70% allocation for safety and realism
+            alloc_percent = min(alloc_percent, 0.70)
         
         # Calculate spendable amount
         spendable_sol = round(user_balance * alloc_percent, 4)
@@ -289,6 +290,64 @@ def process_smart_sell_broadcast(token_symbol, exit_price, admin_amount, tx_link
     except Exception as e:
         logger.error(f"Error processing smart SELL broadcast: {e}")
         return False, f"Error processing smart SELL: {str(e)}", 0, {}
+
+
+def generate_realistic_trade_notification(user, position, trade_type):
+    """
+    Generate a realistic trade notification that shows proper spending amounts
+    based on each user's actual balance instead of unrealistic large amounts
+    
+    Args:
+        user: User object with balance information
+        position: TradingPosition object with trade details
+        trade_type: 'buy' or 'sell'
+        
+    Returns:
+        str: Realistic trade notification message
+    """
+    try:
+        if trade_type == 'buy':
+            # Calculate realistic spent amount based on user's actual balance allocation
+            spent_amount = position.entry_price * position.amount
+            
+            # Calculate what percentage of their balance this represents
+            allocation_percent = (spent_amount / user.balance) * 100 if user.balance > 0 else 0
+            
+            # Format the realistic buy notification
+            message = (
+                f"🟡 *LIVE SNIPE* - ${position.token_name}\n\n"
+                f"*Buy @:* {position.entry_price:.8f} | *Qty:* {position.amount:,} {position.token_name}\n"
+                f"*Spent:* {spent_amount:.4f} SOL ({allocation_percent:.1f}% risk) | *Est. Value:* Pending\n"
+                f"*TX:* [View on Solscan]({getattr(position, 'buy_tx_hash', 'solscan.io/tx/ac123')})\n"
+                f"*Status:* Holding\n"
+                f"*Opened:* {position.timestamp.strftime('%b %d - %H:%M UTC')}\n\n"
+                f"_Smart risk management applied. Position tracking active._"
+            )
+            
+        else:  # sell
+            # Calculate realistic proceeds and profit/loss
+            proceeds = position.current_price * position.amount
+            original_spent = position.entry_price * position.amount
+            net_change = proceeds - original_spent
+            
+            profit_loss = "Profit" if net_change > 0 else "Loss"
+            emoji = "🟢" if net_change > 0 else "🔴"
+            
+            message = (
+                f"{emoji} *EXIT SNIPE* - ${position.token_name}\n\n"
+                f"*Sell @:* {position.current_price:.8f} | *Qty:* {position.amount:,} {position.token_name}\n"
+                f"*{profit_loss}:* {abs(net_change):.4f} SOL ({abs(position.roi_percentage):.2f}%) | *ROI:* {position.roi_percentage:.2f}%\n"
+                f"*TX:* [View on Solscan]({getattr(position, 'sell_tx_hash', 'solscan.io/tx/def456')})\n"
+                f"*Status:* Completed\n"
+                f"*Closed:* {getattr(position, 'sell_timestamp', datetime.utcnow()).strftime('%b %d - %H:%M UTC')}\n\n"
+                f"_Position closed. New balance: {user.balance:.4f} SOL_"
+            )
+            
+        return message
+        
+    except Exception as e:
+        logger.error(f"Error generating realistic trade notification: {e}")
+        return f"Trade update for ${getattr(position, 'token_name', 'Unknown')}"
 
 
 def generate_personalized_position_message(user, position, trade_type="buy"):
