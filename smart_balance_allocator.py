@@ -403,7 +403,7 @@ def generate_realistic_trade_notification(user, position, trade_type):
             message = (
                 f"🟡 *LIVE SNIPE* - ${position.token_name}\n\n"
                 f"*Buy @:* {position.entry_price:.8f} | *Qty:* {position.amount:,} {position.token_name}\n"
-                f"*Spent:* {spent_amount:.4f} SOL ({allocation_percent:.1f}% risk) | *Est. Value:* Pending\n"
+                f"*Spent:* {spent_amount:.4f} SOL ({allocation_percent:.1f}% risk)\n"
                 f"*TX:* [View on Solscan]({getattr(position, 'buy_tx_hash', 'solscan.io/tx/ac123')})\n"
                 f"*Status:* Holding\n"
                 f"*Opened:* {position.timestamp.strftime('%b %d - %H:%M UTC')}\n\n"
