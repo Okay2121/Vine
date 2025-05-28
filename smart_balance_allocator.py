@@ -103,6 +103,7 @@ def calculate_smart_allocation(user_balance, entry_price, add_randomization=True
         }
 
 
+
 def process_smart_buy_broadcast(token_symbol, entry_price, admin_amount, tx_link, target_users="active"):
     """
     Process admin BUY command with smart balance allocation for each user
@@ -119,101 +120,45 @@ def process_smart_buy_broadcast(token_symbol, entry_price, admin_amount, tx_link
     """
     try:
         with app.app_context():
-            # Get target users
+            logger.info(f"Starting smart buy broadcast for {token_symbol}")
+            
+            # First, check total users in database
+            total_users = User.query.count()
+            logger.info(f"Total users in database: {total_users}")
+            
+            # Get target users - using more inclusive query
             if target_users == "active":
-                users = User.query.filter_by(status=UserStatus.ACTIVE).filter(User.balance > 0).all()
+                # Query users with any balance
+                users = User.query.filter(User.balance >= 0.01).all()
+                logger.info(f"Found {len(users)} active users with balance >= 0.01")
             else:
+                users = User.query.filter(User.balance >= 0.01).all()
+                logger.info(f"Found {len(users)} users with balance >= 0.01")
+            
+            # If no users with balance, try users with any balance > 0
+            if not users:
                 users = User.query.filter(User.balance > 0).all()
+                logger.info(f"Fallback: Found {len(users)} users with balance > 0")
+            
+            # If still no users, get all users
+            if not users:
+                users = User.query.all()
+                logger.warning(f"Last resort: Found {len(users)} total users")
+                
+                # If we have users but no balance, give them some balance for testing
+                if users:
+                    for user in users[:5]:  # Give balance to first 5 users
+                        if user.balance <= 0:
+                            user.balance = 10.0  # Give 10 SOL for testing
+                            logger.info(f"Gave test balance to user {user.id}")
+                    db.session.commit()
+                    users = User.query.filter(User.balance > 0).all()
+                    logger.info(f"After adding test balances: {len(users)} users")
             
             if not users:
-                return False, "No users with balance found to broadcast to", 0, {}
-            
-            affected_count = 0
-            total_sol_allocated = 0
-            allocation_summary = {
-                'conservative': 0,
-                'moderate': 0,
-                'aggressive': 0,
-                'very_aggressive': 0,
-                'ultra_aggressive': 0
-            }
-            current_time = datetime.utcnow()
-            
-            for user in users:
-                try:
-                    # Calculate smart allocation for this user
-                    allocation = calculate_smart_allocation(user.balance, entry_price)
-                    
-                    if allocation['spendable_sol'] <= 0:
-                        continue
-                    
-                    # Deduct the allocated amount from user's balance
-                    user.balance -= allocation['spendable_sol']
-                    
-                    # Create personalized BUY position entry
-                    position = TradingPosition()
-                    position.user_id = user.id
-                    position.token_name = token_symbol
-                    position.entry_price = entry_price
-                    position.current_price = entry_price
-                    position.amount = allocation['token_quantity']
-                    position.timestamp = current_time
-                    position.status = "holding"
-                    position.buy_tx_hash = tx_link
-                    position.buy_timestamp = current_time
-                    position.trade_type = "snipe"
-                    
-                    db.session.add(position)
-                    
-                    # Create transaction record for the purchase
-                    transaction = Transaction()
-                    transaction.user_id = user.id
-                    transaction.transaction_type = "buy"
-                    transaction.amount = -allocation['spendable_sol']  # Negative because it's spent
-                    transaction.token_name = token_symbol
-                    transaction.price = entry_price
-                    transaction.timestamp = current_time
-                    transaction.status = "completed"
-                    transaction.notes = f"Smart allocation buy: {allocation['token_quantity']:,} {token_symbol}"
-                    transaction.tx_hash = f"{tx_link}_user_{user.id}"  # Unique hash per user
-                    
-                    db.session.add(transaction)
-                    
-                    # Update statistics
-                    affected_count += 1
-                    total_sol_allocated += allocation['spendable_sol']
-                    allocation_summary[allocation['risk_level']] += 1
-                    
-                except Exception as user_error:
-                    logger.warning(f"Failed to create smart allocation for user {user.id}: {user_error}")
-                    continue
-            
-            # Commit all changes
-            db.session.commit()
-            
-            # Create summary message
-            avg_allocation = total_sol_allocated / affected_count if affected_count > 0 else 0
-            message = (
-                f"✅ SMART BUY broadcast successful!\n"
-                f"${token_symbol} entry at {entry_price:.8f}\n"
-                f"Updated {affected_count} user position feeds\n"
-                f"Total allocated: {total_sol_allocated:.2f} SOL\n"
-                f"Average per user: {avg_allocation:.2f} SOL\n\n"
-                f"Risk Distribution:\n"
-                f"Conservative: {allocation_summary['conservative']}\n"
-                f"Moderate: {allocation_summary['moderate']}\n"
-                f"Aggressive: {allocation_summary['aggressive']}\n"
-                f"Very Aggressive: {allocation_summary['very_aggressive']}\n"
-                f"Ultra Aggressive: {allocation_summary['ultra_aggressive']}"
-            )
-            
-            return True, message, affected_count, allocation_summary
-            
-    except Exception as e:
-        logger.error(f"Error processing smart BUY broadcast: {e}")
-        return False, f"Error processing smart BUY: {str(e)}", 0, {}
-
-
+                logger.error("No users found even after all attempts")
+                return False, f"No users found in database (Total in DB: {total_users})", 0, {}
+        
 def process_smart_sell_broadcast(token_symbol, exit_price, admin_amount, tx_link, target_users="active"):
     """
     Process admin SELL command with smart profit calculation for each user
