@@ -4553,7 +4553,7 @@ def live_positions_handler(update, chat_id):
                     position_message += (
                         f"🟡 *LIVE SNIPE - ${position.token_name}*\n\n"
                         f"Buy @: {entry_price:.6f} | Qty: {amount:,.0f} {position.token_name}\n"
-                        f"Spent: {spent_sol:.2f} SOL | Est. Value: Pending\n"
+                        f"Spent: {spent_sol:.2f} SOL\n"
                         f"TX: {tx_link}\n"
                         f"Status: Holding\n"
                         f"Opened: {time_str}\n\n\n\n"
