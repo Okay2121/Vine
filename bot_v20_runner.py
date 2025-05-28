@@ -4960,12 +4960,30 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                 
                 for user in users:
                     try:
-                        # Use the actual token amount from the broadcast
-                        # Create trading position that shows immediately in Position feed
+                        # Calculate realistic allocation based on user's actual balance
+                        if user.balance >= 10:
+                            risk_percent = random.uniform(5, 15)  # Whales: 5-15%
+                        elif user.balance >= 5:
+                            risk_percent = random.uniform(8, 25)  # Medium: 8-25%
+                        elif user.balance >= 2:
+                            risk_percent = random.uniform(15, 35)  # Small: 15-35%
+                        elif user.balance >= 0.5:
+                            risk_percent = random.uniform(25, 50)  # Tiny: 25-50%
+                        else:
+                            risk_percent = random.uniform(40, 70)  # Micro: 40-70%
+                        
+                        # Calculate realistic spending amount
+                        spent_sol = round(user.balance * (risk_percent / 100), 4)
+                        realistic_amount = int(spent_sol / entry_price) if entry_price > 0 else 0
+                        
+                        if realistic_amount <= 0:
+                            continue
+                        
+                        # Create trading position with realistic amounts
                         position = TradingPosition(
                             user_id=user.id,
                             token_name=token_name,
-                            amount=token_amount,  # Use actual amount from broadcast
+                            amount=realistic_amount,  # Use realistic amount based on user's balance
                             entry_price=entry_price,
                             current_price=entry_price,
                             timestamp=datetime.utcnow(),
