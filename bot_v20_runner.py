@@ -5062,27 +5062,46 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                             if user:
                                 user.balance += profit_amount
                                 
-                                # Create SELL transaction record that shows in history
-                                transaction = Transaction(
-                                    user_id=user.id,
-                                    transaction_type='sell',  # Use 'sell' to match transaction history display
-                                    amount=abs(profit_amount),
-                                    token_name=token_name,
-                                    timestamp=datetime.utcnow(),
-                                    status='completed',
-                                    notes=f'SELL Order: {token_name} @ ${exit_price} (ROI: {roi_percentage:.2f}%)',
-                                    tx_hash=f"{tx_hash}_sell_{user.id}_{int(datetime.utcnow().timestamp())}"
-                                )
-                                db.session.add(transaction)
+                                # Generate unique transaction hash with milliseconds for better uniqueness
+                                import time
+                                unique_tx_hash = f"{tx_hash}_sell_{user.id}_{int(time.time() * 1000)}"
+                                
+                                # Check if ANY transaction exists with this base tx_hash and user combination
+                                existing_transaction = Transaction.query.filter(
+                                    Transaction.tx_hash.like(f"{tx_hash}_sell_{user.id}_%")
+                                ).first()
+                                
+                                if not existing_transaction:
+                                    # Create SELL transaction record that shows in history
+                                    transaction = Transaction(
+                                        user_id=user.id,
+                                        transaction_type='sell',  # Use 'sell' to match transaction history display
+                                        amount=abs(profit_amount),
+                                        token_name=token_name,
+                                        timestamp=datetime.utcnow(),
+                                        status='completed',
+                                        notes=f'SELL Order: {token_name} @ ${exit_price} (ROI: {roi_percentage:.2f}%)',
+                                        tx_hash=unique_tx_hash
+                                    )
+                                    db.session.add(transaction)
+                                else:
+                                    # Transaction already exists for this user and tx_hash combination
+                                    logger.info(f"Skipping duplicate SELL transaction for user {user.id} and tx_hash {tx_hash}")
                                 
                                 total_profit += profit_amount
                                 updated_count += 1
                                 
                         except Exception as e:
                             logger.error(f"Error processing SELL for position {position.id}: {e}")
+                            db.session.rollback()  # Rollback the failed transaction
                             continue
                     
-                    db.session.commit()
+                    try:
+                        db.session.commit()
+                    except Exception as e:
+                        logger.error(f"Error committing SELL transactions: {e}")
+                        db.session.rollback()
+                        return
                     
                     success = True
                     profit_loss = "Profit" if total_profit >= 0 else "Loss"
