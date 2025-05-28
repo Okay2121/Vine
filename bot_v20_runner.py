@@ -5025,6 +5025,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
             # Create immediate SELL transaction records and close positions
             with app.app_context():
                 from models import User, TradingPosition, Transaction, Profit
+                from datetime import datetime
                 
                 # Find open positions for this token
                 positions = TradingPosition.query.filter_by(
