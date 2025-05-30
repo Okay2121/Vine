@@ -22,25 +22,29 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "default-secret-key")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
 
-# Get the database URL from environment variables
+# Enforce PostgreSQL database usage - critical for production deployment
+PRODUCTION_DATABASE_URL = "postgresql://neondb_owner:npg_fckEhtMz23gx@ep-odd-wildflower-a212fu4p-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+
+# Get the database URL from environment variables with production fallback
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
     logger = logging.getLogger(__name__)
-    logger.warning("DATABASE_URL environment variable is not set. Using SQLite database.")
-    # Use SQLite for development/testing
-    db_url = "sqlite:///solana_memecoin_bot.db"
+    logger.warning("DATABASE_URL environment variable is not set. Using production PostgreSQL database.")
+    db_url = PRODUCTION_DATABASE_URL
 else:
-    # Fix the DATABASE_URL if it starts with postgres:// or https://
+    # Fix the DATABASE_URL if it starts with postgres://
     # Postgres URLs should start with postgresql://
     logger = logging.getLogger(__name__)
     if db_url.startswith("postgres://"):
         logger.info("Converting postgres:// to postgresql://")
         db_url = db_url.replace("postgres://", "postgresql://", 1)
-    elif db_url.startswith("https://"):
-        logger.warning("Invalid database URL format. Using SQLite database instead.")
-        db_url = "sqlite:///solana_memecoin_bot.db"
     
-    logger.info(f"Using database URL: {db_url[:10]}...")
+    # Validate that we're using PostgreSQL (no SQLite fallback for production)
+    if not db_url.startswith("postgresql://"):
+        logger.warning(f"Invalid database URL format: {db_url[:20]}... Enforcing production PostgreSQL.")
+        db_url = PRODUCTION_DATABASE_URL
+    
+    logger.info(f"Using PostgreSQL database: {db_url[:40]}...")
 
 # configure the database, relative to the app instance folder
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url

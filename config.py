@@ -12,8 +12,9 @@ BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAGxe-j7r26pO7ku1m5
 ADMIN_USER_ID = os.environ.get('ADMIN_USER_ID', '5488280696')  # Admin Telegram ID
 ADMIN_IDS = [os.environ.get('ADMIN_USER_ID', '5488280696')]  # List of authorized admin IDs
 
-# Database Configuration
-DATABASE_URL = os.environ.get('DATABASE_URL')
+# Database Configuration - ALWAYS use PostgreSQL
+PRODUCTION_DATABASE_URL = "postgresql://neondb_owner:npg_fckEhtMz23gx@ep-odd-wildflower-a212fu4p-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL = os.environ.get('DATABASE_URL', PRODUCTION_DATABASE_URL)
 
 # Solana Configuration
 MIN_DEPOSIT = 0.5  # Minimum deposit amount in SOL

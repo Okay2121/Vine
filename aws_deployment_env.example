@@ -1,0 +1,45 @@
+# AWS Deployment Environment Variables Template
+# Copy this file to .env and update the values for your deployment
+
+# =============================================================================
+# CRITICAL: PostgreSQL Database Configuration
+# =============================================================================
+# This is your primary database - NEVER change this unless migrating
+DATABASE_URL=postgresql://neondb_owner:npg_fckEhtMz23gx@ep-odd-wildflower-a212fu4p-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+
+# =============================================================================
+# Telegram Bot Configuration
+# =============================================================================
+TELEGRAM_BOT_TOKEN=7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ
+ADMIN_USER_ID=5488280696
+
+# =============================================================================
+# Flask Security Configuration
+# =============================================================================
+# Change this to a strong, unique secret key for production
+SESSION_SECRET=aws-production-secret-key-change-this-before-deployment-2024
+
+# =============================================================================
+# Bot Settings
+# =============================================================================
+MIN_DEPOSIT=0.5
+GLOBAL_DEPOSIT_WALLET=Soa8DkfSzZEmXLJ2AWEqm76fgrSWYxT5iPg6kDdZbKmx
+SUPPORT_USERNAME=SolanaMemoBotAdmin
+
+# =============================================================================
+# AWS Deployment Specific Settings
+# =============================================================================
+# Environment indicator for deployment monitoring
+DEPLOYMENT_ENV=aws-production
+FLASK_ENV=production
+FLASK_DEBUG=0
+
+# =============================================================================
+# Database Connection Settings (Auto-configured)
+# =============================================================================
+# These are automatically set in the application:
+# - Pool size: 10 connections
+# - Max overflow: 20 connections
+# - Pool timeout: 30 seconds
+# - SSL mode: require
+# - Connection timeout: 30 seconds
