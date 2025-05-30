@@ -35,6 +35,22 @@ This repository is designed for immediate deployment with minimal setup:
 
 ## Environment Configuration
 
+.env file
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN=7562541416:AAEET_c3AE1KQuhYYJAHSg7SlCaWbVBg-CU
+ADMIN_USER_ID=5488280696
+
+# Database Configuration (will use PostgreSQL if available, otherwise SQLite)
+DATABASE_URL=postgresql://neondb_owner:npg_fckEhtMz23gx@ep-odd-wildflower-a212fu4p-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+
+# Bot Settings
+MIN_DEPOSIT=0.5
+GLOBAL_DEPOSIT_WALLET=Soa8DkfSzZEmXLJ2AWEqm76fgrSWYxT5iPg6kDdZbKmx
+SUPPORT_USERNAME=SolanaMemoBotAdmin
+
+# Session Secret for Flask
+SESSION_SECRET=your_super_secret_session_key_here_change_in_production
+
 All necessary environment variables are already configured in the `.env` file, which is intentionally included in this repository for ease of deployment:
 
 - `TELEGRAM_BOT_TOKEN`: The bot's authentication token
