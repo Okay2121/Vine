@@ -83,7 +83,7 @@ def health_check():
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
-            'timestamp': db.func.now()
+            'timestamp': 'connected'
         }), 200
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -101,20 +101,21 @@ def database_status():
         with db.engine.connect() as connection:
             # Test connection and get database info
             result = connection.execute(text("SELECT version()"))
-            version = result.fetchone()[0]
+            row = result.fetchone()
+            version = row[0] if row else "Unknown"
             
             # Check table count
             result = connection.execute(text("""
                 SELECT COUNT(*) FROM information_schema.tables 
                 WHERE table_schema = 'public'
             """))
-            table_count = result.fetchone()[0]
+            row = result.fetchone()
+            table_count = row[0] if row else 0
             
         return jsonify({
             'status': 'connected',
-            'postgresql_version': version,
-            'table_count': table_count,
-            'connection_pool_size': db.engine.pool.size(),
+            'postgresql_version': version[:50] + "..." if len(version) > 50 else version,
+            'table_count': int(table_count),
             'database_url_prefix': db_url[:30] + "..." if len(db_url) > 30 else db_url
         }), 200
     except Exception as e:
