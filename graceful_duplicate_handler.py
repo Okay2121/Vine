@@ -30,6 +30,11 @@ class DuplicateProtectionManager:
             if update_id in self.processed_updates:
                 return True
             self.processed_updates.add(update_id)
+            
+            # Immediate cleanup if cache is too large
+            if len(self.processed_updates) > 1000:
+                self.processed_updates = set(list(self.processed_updates)[-500:])
+                
             self._cleanup_if_needed()
             return False
     
@@ -39,6 +44,11 @@ class DuplicateProtectionManager:
             if callback_id in self.processed_callbacks:
                 return True
             self.processed_callbacks.add(callback_id)
+            
+            # Immediate cleanup if cache is too large
+            if len(self.processed_callbacks) > 1000:
+                self.processed_callbacks = set(list(self.processed_callbacks)[-500:])
+                
             self._cleanup_if_needed()
             return False
     
