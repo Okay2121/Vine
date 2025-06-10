@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from dotenv import load_dotenv
 
 # Load environment variables from .env file first
@@ -8,8 +9,10 @@ load_dotenv()
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import text
+from sqlalchemy import text, create_engine
+from sqlalchemy.exc import OperationalError, DisconnectionError
 from werkzeug.middleware.proxy_fix import ProxyFix
+from urllib.parse import urlparse
 
 
 class Base(DeclarativeBase):
@@ -46,18 +49,21 @@ else:
     
     logger.info(f"Using PostgreSQL database: {db_url[:40]}...")
 
-# configure the database, relative to the app instance folder
+# Enhanced database configuration with robust connection handling
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
-    "pool_size": 10,
-    "max_overflow": 20,
-    "pool_timeout": 30,
+    "pool_size": 15,
+    "max_overflow": 25,
+    "pool_timeout": 45,
     "connect_args": {
         "sslmode": "require",
-        "connect_timeout": 30,
-        "application_name": "solana_memecoin_bot"
+        "connect_timeout": 60,
+        "application_name": "solana_memecoin_bot",
+        "keepalives_idle": 600,
+        "keepalives_interval": 30,
+        "keepalives_count": 3
     } if db_url.startswith("postgresql://") else {}
 }
 # initialize the app with the extension, flask-sqlalchemy >= 3.0.x
@@ -65,36 +71,63 @@ db.init_app(app)
 
 logger = logging.getLogger(__name__)
 
+def retry_database_operation(operation, max_retries=3, delay=2):
+    """Retry database operations with exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            return operation()
+        except (OperationalError, DisconnectionError) as e:
+            if attempt < max_retries - 1:
+                wait_time = delay * (2 ** attempt)
+                logger.warning(f"Database operation failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                logger.info(f"Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                logger.error(f"All {max_retries} database operation attempts failed")
+                raise e
+
+def create_tables_with_retry():
+    """Create database tables with retry logic."""
+    def create_operation():
+        db.create_all()
+        logger.info("Database tables created successfully")
+        return True
+    
+    return retry_database_operation(create_operation)
+
 with app.app_context():
     # Make sure to import the models here or their tables won't be created
     import models  # noqa: F401
 
     try:
-        db.create_all()
-        logger.info("Database tables created successfully")
+        create_tables_with_retry()
     except Exception as e:
-        logger.error(f"Error creating database tables: {e}")
+        logger.error(f"Error creating database tables after retries: {e}")
+        # Continue running even if table creation fails initially
 
 # Health check endpoint for monitoring database connectivity
 @app.route('/health')
 def health_check():
     """Health check endpoint to verify database connectivity"""
-    try:
-        # Test database connection
+    def test_connection():
         with db.engine.connect() as connection:
             connection.execute(text("SELECT 1"))
-        
+        return True
+    
+    try:
+        retry_database_operation(test_connection, max_retries=2, delay=1)
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
-            'timestamp': 'connected'
+            'timestamp': str(time.time())
         }), 200
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return jsonify({
             'status': 'unhealthy',
             'database': 'disconnected',
-            'error': str(e)
+            'error': str(e),
+            'timestamp': str(time.time())
         }), 500
 
 # Database status endpoint for deployment monitoring
