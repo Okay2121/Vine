@@ -240,16 +240,17 @@ class SimpleTelegramBot:
             return {"ok": False, "error": str(e)}
     
     def get_updates(self):
-        """Get updates from Telegram API with graceful error handling."""
+        """Get updates from Telegram API with production optimization for 500+ users."""
         try:
             response = requests.get(
                 f"{self.api_url}/getUpdates",
                 params={
                     'offset': self.offset,
-                    'timeout': 10,
-                    'limit': 100
+                    'timeout': 30,  # Optimized long polling
+                    'limit': 100,
+                    'allowed_updates': ['message', 'callback_query']  # Only needed types
                 },
-                timeout=15
+                timeout=35  # 5 seconds read latency
             )
             
             # Handle HTTP 409 errors gracefully

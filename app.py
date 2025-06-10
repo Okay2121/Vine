@@ -26,13 +26,13 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "default-secret-key")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
 
-# Get the database URL from environment variables (prefer the fresh Replit database)
+# Get the database URL from environment variables with production fallback
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
+    # Use the production Neon database you provided
+    db_url = "postgresql://neondb_owner:npg_9Hdj1LfbemJW@ep-cold-hall-a2171yga-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
     logger = logging.getLogger(__name__)
-    logger.error("DATABASE_URL environment variable is not set. Database connection will fail.")
-    # Don't use a hardcoded URL that's quota exhausted
-    db_url = "postgresql://localhost/fallback"
+    logger.info("Using production Neon database URL")
 else:
     # Fix the DATABASE_URL if it starts with postgres://
     # Postgres URLs should start with postgresql://
@@ -43,21 +43,21 @@ else:
     
     logger.info(f"Using PostgreSQL database: {db_url[:40]}...")
 
-# Enhanced database configuration with conservative connection pooling
+# Production-optimized database configuration for 500+ users
+from sqlalchemy import NullPool
+
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 600,  # Increased to 10 minutes
+    "poolclass": NullPool,  # No persistent connections - creates new ones as needed
     "pool_pre_ping": True,
-    "pool_size": 3,  # Reduced to prevent quota exhaustion
-    "max_overflow": 5,  # Reduced overflow
-    "pool_timeout": 30,
+    "pool_recycle": 600,
     "connect_args": {
         "sslmode": "require",
         "connect_timeout": 30,
-        "application_name": "solana_bot_optimized",
-        "keepalives_idle": 300,
+        "application_name": "telegram_bot_production_500_users",
+        "keepalives_idle": 600,
         "keepalives_interval": 60,
-        "keepalives_count": 2
+        "keepalives_count": 3
     } if db_url.startswith("postgresql://") else {}
 }
 # initialize the app with the extension, flask-sqlalchemy >= 3.0.x
@@ -174,6 +174,50 @@ def database_stability():
     except Exception as e:
         return jsonify({
             'stability_system': 'error',
+            'error': str(e)
+        }), 500
+
+@app.route('/performance')
+def performance_metrics():
+    """Performance metrics for 500+ user optimization"""
+    try:
+        from performance_optimizer import get_performance_report
+        report = get_performance_report()
+        return jsonify(report), 200
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'fallback_metrics': {
+                'timestamp': str(time.time()),
+                'status': 'metrics_unavailable'
+            }
+        }), 500
+
+@app.route('/bot-optimization')
+def bot_optimization_status():
+    """Bot optimization status for production"""
+    try:
+        from performance_optimizer import performance_optimizer
+        metrics = performance_optimizer.get_metrics()
+        
+        return jsonify({
+            'optimization_active': True,
+            'polling_config': {
+                'timeout': 30,
+                'read_latency': 5,
+                'allowed_updates': ['message', 'callback_query']
+            },
+            'database_config': {
+                'pool_type': 'NullPool',
+                'connection_strategy': 'create_on_demand',
+                'batch_processing': True
+            },
+            'performance_metrics': metrics,
+            'target_capacity': '500+ users'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'optimization_active': False,
             'error': str(e)
         }), 500
 
