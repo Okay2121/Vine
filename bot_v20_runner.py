@@ -14,8 +14,9 @@ from datetime import datetime, timedelta
 from threading import Thread
 from config import BOT_TOKEN, MIN_DEPOSIT
 
-# Import graceful duplicate handler
-from graceful_duplicate_handler import duplicate_manager, handle_telegram_api_error, safe_telegram_request, safe_methods
+# Import enhanced duplicate handler
+from duplicate_fix import enhanced_duplicate_manager as duplicate_manager
+from graceful_duplicate_handler import handle_telegram_api_error, safe_telegram_request, safe_methods
 
 # Import Flask app context
 from app import app, db
@@ -308,6 +309,9 @@ class SimpleTelegramBot:
                 logger.debug(f"Skipping already processed update {update_id}")
                 return
             
+            # Log that we're processing this update
+            logger.info(f"Processing update {update_id}")
+            
             # Handle callback queries with additional deduplication
             if "callback_query" in update:
                 callback_id = update["callback_query"]["id"]
@@ -330,8 +334,8 @@ class SimpleTelegramBot:
                     logger.debug(f"Skipping duplicate message from user {user_id}")
                     return
                 
-                # Rate limiting for messages
-                if duplicate_manager.is_rate_limited(user_id, "message", 1.0):
+                # Stronger rate limiting for messages (2 second cooldown)
+                if duplicate_manager.is_rate_limited(user_id, "message", 2.0):
                     logger.debug(f"Rate limiting message from user {user_id}")
                     return
                 

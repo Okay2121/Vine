@@ -28,12 +28,17 @@ class DuplicateProtectionManager:
         """Check if an update has already been processed"""
         with self.lock:
             if update_id in self.processed_updates:
+                logger.debug(f"Duplicate update detected: {update_id}")
                 return True
-            self.processed_updates.add(update_id)
             
-            # Immediate cleanup if cache is too large
-            if len(self.processed_updates) > 1000:
-                self.processed_updates = set(list(self.processed_updates)[-500:])
+            self.processed_updates.add(update_id)
+            logger.debug(f"Processing new update: {update_id}")
+            
+            # Keep only recent updates to prevent memory leaks
+            if len(self.processed_updates) > 2000:
+                # Remove oldest half
+                sorted_updates = sorted(self.processed_updates)
+                self.processed_updates = set(sorted_updates[-1000:])
                 
             self._cleanup_if_needed()
             return False
