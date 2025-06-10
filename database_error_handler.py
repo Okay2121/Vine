@@ -135,11 +135,10 @@ def create_user_safely(telegram_id, username, first_name=None):
     """
     def query():
         from models import User
-        user = User(
-            telegram_id=str(telegram_id),
-            username=username,
-            first_name=first_name or "Unknown"
-        )
+        user = User()
+        user.telegram_id = str(telegram_id)
+        user.username = username
+        user.first_name = first_name or "Unknown"
         db.session.add(user)
         db.session.flush()
         return user
@@ -183,7 +182,7 @@ def get_user_transactions_safely(user_id, limit=10):
     def query():
         from models import Transaction
         return Transaction.query.filter_by(user_id=user_id).order_by(
-            Transaction.created_at.desc()
+            Transaction.timestamp.desc()
         ).limit(limit).all()
     
     return safe_query(query, default_return=[])
@@ -203,12 +202,11 @@ def create_transaction_safely(user_id, amount, transaction_type, description=Non
     """
     def query():
         from models import Transaction
-        transaction = Transaction(
-            user_id=user_id,
-            amount=amount,
-            transaction_type=transaction_type,
-            description=description or f"{transaction_type} transaction"
-        )
+        transaction = Transaction()
+        transaction.user_id = user_id
+        transaction.amount = amount
+        transaction.transaction_type = transaction_type
+        transaction.notes = description or f"{transaction_type} transaction"
         db.session.add(transaction)
         db.session.flush()
         return transaction
@@ -220,17 +218,17 @@ def get_all_users_safely(active_only=False, limit=None):
     Safely get all users with error handling
     
     Args:
-        active_only: Whether to return only active users
+        active_only: Whether to return only active users (based on status)
         limit: Maximum number of users to return
     
     Returns:
         List of users or empty list if error
     """
     def query():
-        from models import User
+        from models import User, UserStatus
         query_obj = User.query
         if active_only:
-            query_obj = query_obj.filter(User.is_active == True)
+            query_obj = query_obj.filter(User.status == UserStatus.ACTIVE)
         if limit:
             query_obj = query_obj.limit(limit)
         return query_obj.all()
