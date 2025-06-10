@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Get the bot token from environment variables with fallback
-BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAEET_c3AE1KQuhYYJAHSg7SlCaWbVBg-CU')
+BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794')
 
 # Global flag to track if bot is running
 bot_running = False
@@ -111,8 +111,8 @@ def start_bot_thread():
     global bot_running
     
     # Set the embedded token directly in environment
-    os.environ['TELEGRAM_BOT_TOKEN'] = '7562541416:AAEET_c3AE1KQuhYYJAHSg7SlCaWbVBg-CU'
-    token = '7562541416:AAEET_c3AE1KQuhYYJAHSg7SlCaWbVBg-CU'
+    os.environ['TELEGRAM_BOT_TOKEN'] = '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794'
+    token = '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794'
     
     logger.info(f"Starting bot with embedded token: {token[:10]}...")
     
