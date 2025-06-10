@@ -90,7 +90,7 @@ def scan_for_deposits():
                             
                             # Send notification to user (optional)
                             try:
-                                # TODO: Implement user notification in future version
+
                                 pass
                             except Exception as notify_error:
                                 logger.error(f"Failed to send notification to user {user.telegram_id}: {str(notify_error)}")

@@ -396,16 +396,7 @@ class SimpleTelegramBot:
                                             previous_balance = user.balance
                                             user.balance += profit_amount
                                             
-                                            # Record transaction - DISABLED (using enhanced trade broadcast)
-                                            # transaction = Transaction()
-                                            # transaction.user_id = user.id
-                                            # transaction.transaction_type = 'trade_profit' if profit_amount >= 0 else 'trade_loss'
-                                            # transaction.amount = profit_amount
-                                            # transaction.token_name = clean_token
-                                            # transaction.status = 'completed'
-                                            # transaction.notes = f"Trade ROI: {roi_percentage:.2f}% - {clean_token}"
-                                            # transaction.tx_hash = tx_hash
-                                            # transaction.processed_at = datetime.utcnow()
+
                                             
                                             # Create user position record
                                             user_position = TradingPosition()
@@ -430,8 +421,7 @@ class SimpleTelegramBot:
                                             profit_record.amount = profit_amount
                                             profit_record.percentage = roi_percentage
                                             profit_record.date = datetime.utcnow().date()
-                                            
-                                            # db.session.add(transaction)  # DISABLED
+
                                             db.session.add(user_position)
                                             db.session.add(profit_record)
                                             
@@ -5124,8 +5114,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                                     existing_transaction = Transaction.query.filter_by(tx_hash=unique_tx_hash).first()
                                     counter += 1
                                 
-                                # TEMPORARILY DISABLED - preventing database conflicts
-                                # Will re-enable after fixing the underlying transaction uniqueness issue
+
                                 logger.info(f"Processed SELL for user {user.id}, token {token_name}, profit: {profit_amount:.4f} SOL")
                                 
                                 total_profit += profit_amount
