@@ -6223,7 +6223,7 @@ def admin_back_handler(update, chat_id):
 def run_polling():
     """Start the bot polling loop."""
     # Get bot token from environment variable or config with embedded fallback
-    token = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ')
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794')
     
     if not token:
         logger.error("No Telegram bot token provided. Set the TELEGRAM_BOT_TOKEN environment variable.")
