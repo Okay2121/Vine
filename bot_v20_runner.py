@@ -3023,13 +3023,13 @@ def admin_view_active_users_handler(update, chat_id):
             from sqlalchemy import func
             from datetime import datetime, timedelta
             
-            # Get active users ordered by join date (most recent first)
-            active_users = User.query.filter_by(status=UserStatus.ACTIVE).order_by(User.joined_at.desc()).limit(10).all()
+            # Get users with positive balances (truly active users) ordered by balance (highest first)
+            active_users = User.query.filter(User.balance > 0).order_by(User.balance.desc()).limit(10).all()
             
             if not active_users:
                 message = (
                     "👥 *Active Users*\n\n"
-                    "There are currently no active users in the system."
+                    "There are currently no users with balances in the system."
                 )
                 
                 keyboard = bot.create_inline_keyboard([
@@ -3047,7 +3047,7 @@ def admin_view_active_users_handler(update, chat_id):
             # Create header for active users list
             message = (
                 "👥 *Active Users*\n\n"
-                "Most recent active users:\n\n"
+                "Users with balances (sorted by highest balance):\n\n"
             )
             
             # Add user details to the message
