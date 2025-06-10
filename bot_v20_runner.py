@@ -14,6 +14,9 @@ from datetime import datetime, timedelta
 from threading import Thread
 from config import BOT_TOKEN, MIN_DEPOSIT
 
+# Import graceful duplicate handler
+from graceful_duplicate_handler import duplicate_manager, handle_telegram_api_error, safe_telegram_request, safe_methods
+
 # Import Flask app context
 from app import app, db
 from models import User, UserStatus, Profit, Transaction, TradingPosition, ReferralCode, CycleStatus, BroadcastMessage, AdminMessage
@@ -115,7 +118,7 @@ class SimpleTelegramBot:
             logger.info(f"Removed listener for chat {chat_id}")
     
     def send_message(self, chat_id, text, parse_mode="Markdown", reply_markup=None):
-        """Send a message to a chat."""
+        """Send a message to a chat with graceful error handling."""
         payload = {
             'chat_id': chat_id,
             'text': text,
@@ -125,14 +128,33 @@ class SimpleTelegramBot:
         if reply_markup:
             payload['reply_markup'] = reply_markup
             
-        response = requests.post(
-            f"{self.api_url}/sendMessage",
-            json=payload
-        )
-        return response.json()
+        try:
+            response = requests.post(
+                f"{self.api_url}/sendMessage",
+                json=payload,
+                timeout=10
+            )
+            
+            # Handle HTTP 409 errors gracefully
+            if response.status_code == 409:
+                logger.debug(f"HTTP 409 for message to {chat_id} - treating as success")
+                return {"ok": True, "result": {"message_id": 0, "duplicate_handled": True}}
+            elif response.status_code == 429:
+                logger.warning(f"Rate limited for message to {chat_id} - backing off")
+                time.sleep(1)
+                return {"ok": False, "error": "Rate limited"}
+            elif response.status_code != 200:
+                logger.error(f"HTTP {response.status_code} for message to {chat_id}")
+                return {"ok": False, "error": f"HTTP {response.status_code}"}
+                
+            return response.json()
+            
+        except Exception as e:
+            logger.error(f"Error sending message to {chat_id}: {e}")
+            return {"ok": False, "error": str(e)}
     
     def edit_message(self, message_id, chat_id, text, parse_mode="Markdown", reply_markup=None):
-        """Edit an existing message."""
+        """Edit an existing message with graceful error handling."""
         payload = {
             'chat_id': chat_id,
             'message_id': message_id,
@@ -143,11 +165,30 @@ class SimpleTelegramBot:
         if reply_markup:
             payload['reply_markup'] = reply_markup
             
-        response = requests.post(
-            f"{self.api_url}/editMessageText",
-            json=payload
-        )
-        return response.json()
+        try:
+            response = requests.post(
+                f"{self.api_url}/editMessageText",
+                json=payload,
+                timeout=10
+            )
+            
+            # Handle HTTP 409 errors gracefully
+            if response.status_code == 409:
+                logger.debug(f"HTTP 409 for edit message {message_id} in chat {chat_id} - treating as success")
+                return {"ok": True, "result": {"message_id": message_id, "duplicate_handled": True}}
+            elif response.status_code == 429:
+                logger.warning(f"Rate limited for edit message {message_id} in chat {chat_id}")
+                time.sleep(1)
+                return {"ok": False, "error": "Rate limited"}
+            elif response.status_code != 200:
+                logger.error(f"HTTP {response.status_code} for edit message {message_id} in chat {chat_id}")
+                return {"ok": False, "error": f"HTTP {response.status_code}"}
+                
+            return response.json()
+            
+        except Exception as e:
+            logger.error(f"Error editing message {message_id} in chat {chat_id}: {e}")
+            return {"ok": False, "error": str(e)}
         
     def send_chat_action(self, chat_id, action="typing"):
         """Send a chat action like typing, uploading, etc."""
@@ -199,7 +240,7 @@ class SimpleTelegramBot:
             return {"ok": False, "error": str(e)}
     
     def get_updates(self):
-        """Get updates from Telegram API."""
+        """Get updates from Telegram API with graceful error handling."""
         try:
             response = requests.get(
                 f"{self.api_url}/getUpdates",
@@ -211,7 +252,16 @@ class SimpleTelegramBot:
                 timeout=15
             )
             
-            if response.status_code != 200:
+            # Handle HTTP 409 errors gracefully
+            if response.status_code == 409:
+                logger.debug("HTTP 409 (Conflict) from Telegram API - handling gracefully")
+                time.sleep(0.5)  # Brief pause to avoid rapid retries
+                return []
+            elif response.status_code == 429:
+                logger.warning("Rate limited by Telegram API - backing off")
+                time.sleep(2)
+                return []
+            elif response.status_code != 200:
                 logger.error(f"HTTP {response.status_code} from Telegram API")
                 return []
                 
@@ -226,7 +276,7 @@ class SimpleTelegramBot:
             if updates:
                 # Update offset to acknowledge received updates
                 self.offset = updates[-1]['update_id'] + 1
-                logger.info(f"Received {len(updates)} updates, new offset: {self.offset}")
+                logger.debug(f"Received {len(updates)} updates, new offset: {self.offset}")
             
             return updates
             
@@ -244,38 +294,49 @@ class SimpleTelegramBot:
         }
     
     def process_update(self, update):
-        """Process a single update."""
+        """Process a single update with comprehensive duplicate protection."""
         try:
             # Generate unique update ID for complete deduplication
             update_id = update.get('update_id')
-            if hasattr(self, '_processed_updates') and update_id in self._processed_updates:
+            if not update_id:
+                logger.warning("Received update without update_id")
+                return
+                
+            # Check for duplicate update using the duplicate manager
+            if duplicate_manager.is_duplicate_update(update_id):
                 logger.debug(f"Skipping already processed update {update_id}")
                 return
-            if not hasattr(self, '_processed_updates'):
-                self._processed_updates = set()
-            self._processed_updates.add(update_id)
-            
-            # Limit cache size to prevent memory issues
-            if len(self._processed_updates) > 1000:
-                self._processed_updates = set(list(self._processed_updates)[-500:])
             
             # Handle callback queries with additional deduplication
             if "callback_query" in update:
                 callback_id = update["callback_query"]["id"]
-                if hasattr(self, '_processed_callbacks') and callback_id in self._processed_callbacks:
+                if duplicate_manager.is_duplicate_callback(callback_id):
                     logger.debug(f"Skipping already processed callback {callback_id}")
                     return
-                if not hasattr(self, '_processed_callbacks'):
-                    self._processed_callbacks = set()
-                self._processed_callbacks.add(callback_id)
-                # Limit cache size
-                if len(self._processed_callbacks) > 1000:
-                    self._processed_callbacks = set(list(self._processed_callbacks)[-500:])
-            # Handle messages
+                    
+                # Rate limiting for callback queries
+                user_id = update["callback_query"]["from"]["id"]
+                if duplicate_manager.is_rate_limited(user_id, "callback", 0.5):
+                    logger.debug(f"Rate limiting callback from user {user_id}")
+                    return
+            # Handle messages with duplicate protection
             if 'message' in update and 'text' in update['message']:
-                text = update['message']['text']
-                chat_id = update['message']['chat']['id']
-                user_id = str(update['message']['from']['id'])
+                message = update['message']
+                user_id = message['from']['id']
+                
+                # Check for duplicate message
+                if duplicate_manager.is_duplicate_message(message):
+                    logger.debug(f"Skipping duplicate message from user {user_id}")
+                    return
+                
+                # Rate limiting for messages
+                if duplicate_manager.is_rate_limited(user_id, "message", 1.0):
+                    logger.debug(f"Rate limiting message from user {user_id}")
+                    return
+                
+                text = message['text']
+                chat_id = message['chat']['id']
+                user_id = str(user_id)
                 
                 # Check for Buy/Sell trade messages (new format)
                 if text.strip().lower().startswith('buy ') or text.strip().lower().startswith('sell '):
