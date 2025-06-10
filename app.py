@@ -156,6 +156,27 @@ def database_status():
             'error': str(e)
         }), 500
 
+# Database stability monitoring endpoint
+@app.route('/db-stability')
+def database_stability():
+    """Check database stability system status"""
+    try:
+        from database_stability_system import get_database_health_status
+        status = get_database_health_status()
+        
+        return jsonify({
+            'stability_system': 'active',
+            'database_healthy': status['healthy'],
+            'last_health_check': status['last_check'],
+            'failed_operations': status['failed_operations'],
+            'monitoring_active': status['monitoring']
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'stability_system': 'error',
+            'error': str(e)
+        }), 500
+
 # This will run the Flask app on port 5000 if directly executed
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
