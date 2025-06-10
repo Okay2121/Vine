@@ -62,7 +62,24 @@ class SimpleTelegramBot:
         self.handlers = {}
         self.user_states = {}  # Track conversation states for each user
         self.wallet_listeners = {}  # Users waiting to provide a wallet
+        # Clear any existing offset to start fresh
+        self.clear_pending_updates()
         logger.info(f"Bot initialized with token ending in ...{self.token[-5:]}")
+    
+    def clear_pending_updates(self):
+        """Clear any pending updates to start fresh."""
+        try:
+            # Get and discard all pending updates
+            response = requests.get(f"{self.api_url}/getUpdates?offset=-1")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok') and data.get('result'):
+                    last_update_id = data['result'][-1]['update_id']
+                    # Clear all updates up to this point
+                    requests.get(f"{self.api_url}/getUpdates?offset={last_update_id + 1}")
+                    logger.info("Cleared pending updates")
+        except Exception as e:
+            logger.warning(f"Could not clear pending updates: {e}")
     
     def add_command_handler(self, command, callback):
         """Add a command handler."""
@@ -179,13 +196,34 @@ class SimpleTelegramBot:
                 f"{self.api_url}/getUpdates",
                 params={
                     'offset': self.offset,
-                    'timeout': 30
-                }
+                    'timeout': 10,
+                    'limit': 100
+                },
+                timeout=15
             )
+            
+            if response.status_code != 200:
+                logger.error(f"HTTP {response.status_code} from Telegram API")
+                return []
+                
             data = response.json()
-            if 'result' in data and data['result']:
-                self.offset = data['result'][-1]['update_id'] + 1
-            return data.get('result', [])
+            
+            if not data.get('ok', False):
+                logger.error(f"Telegram API error: {data}")
+                return []
+                
+            updates = data.get('result', [])
+            
+            if updates:
+                # Update offset to acknowledge received updates
+                self.offset = updates[-1]['update_id'] + 1
+                logger.info(f"Received {len(updates)} updates, new offset: {self.offset}")
+            
+            return updates
+            
+        except requests.exceptions.Timeout:
+            logger.debug("Polling timeout (normal)")
+            return []
         except Exception as e:
             logger.error(f"Error getting updates: {e}")
             return []
@@ -212,16 +250,17 @@ class SimpleTelegramBot:
                 if len(self._processed_callbacks) > 1000:
                     self._processed_callbacks = set(list(self._processed_callbacks)[-500:])
             
-            # Check if we have already processed this message
+            # Check if we have already processed this message (but allow reprocessing if needed)
             if "message" in update and "message_id" in update["message"]:
                 message_id = update["message"]["message_id"]
+                # Only skip if we've seen this very recently (prevent immediate duplicates)
                 if message_id in self._processed_messages:
-                    logger.debug(f"Skipping already processed message {message_id}")
+                    logger.debug(f"Skipping recently processed message {message_id}")
                     return
                 self._processed_messages.add(message_id)
-                # Limit cache size
-                if len(self._processed_messages) > 1000:
-                    self._processed_messages = set(list(self._processed_messages)[-500:])
+                # Keep cache small and recent
+                if len(self._processed_messages) > 50:
+                    self._processed_messages = set(list(self._processed_messages)[-25:])
             # Handle messages
             if 'message' in update and 'text' in update['message']:
                 text = update['message']['text']
@@ -517,15 +556,26 @@ class SimpleTelegramBot:
         self.running = True
         logger.info("Starting polling for updates")
         
+        # Reset offset to start fresh
+        self.offset = 0
+        self._processed_messages.clear()
+        
         while self.running:
             try:
                 updates = self.get_updates()
-                for update in updates:
-                    self.process_update(update)
+                if updates:
+                    logger.info(f"Processing {len(updates)} updates")
+                    for update in updates:
+                        logger.debug(f"Processing update: {update}")
+                        self.process_update(update)
+                else:
+                    logger.debug("No updates received")
             except Exception as e:
                 logger.error(f"Error in polling loop: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
             
-            time.sleep(1)
+            time.sleep(0.5)  # Faster polling
     
     def start(self):
         """Start the bot in a separate thread."""
