@@ -74,6 +74,22 @@ class EnhancedDuplicateManager:
             
             return False
     
+    def is_duplicate_callback(self, callback_id):
+        """Check if callback was already processed"""
+        with self.lock:
+            if callback_id in self.processed_callbacks:
+                logger.debug(f"Duplicate callback blocked: {callback_id}")
+                return True
+            
+            self.processed_callbacks.add(callback_id)
+            
+            # Keep only recent 1000 callbacks
+            if len(self.processed_callbacks) > 1000:
+                callback_list = list(self.processed_callbacks)
+                self.processed_callbacks = set(callback_list[-500:])
+            
+            return False
+    
     def is_rate_limited(self, user_id, action_type="message", cooldown=2.0):
         """Rate limiting with stronger cooldowns"""
         with self.lock:
