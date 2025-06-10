@@ -157,9 +157,8 @@ async def process_wallet_address(update: Update, context: ContextTypes.DEFAULT_T
                     f"and maximum *5000 SOL* to the following\n"
                     f"address.\n\n"
                     f"Once your deposit is received, it will be\n"
-                    f"processed, and you'll be on your way to\n"
-                    f"doubling your Solana in just 168 hours! The\n"
-                    f"following wallet address is your deposit wallet:"
+                    f"processed and your trading journey will begin.\n"
+                    f"The following wallet address is your deposit wallet:"
                 )
                 
                 await update.message.reply_text(
