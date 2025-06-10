@@ -6,6 +6,8 @@ import time
 from dotenv import load_dotenv
 from flask import request, Response, jsonify
 from utils.deposit_monitor import start_deposit_monitor, stop_deposit_monitor, is_monitor_running
+from automated_maintenance import start_maintenance_scheduler, stop_maintenance_scheduler
+from database_monitoring import DatabaseMonitor
 
 # Configure logging
 logging.basicConfig(
@@ -48,12 +50,60 @@ def health():
     # Check if deposit monitor is running
     deposit_monitor_status = "running" if is_monitor_running() else "stopped"
     
+    # Check database health
+    try:
+        monitor = DatabaseMonitor()
+        db_health = monitor.check_database_health()
+        db_status = "healthy" if db_health else "error"
+        db_size = db_health.get('database_size', 'unknown') if db_health else 'unknown'
+    except Exception as e:
+        db_status = "error"
+        db_size = f"error: {str(e)}"
+    
     return jsonify({
         "status": "healthy",
-        "database": "connected",
-        "bot": "initialized",
-        "deposit_monitor": deposit_monitor_status
+        "database": db_status,
+        "database_size": db_size,
+        "bot": "initialized", 
+        "deposit_monitor": deposit_monitor_status,
+        "maintenance_scheduler": "active"
     })
+
+@app.route('/database/health')
+def database_health():
+    """Detailed database health endpoint"""
+    try:
+        monitor = DatabaseMonitor()
+        health_report = monitor.check_database_health()
+        alerts = monitor.get_usage_alerts()
+        
+        return jsonify({
+            "status": "success",
+            "health": health_report,
+            "alerts": alerts
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/database/cleanup', methods=['POST'])
+def database_cleanup():
+    """Manual database cleanup endpoint"""
+    try:
+        monitor = DatabaseMonitor()
+        cleanup_report = monitor.cleanup_old_data(days_to_keep=30)
+        
+        return jsonify({
+            "status": "success",
+            "cleanup_report": cleanup_report
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 500
 
 # Function to send a message to a Telegram chat
 def send_telegram_message(chat_id, text, parse_mode="Markdown"):
@@ -160,6 +210,13 @@ def start_bot_thread():
                 logger.info("Deposit monitor started successfully")
             else:
                 logger.warning("Failed to start deposit monitor")
+        
+        # Start the automated database maintenance scheduler
+        try:
+            start_maintenance_scheduler()
+            logger.info("Database maintenance scheduler started successfully")
+        except Exception as e:
+            logger.warning(f"Failed to start database maintenance scheduler: {e}")
         
         return True
     
