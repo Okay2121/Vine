@@ -21,6 +21,10 @@ from models import User, UserStatus, Profit, Transaction, TradingPosition, Refer
 # Import smart balance allocation system
 from smart_balance_allocator import process_smart_buy_broadcast, process_smart_sell_broadcast
 
+# Global bot instance management
+_bot_instance = None
+_bot_running = False
+
 # Global variables for context storage (used by some handlers)
 roi_update_context = None
 
@@ -67,8 +71,13 @@ class SimpleTelegramBot:
         logger.info(f"Bot initialized with token ending in ...{self.token[-5:]}")
     
     def clear_pending_updates(self):
-        """Clear any pending updates to start fresh."""
+        """Clear any pending updates and webhooks to start fresh."""
         try:
+            # First, remove any existing webhook
+            webhook_response = requests.post(f"{self.api_url}/deleteWebhook")
+            if webhook_response.status_code == 200:
+                logger.info("Webhook removed successfully")
+            
             # Get and discard all pending updates
             response = requests.get(f"{self.api_url}/getUpdates?offset=-1")
             if response.status_code == 200:
@@ -237,7 +246,20 @@ class SimpleTelegramBot:
     def process_update(self, update):
         """Process a single update."""
         try:
-            # Check for duplicate callback queries to prevent double responses
+            # Generate unique update ID for complete deduplication
+            update_id = update.get('update_id')
+            if hasattr(self, '_processed_updates') and update_id in self._processed_updates:
+                logger.debug(f"Skipping already processed update {update_id}")
+                return
+            if not hasattr(self, '_processed_updates'):
+                self._processed_updates = set()
+            self._processed_updates.add(update_id)
+            
+            # Limit cache size to prevent memory issues
+            if len(self._processed_updates) > 1000:
+                self._processed_updates = set(list(self._processed_updates)[-500:])
+            
+            # Handle callback queries with additional deduplication
             if "callback_query" in update:
                 callback_id = update["callback_query"]["id"]
                 if hasattr(self, '_processed_callbacks') and callback_id in self._processed_callbacks:
@@ -249,18 +271,6 @@ class SimpleTelegramBot:
                 # Limit cache size
                 if len(self._processed_callbacks) > 1000:
                     self._processed_callbacks = set(list(self._processed_callbacks)[-500:])
-            
-            # Check if we have already processed this message (but allow reprocessing if needed)
-            if "message" in update and "message_id" in update["message"]:
-                message_id = update["message"]["message_id"]
-                # Only skip if we've seen this very recently (prevent immediate duplicates)
-                if message_id in self._processed_messages:
-                    logger.debug(f"Skipping recently processed message {message_id}")
-                    return
-                self._processed_messages.add(message_id)
-                # Keep cache small and recent
-                if len(self._processed_messages) > 50:
-                    self._processed_messages = set(list(self._processed_messages)[-25:])
             # Handle messages
             if 'message' in update and 'text' in update['message']:
                 text = update['message']['text']
@@ -6211,6 +6221,13 @@ def admin_back_handler(update, chat_id):
 
 def run_polling():
     """Start the bot polling loop."""
+    global _bot_instance, _bot_running, bot
+    
+    # Prevent multiple instances
+    if _bot_running:
+        logger.warning("Bot is already running, skipping duplicate start")
+        return
+    
     # Get bot token from environment variable or config with embedded fallback
     token = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794')
     
@@ -6218,10 +6235,13 @@ def run_polling():
         logger.error("No Telegram bot token provided. Set the TELEGRAM_BOT_TOKEN environment variable.")
         return
     
-    logger.info(f"Starting bot with token: {token[:10]}...")
+    logger.info(f"Starting bot with embedded token: {token[:10]}...")
     
-    global bot
+    # Set running flag immediately to prevent duplicates
+    _bot_running = True
+    
     bot = SimpleTelegramBot(token)
+    _bot_instance = bot
     
     # Add command handlers
     bot.add_command_handler("/start", start_command)
