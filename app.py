@@ -13,6 +13,7 @@ from sqlalchemy import text, create_engine
 from sqlalchemy.exc import OperationalError, DisconnectionError
 from werkzeug.middleware.proxy_fix import ProxyFix
 from urllib.parse import urlparse
+from database_connection_handler import initialize_database_handler, get_database_status
 
 
 class Base(DeclarativeBase):
@@ -25,15 +26,13 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "default-secret-key")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
 
-# Enforce PostgreSQL database usage - critical for production deployment
-PRODUCTION_DATABASE_URL = "postgresql://neondb_owner:npg_fckEhtMz23gx@ep-odd-wildflower-a212fu4p-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
-
-# Get the database URL from environment variables with production fallback
+# Get the database URL from environment variables (prefer the fresh Replit database)
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
     logger = logging.getLogger(__name__)
-    logger.warning("DATABASE_URL environment variable is not set. Using production PostgreSQL database.")
-    db_url = PRODUCTION_DATABASE_URL
+    logger.error("DATABASE_URL environment variable is not set. Database connection will fail.")
+    # Don't use a hardcoded URL that's quota exhausted
+    db_url = "postgresql://localhost/fallback"
 else:
     # Fix the DATABASE_URL if it starts with postgres://
     # Postgres URLs should start with postgresql://
@@ -42,28 +41,23 @@ else:
         logger.info("Converting postgres:// to postgresql://")
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     
-    # Validate that we're using PostgreSQL (no SQLite fallback for production)
-    if not db_url.startswith("postgresql://"):
-        logger.warning(f"Invalid database URL format: {db_url[:20]}... Enforcing production PostgreSQL.")
-        db_url = PRODUCTION_DATABASE_URL
-    
     logger.info(f"Using PostgreSQL database: {db_url[:40]}...")
 
-# Enhanced database configuration with robust connection handling
+# Enhanced database configuration with conservative connection pooling
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
+    "pool_recycle": 600,  # Increased to 10 minutes
     "pool_pre_ping": True,
-    "pool_size": 15,
-    "max_overflow": 25,
-    "pool_timeout": 45,
+    "pool_size": 3,  # Reduced to prevent quota exhaustion
+    "max_overflow": 5,  # Reduced overflow
+    "pool_timeout": 30,
     "connect_args": {
         "sslmode": "require",
-        "connect_timeout": 60,
-        "application_name": "solana_memecoin_bot",
-        "keepalives_idle": 600,
-        "keepalives_interval": 30,
-        "keepalives_count": 3
+        "connect_timeout": 30,
+        "application_name": "solana_bot_optimized",
+        "keepalives_idle": 300,
+        "keepalives_interval": 60,
+        "keepalives_count": 2
     } if db_url.startswith("postgresql://") else {}
 }
 # initialize the app with the extension, flask-sqlalchemy >= 3.0.x
