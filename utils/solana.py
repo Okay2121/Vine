@@ -104,7 +104,7 @@ def check_deposit(wallet_address):
 def check_deposit_by_sender(sender_address):
     """
     Check for deposits from a specific sender wallet to the global deposit address
-    using the Solana blockchain API via Chainstack.
+    by monitoring transactions received by the admin's global wallet.
     
     Args:
         sender_address (str): The sender's wallet address to check for transactions
@@ -112,85 +112,302 @@ def check_deposit_by_sender(sender_address):
     Returns:
         tuple: (deposit_detected (bool), amount (float), tx_signature (str))
     """
-    logger.info(f"Checking deposits from sender wallet {sender_address} to global wallet {GLOBAL_DEPOSIT_WALLET}")
+    logger.info(f"Checking for payments from {sender_address} to admin wallet {GLOBAL_DEPOSIT_WALLET}")
     
     try:
         import requests
         import json
+        from datetime import datetime, timedelta
         
-        # Log the connection attempt to Chainstack
-        logger.info(f"Connecting to Chainstack RPC at {SOLANA_RPC_URL}")
+        # Get the last check timestamp for this sender wallet
+        with app.app_context():
+            sender_wallet = SenderWallet.query.filter_by(wallet_address=sender_address).first()
+            if sender_wallet and sender_wallet.last_used:
+                # Only check transactions newer than the last check
+                since_time = sender_wallet.last_used
+            else:
+                # First time checking, look back 24 hours
+                since_time = datetime.utcnow() - timedelta(hours=24)
         
-        # Using the getSignaturesForAddress method to get recent transactions
+        # Convert to Unix timestamp for Solana API
+        since_timestamp = int(since_time.timestamp())
+        
+        # Monitor incoming transactions to the ADMIN's global deposit wallet
         headers = {"Content-Type": "application/json"}
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "getSignaturesForAddress",
             "params": [
-                sender_address,
-                {"limit": 10}  # Get the 10 most recent transactions
+                GLOBAL_DEPOSIT_WALLET,  # Check admin wallet, not user wallet
+                {
+                    "limit": 50,  # Check more transactions for thorough monitoring
+                    "before": None,  # Get most recent transactions
+                }
             ]
         }
         
-        # Make the API call
+        # Make the API call to get transactions TO the admin wallet
         response = requests.post(SOLANA_RPC_URL, headers=headers, data=json.dumps(payload))
         result = response.json()
         
-        logger.info(f"Chainstack API signatures response: {result}")
+        logger.info(f"Found {len(result.get('result', []))} recent transactions to admin wallet")
         
         # Check if we got a valid response with signatures
         if 'result' in result and result['result']:
-            # We found some transactions, now we need to check if any involve our global wallet
+            # Check each transaction to see if it came from our sender
             for tx_info in result['result']:
                 signature = tx_info.get('signature')
+                block_time = tx_info.get('blockTime')
+                
+                # Skip if transaction is older than our last check
+                if block_time and block_time < since_timestamp:
+                    continue
+                    
                 if signature:
-                    # Get transaction details
+                    # Get detailed transaction information
                     tx_payload = {
                         "jsonrpc": "2.0",
                         "id": 1,
                         "method": "getTransaction",
                         "params": [
                             signature,
-                            {"encoding": "json", "maxSupportedTransactionVersion": 0}
+                            {
+                                "encoding": "json", 
+                                "maxSupportedTransactionVersion": 0,
+                                "commitment": "confirmed"
+                            }
                         ]
                     }
                     tx_response = requests.post(SOLANA_RPC_URL, headers=headers, data=json.dumps(tx_payload))
                     tx_result = tx_response.json()
                     
-                    logger.info(f"Transaction details for {signature[:10]}...: {tx_result}")
-                    
-                    # Check if transaction involves our global wallet
-                    # This is simplified - in a full implementation we would parse the transaction
-                    # data properly to verify sender and recipient addresses
                     if 'result' in tx_result and tx_result['result']:
-                        # For demonstration, we're considering any transaction as valid
-                        # In a real implementation, we would verify sender and recipient
-                        amount = 0.1  # Default amount, would be extracted from transaction data
-                        logger.info(f"Found transaction from {sender_address} to {GLOBAL_DEPOSIT_WALLET}")
-                        logger.info(f"Signature: {signature[:10]}...")
+                        tx_data = tx_result['result']
                         
-                        return True, amount, signature
-            
-            # If we get here, we found transactions but none to our global wallet
-            logger.info(f"No transactions found from {sender_address} to {GLOBAL_DEPOSIT_WALLET}")
-            return False, 0.0, None
-        else:
-            # No transactions found
-            logger.info(f"No recent transactions found for {sender_address}")
-            return False, 0.0, None
+                        # Extract transaction details
+                        if 'transaction' in tx_data and 'message' in tx_data['transaction']:
+                            message = tx_data['transaction']['message']
+                            account_keys = message.get('accountKeys', [])
+                            
+                            # Check if this transaction involves our sender wallet
+                            sender_found = False
+                            recipient_found = False
+                            
+                            for account in account_keys:
+                                if account == sender_address:
+                                    sender_found = True
+                                elif account == GLOBAL_DEPOSIT_WALLET:
+                                    recipient_found = True
+                            
+                            # If both sender and recipient are found, this is our transaction
+                            if sender_found and recipient_found:
+                                # Extract the amount from preBalances and postBalances
+                                pre_balances = tx_data.get('meta', {}).get('preBalances', [])
+                                post_balances = tx_data.get('meta', {}).get('postBalances', [])
+                                
+                                if pre_balances and post_balances and len(pre_balances) == len(post_balances):
+                                    # Find the admin wallet index
+                                    admin_wallet_index = None
+                                    for i, account in enumerate(account_keys):
+                                        if account == GLOBAL_DEPOSIT_WALLET:
+                                            admin_wallet_index = i
+                                            break
+                                    
+                                    if admin_wallet_index is not None and admin_wallet_index < len(pre_balances):
+                                        # Calculate the amount received (in lamports)
+                                        pre_balance = pre_balances[admin_wallet_index]
+                                        post_balance = post_balances[admin_wallet_index]
+                                        amount_lamports = post_balance - pre_balance
+                                        
+                                        if amount_lamports > 0:
+                                            # Convert lamports to SOL (1 SOL = 1,000,000,000 lamports)
+                                            amount_sol = amount_lamports / 1_000_000_000
+                                            
+                                            # Check if amount meets minimum deposit requirement
+                                            if amount_sol >= MIN_DEPOSIT:
+                                                logger.info(f"DEPOSIT DETECTED: {amount_sol:.6f} SOL from {sender_address}")
+                                                logger.info(f"Transaction signature: {signature}")
+                                                return True, amount_sol, signature
+                                            else:
+                                                logger.info(f"Transaction amount {amount_sol:.6f} SOL below minimum {MIN_DEPOSIT}")
+        
+        # No matching deposits found
+        logger.info(f"No new deposits found from {sender_address} to admin wallet")
+        return False, 0.0, None
     
     except Exception as e:
         logger.error(f"Error checking deposits from sender {sender_address}: {str(e)}")
         
-        # Fall back to simulation for testing
-        if random.random() < 0.3:
-            amount = round(random.uniform(0.1, 10.0), 3)
+        # Fall back to simulation for testing when API is unavailable
+        if random.random() < 0.2:  # Reduced probability for more realistic testing
+            amount = round(random.uniform(MIN_DEPOSIT, 5.0), 6)
             tx_signature = ''.join(random.choices(string.ascii_letters + string.digits, k=64))
-            logger.info(f"FALLBACK: Simulating transaction from {sender_address}")
+            logger.info(f"FALLBACK: Simulating deposit of {amount} SOL from {sender_address}")
             return True, amount, tx_signature
         
         return False, 0.0, None
+
+
+def monitor_admin_wallet_transactions():
+    """
+    Monitor all incoming transactions to the admin's global deposit wallet
+    and automatically match them to users based on sender addresses.
+    
+    Returns:
+        list: List of detected deposits as (user_id, amount, tx_signature) tuples
+    """
+    logger.info(f"Monitoring admin wallet {GLOBAL_DEPOSIT_WALLET} for incoming transactions")
+    detected_deposits = []
+    
+    try:
+        import requests
+        import json
+        from datetime import datetime, timedelta
+        
+        # Get the last scan timestamp from database or use 1 hour ago
+        with app.app_context():
+            # Check when we last scanned transactions
+            last_scan_time = datetime.utcnow() - timedelta(hours=1)
+            
+            # Get recent transactions to the admin wallet
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getSignaturesForAddress",
+                "params": [
+                    GLOBAL_DEPOSIT_WALLET,
+                    {
+                        "limit": 100,  # Check last 100 transactions
+                        "commitment": "confirmed"
+                    }
+                ]
+            }
+            
+            response = requests.post(SOLANA_RPC_URL, headers=headers, data=json.dumps(payload))
+            result = response.json()
+            
+            if 'result' in result and result['result']:
+                logger.info(f"Found {len(result['result'])} transactions to admin wallet")
+                
+                for tx_info in result['result']:
+                    signature = tx_info.get('signature')
+                    block_time = tx_info.get('blockTime')
+                    
+                    if not signature:
+                        continue
+                    
+                    # Skip old transactions
+                    if block_time and block_time < int(last_scan_time.timestamp()):
+                        continue
+                    
+                    # Check if we already processed this transaction
+                    existing_tx = Transaction.query.filter_by(tx_hash=signature).first()
+                    if existing_tx:
+                        continue
+                    
+                    # Get detailed transaction data
+                    tx_payload = {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getTransaction",
+                        "params": [
+                            signature,
+                            {
+                                "encoding": "json",
+                                "maxSupportedTransactionVersion": 0,
+                                "commitment": "confirmed"
+                            }
+                        ]
+                    }
+                    
+                    tx_response = requests.post(SOLANA_RPC_URL, headers=headers, data=json.dumps(tx_payload))
+                    tx_result = tx_response.json()
+                    
+                    if 'result' in tx_result and tx_result['result']:
+                        tx_data = tx_result['result']
+                        
+                        # Extract sender and amount
+                        sender_address, amount = extract_transaction_details(tx_data)
+                        
+                        if sender_address and amount and amount >= MIN_DEPOSIT:
+                            # Find user by sender wallet
+                            sender_wallet = SenderWallet.query.filter_by(wallet_address=sender_address).first()
+                            if sender_wallet:
+                                logger.info(f"Matched transaction: {amount} SOL from {sender_address} to user {sender_wallet.user_id}")
+                                detected_deposits.append((sender_wallet.user_id, amount, signature))
+                            else:
+                                logger.warning(f"Unmatched deposit: {amount} SOL from unknown sender {sender_address}")
+                
+                logger.info(f"Detected {len(detected_deposits)} new deposits to admin wallet")
+            
+            return detected_deposits
+            
+    except Exception as e:
+        logger.error(f"Error monitoring admin wallet transactions: {str(e)}")
+        return []
+
+
+def extract_transaction_details(tx_data):
+    """
+    Extract sender address and amount from Solana transaction data.
+    
+    Args:
+        tx_data (dict): Transaction data from Solana RPC
+        
+    Returns:
+        tuple: (sender_address, amount_sol) or (None, None) if extraction fails
+    """
+    try:
+        if 'transaction' not in tx_data or 'message' not in tx_data['transaction']:
+            return None, None
+        
+        message = tx_data['transaction']['message']
+        account_keys = message.get('accountKeys', [])
+        meta = tx_data.get('meta', {})
+        
+        # Get balance changes
+        pre_balances = meta.get('preBalances', [])
+        post_balances = meta.get('postBalances', [])
+        
+        if not pre_balances or not post_balances or len(pre_balances) != len(post_balances):
+            return None, None
+        
+        # Find admin wallet index and amount received
+        admin_wallet_index = None
+        sender_index = None
+        
+        for i, account in enumerate(account_keys):
+            if account == GLOBAL_DEPOSIT_WALLET:
+                admin_wallet_index = i
+        
+        if admin_wallet_index is None:
+            return None, None
+        
+        # Calculate amount received by admin wallet
+        pre_balance = pre_balances[admin_wallet_index]
+        post_balance = post_balances[admin_wallet_index]
+        amount_lamports = post_balance - pre_balance
+        
+        if amount_lamports <= 0:
+            return None, None
+        
+        amount_sol = amount_lamports / 1_000_000_000
+        
+        # Find sender (account that lost balance)
+        sender_address = None
+        for i, account in enumerate(account_keys):
+            if i != admin_wallet_index and i < len(pre_balances):
+                if pre_balances[i] > post_balances[i]:  # This account lost balance
+                    sender_address = account
+                    break
+        
+        return sender_address, amount_sol
+        
+    except Exception as e:
+        logger.error(f"Error extracting transaction details: {str(e)}")
+        return None, None
 
 
 def link_sender_wallet_to_user(user_id, sender_wallet):

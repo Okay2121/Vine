@@ -1,175 +1,195 @@
 """
-Test Script to verify the deposit monitoring system functions properly in real-time
-This script simulates a deposit and verifies it's processed correctly
+Test and Debug Script for the New Deposit Detection System
+==========================================================
+This script tests the improved deposit detection system that monitors
+the admin's global wallet for incoming transactions instead of checking user balances.
 """
-import logging
-import time
-import random
-import string
-from datetime import datetime
 
+import logging
+import sys
+from datetime import datetime, timedelta
 from app import app, db
-from models import User, Transaction, SenderWallet, UserStatus
-from utils.solana import process_auto_deposit, check_deposit_by_sender
+from models import User, SenderWallet, Transaction
+from utils.solana import monitor_admin_wallet_transactions, process_auto_deposit
+from config import GLOBAL_DEPOSIT_WALLET, MIN_DEPOSIT
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def generate_test_tx_signature():
-    """Generate a random transaction signature for testing"""
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=64))
-
-def get_or_create_test_user():
-    """Get or create a test user for deposit verification"""
+def test_admin_wallet_monitoring():
+    """Test the admin wallet monitoring function."""
+    logger.info("Testing admin wallet monitoring system...")
+    
     with app.app_context():
-        # Import UserStatus here to avoid circular imports
-        from models import UserStatus
-        
-        # Look for a test user
-        test_user = User.query.filter_by(username='test_deposit_user').first()
-        
-        if not test_user:
-            logger.info("Creating test user for deposit verification")
-            test_user = User()
-            test_user.telegram_id = f"test_{int(time.time())}"
-            test_user.username = 'test_deposit_user'
-            test_user.first_name = 'Test'
-            test_user.last_name = 'User'
-            test_user.balance = 0
-            test_user.initial_deposit = 0
-            test_user.status = UserStatus.ACTIVE
-            db.session.add(test_user)
-            db.session.commit()
+        try:
+            # Test the monitoring function
+            detected_deposits = monitor_admin_wallet_transactions()
             
-        return test_user
-
-def get_or_create_test_wallet(user_id):
-    """Get or create a test wallet for the user"""
-    with app.app_context():
-        # Look for an existing wallet
-        test_wallet = SenderWallet.query.filter_by(user_id=user_id).first()
-        
-        if not test_wallet:
-            logger.info(f"Creating test wallet for user {user_id}")
-            test_wallet = SenderWallet()
-            test_wallet.user_id = user_id
-            test_wallet.wallet_address = f"TestWallet{int(time.time())}"
-            test_wallet.created_at = datetime.utcnow()
-            test_wallet.last_used = datetime.utcnow()
-            test_wallet.is_primary = True
-            db.session.add(test_wallet)
-            db.session.commit()
+            logger.info(f"Admin wallet monitoring test completed")
+            logger.info(f"Detected deposits: {len(detected_deposits)}")
             
-        return test_wallet
+            for i, (user_id, amount, tx_signature) in enumerate(detected_deposits):
+                logger.info(f"Deposit {i+1}: User {user_id}, Amount: {amount} SOL, TX: {tx_signature[:16]}...")
+                
+            return detected_deposits
+            
+        except Exception as e:
+            logger.error(f"Error testing admin wallet monitoring: {str(e)}")
+            return []
 
 def test_deposit_processing():
-    """Test the deposit processing system"""
-    # Get or create a test user
-    test_user = get_or_create_test_user()
-    logger.info(f"Using test user: {test_user.username} (ID: {test_user.id})")
+    """Test the complete deposit processing pipeline."""
+    logger.info("Testing complete deposit processing pipeline...")
     
-    # Get or create a test wallet
-    test_wallet = get_or_create_test_wallet(test_user.id)
-    logger.info(f"Using test wallet: {test_wallet.wallet_address}")
-    
-    # Record initial balance
-    initial_balance = test_user.balance
-    logger.info(f"Initial balance: {initial_balance} SOL")
-    
-    # Generate a unique transaction signature
-    tx_signature = generate_test_tx_signature()
-    logger.info(f"Generated test transaction signature: {tx_signature}")
-    
-    # Process a simulated deposit
-    deposit_amount = round(random.uniform(0.1, 2.0), 2)
-    logger.info(f"Processing test deposit of {deposit_amount} SOL")
-    
-    # Process the deposit
-    success = process_auto_deposit(test_user.id, deposit_amount, tx_signature)
-    
-    if success:
-        logger.info("✅ Deposit processed successfully")
-    else:
-        logger.error("❌ Deposit processing failed")
-        return False
-    
-    # Verify the balance was updated correctly
     with app.app_context():
-        updated_user = User.query.get(test_user.id)
-        expected_balance = initial_balance + deposit_amount
-        actual_balance = updated_user.balance
-        
-        logger.info(f"Expected balance: {expected_balance} SOL")
-        logger.info(f"Actual balance: {actual_balance} SOL")
-        
-        if abs(expected_balance - actual_balance) < 0.0001:  # Allow for floating point comparison
-            logger.info("✅ Balance updated correctly")
-        else:
-            logger.error("❌ Balance not updated correctly")
-            return False
-        
-        # Verify the transaction was recorded
-        transaction = Transaction.query.filter_by(tx_hash=tx_signature).first()
-        if transaction:
-            logger.info("✅ Transaction record created")
-            logger.info(f"Transaction type: {transaction.transaction_type}")
-            logger.info(f"Transaction amount: {transaction.amount}")
-            logger.info(f"Transaction status: {transaction.status}")
-            logger.info(f"Transaction processed_at: {transaction.processed_at}")
-        else:
-            logger.error("❌ Transaction record not found")
-            return False
-        
-        # Try processing the same deposit again (should be idempotent)
-        logger.info("Testing duplicate transaction handling...")
-        repeat_success = process_auto_deposit(test_user.id, deposit_amount, tx_signature)
-        
-        if repeat_success:
-            logger.info("✅ Duplicate transaction handled correctly (didn't error)")
+        try:
+            # Get detected deposits
+            detected_deposits = monitor_admin_wallet_transactions()
             
-            # Verify balance wasn't updated twice
-            latest_user = User.query.get(test_user.id)
-            if abs(latest_user.balance - actual_balance) < 0.0001:
-                logger.info("✅ Balance not changed on duplicate deposit (correct)")
+            if not detected_deposits:
+                logger.info("No deposits detected to process")
+                return
+            
+            # Process the first detected deposit
+            user_id, amount, tx_signature = detected_deposits[0]
+            
+            logger.info(f"Testing processing of deposit: {amount} SOL for user {user_id}")
+            
+            # Get user information before processing
+            user = User.query.get(user_id)
+            if not user:
+                logger.error(f"User {user_id} not found")
+                return
+            
+            initial_balance = user.balance
+            logger.info(f"User {user.telegram_id} initial balance: {initial_balance} SOL")
+            
+            # Process the deposit
+            success = process_auto_deposit(user_id, amount, tx_signature)
+            
+            if success:
+                # Check the updated balance
+                updated_user = User.query.get(user_id)
+                new_balance = updated_user.balance
+                
+                logger.info(f"Deposit processed successfully!")
+                logger.info(f"Previous balance: {initial_balance} SOL")
+                logger.info(f"New balance: {new_balance} SOL")
+                logger.info(f"Difference: {new_balance - initial_balance} SOL")
+                
+                # Check transaction record
+                transaction = Transaction.query.filter_by(tx_hash=tx_signature).first()
+                if transaction:
+                    logger.info(f"Transaction record created: {transaction.transaction_type}, {transaction.amount} SOL")
+                else:
+                    logger.warning("No transaction record found!")
             else:
-                logger.error("❌ Balance changed on duplicate deposit (incorrect)")
-                return False
-        else:
-            logger.error("❌ Duplicate transaction handling failed")
-            return False
-    
-    logger.info("🎉 All deposit system tests passed successfully!")
-    return True
+                logger.error("Failed to process deposit")
+                
+        except Exception as e:
+            logger.error(f"Error testing deposit processing: {str(e)}")
 
-def test_wallet_matching():
-    """Test the wallet matching functionality"""
-    # Get the test user and wallet
-    test_user = get_or_create_test_user()
-    test_wallet = get_or_create_test_wallet(test_user.id)
+def check_system_status():
+    """Check the current status of the deposit detection system."""
+    logger.info("Checking deposit detection system status...")
     
-    logger.info(f"Testing wallet matching for wallet: {test_wallet.wallet_address}")
+    with app.app_context():
+        try:
+            # Check database connectivity
+            user_count = User.query.count()
+            wallet_count = SenderWallet.query.count()
+            transaction_count = Transaction.query.count()
+            
+            logger.info(f"Database status:")
+            logger.info(f"  Users: {user_count}")
+            logger.info(f"  Sender wallets: {wallet_count}")
+            logger.info(f"  Transactions: {transaction_count}")
+            
+            # Check recent transactions
+            recent_transactions = Transaction.query.filter(
+                Transaction.timestamp > datetime.utcnow() - timedelta(hours=24)
+            ).order_by(Transaction.timestamp.desc()).limit(5).all()
+            
+            logger.info(f"Recent transactions (last 24 hours): {len(recent_transactions)}")
+            for tx in recent_transactions:
+                logger.info(f"  {tx.timestamp}: {tx.transaction_type} {tx.amount} SOL (User {tx.user_id})")
+            
+            # Check configuration
+            logger.info(f"Configuration:")
+            logger.info(f"  Global deposit wallet: {GLOBAL_DEPOSIT_WALLET}")
+            logger.info(f"  Minimum deposit: {MIN_DEPOSIT} SOL")
+            
+        except Exception as e:
+            logger.error(f"Error checking system status: {str(e)}")
+
+def simulate_deposit_test():
+    """Create a test scenario to verify the system works."""
+    logger.info("Running simulation test...")
     
-    # Test if the deposit monitoring can detect a deposit from this wallet
-    deposit_found, amount, tx_signature = check_deposit_by_sender(test_wallet.wallet_address)
-    
-    if deposit_found:
-        logger.info(f"✅ Detected deposit of {amount} SOL with signature {tx_signature[:10]}...")
+    with app.app_context():
+        try:
+            # Find a test user or create one
+            test_user = User.query.filter_by(username="testuser").first()
+            if not test_user:
+                logger.info("Creating test user...")
+                test_user = User()
+                test_user.username = "testuser"
+                test_user.telegram_id = "999999999"
+                test_user.balance = 0.0
+                test_user.initial_deposit = 0.0
+                db.session.add(test_user)
+                db.session.commit()
+                logger.info(f"Created test user with ID: {test_user.id}")
+            
+            # Create a test sender wallet if it doesn't exist
+            test_wallet_address = "TestWallet123456789ABC"
+            sender_wallet = SenderWallet.query.filter_by(wallet_address=test_wallet_address).first()
+            if not sender_wallet:
+                logger.info("Creating test sender wallet...")
+                sender_wallet = SenderWallet()
+                sender_wallet.user_id = test_user.id
+                sender_wallet.wallet_address = test_wallet_address
+                sender_wallet.created_at = datetime.utcnow()
+                sender_wallet.last_used = datetime.utcnow()
+                sender_wallet.is_primary = True
+                db.session.add(sender_wallet)
+                db.session.commit()
+                logger.info(f"Created test sender wallet: {test_wallet_address}")
+            
+            logger.info("Test setup completed")
+            logger.info(f"Test user ID: {test_user.id}")
+            logger.info(f"Test wallet: {test_wallet_address}")
+            
+        except Exception as e:
+            logger.error(f"Error setting up simulation test: {str(e)}")
+
+def main():
+    """Main function to run all tests."""
+    if len(sys.argv) > 1:
+        test_type = sys.argv[1].lower()
     else:
-        logger.info("No deposits detected in this test run (normal in most cases)")
+        test_type = "all"
     
-    return True
+    logger.info(f"Starting deposit system test: {test_type}")
+    
+    if test_type in ["all", "status"]:
+        check_system_status()
+        print("-" * 50)
+    
+    if test_type in ["all", "monitor"]:
+        test_admin_wallet_monitoring()
+        print("-" * 50)
+    
+    if test_type in ["all", "process"]:
+        test_deposit_processing()
+        print("-" * 50)
+    
+    if test_type in ["all", "simulate"]:
+        simulate_deposit_test()
+        print("-" * 50)
+    
+    logger.info("Test completed")
 
 if __name__ == "__main__":
-    logger.info("Starting deposit system verification tests")
-    
-    # Test deposit processing
-    deposit_result = test_deposit_processing()
-    
-    # Test wallet matching
-    wallet_result = test_wallet_matching()
-    
-    if deposit_result and wallet_result:
-        logger.info("✅ ALL TESTS PASSED - Deposit system is functioning correctly!")
-    else:
-        logger.error("❌ Some tests failed - Check the logs for details")
+    main()

@@ -29,73 +29,66 @@ monitor_thread = None
 
 def scan_for_deposits():
     """
-    Scan for new deposits with improved error handling and failure isolation.
-    This function checks all registered sender wallets for transactions
-    to the global deposit address with enhanced robustness.
+    Scan for new deposits by monitoring the admin's global wallet for incoming transactions.
+    This improved system tracks received amounts rather than user wallet balances.
     """
-    logger.info("Starting deposit scan cycle")
+    logger.info("Starting deposit scan cycle - monitoring admin wallet for incoming transactions")
     deposits_found = 0
-    failed_wallets = 0
     
     with app.app_context():
-        # Get all registered sender wallets with error handling
         try:
-            sender_wallets = SenderWallet.query.all()
-            logger.info(f"Checking {len(sender_wallets)} registered sender wallets for deposits")
-        except Exception as db_error:
-            logger.error(f"Failed to fetch sender wallets: {str(db_error)}")
-            return
+            # Import the new admin wallet monitoring function
+            from utils.solana import monitor_admin_wallet_transactions, process_auto_deposit
             
-        # Process each wallet independently so errors don't stop the entire scan
-        for wallet in sender_wallets:
-            try:
-                # Get user information with error handling
-                user = User.query.get(wallet.user_id)
-                if not user:
-                    logger.warning(f"User {wallet.user_id} not found for wallet {wallet.wallet_address}")
-                    continue
-                
-                # Check for deposits with timeout protection
+            # Monitor admin wallet for all incoming transactions
+            detected_deposits = monitor_admin_wallet_transactions()
+            
+            # Process each detected deposit
+            for user_id, amount, tx_signature in detected_deposits:
                 try:
-                    deposit_found, amount, tx_signature = check_deposit_by_sender(wallet.wallet_address)
-                except Exception as check_error:
-                    logger.error(f"Error checking deposits for wallet {wallet.wallet_address}: {str(check_error)}")
-                    failed_wallets += 1
-                    continue
-                
-                if deposit_found:
-                    logger.info(f"Deposit detected: {amount} SOL from {wallet.wallet_address} for user {user.telegram_id}")
+                    logger.info(f"Processing deposit: {amount} SOL for user {user_id}")
                     
-                    # Process the deposit in an isolated transaction
-                    success = process_auto_deposit(user.id, amount, tx_signature)
+                    # Get user information
+                    user = User.query.get(user_id)
+                    if not user:
+                        logger.warning(f"User {user_id} not found for deposit processing")
+                        continue
+                    
+                    # Process the deposit
+                    success = process_auto_deposit(user_id, amount, tx_signature)
                     
                     if success:
-                        # Update wallet timestamp in a safe way
+                        deposits_found += 1
+                        logger.info(f"Auto-deposit of {amount} SOL processed for user {user.telegram_id}")
+                        
+                        # Update the sender wallet's last_used timestamp
                         try:
-                            # Simple update of the last_used timestamp
-                            wallet.last_used = datetime.utcnow()
-                            db.session.commit()
-                            deposits_found += 1
-                            logger.info(f"Auto-deposit of {amount} SOL processed for user {user.telegram_id}")
-                            
-                            # Send notification to user in separate try/except to prevent notification failures
-                            # from affecting deposit processing
-                            try:
-                                # TODO: Implement user notification in future version
-                                pass
-                            except Exception as notify_error:
-                                logger.error(f"Failed to send notification to user {user.telegram_id}: {str(notify_error)}")
-                                
+                            # Find the sender wallet to update its timestamp
+                            sender_wallet = SenderWallet.query.filter_by(user_id=user_id).first()
+                            if sender_wallet:
+                                sender_wallet.last_used = datetime.utcnow()
+                                db.session.commit()
                         except Exception as wallet_update_error:
                             logger.error(f"Failed to update wallet timestamp: {str(wallet_update_error)}")
-                            # Just log the error, don't rollback as the deposit itself was successful
+                        
+                        # Send notification to user (optional)
+                        try:
+                            # TODO: Implement user notification in future version
+                            pass
+                        except Exception as notify_error:
+                            logger.error(f"Failed to send notification to user {user.telegram_id}: {str(notify_error)}")
                     else:
                         logger.error(f"Failed to process deposit for user {user.telegram_id}")
-            except Exception as wallet_error:
-                logger.error(f"Error processing wallet {wallet.wallet_address}: {str(wallet_error)}")
-                failed_wallets += 1
+                        
+                except Exception as deposit_error:
+                    logger.error(f"Error processing deposit for user {user_id}: {str(deposit_error)}")
+                    continue
+                    
+        except Exception as scan_error:
+            logger.error(f"Error during deposit scan: {str(scan_error)}")
+            return
                 
-        logger.info(f"Deposit scan cycle completed. Processed {deposits_found} deposits. Failed checks: {failed_wallets}")
+        logger.info(f"Deposit scan cycle completed. Processed {deposits_found} deposits from admin wallet monitoring")
 
 
 def start_deposit_monitor():
