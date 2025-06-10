@@ -1,137 +1,131 @@
-# AWS Deployment Guide - Solana Memecoin Trading Bot
+# AWS Production Deployment Guide for Solana Trading Bot
 
-## Critical Database Configuration
+## Database Issues & Solutions
 
-Your bot is now configured to **always use PostgreSQL** with these safeguards:
+Your Neon database is failing due to compute quota limits. This guide provides production-ready alternatives.
 
-- **Primary Database**: `postgresql://neondb_owner:npg_fckEhtMz23gx@ep-odd-wildflower-a212fu4p-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require`
-- **Fallback Protection**: If environment variable is missing, automatically uses the production database
-- **Connection Pooling**: 10 connections with 20 overflow, 30-second timeout
-- **SSL Security**: Required SSL mode for all connections
+## Recommended Production Database Solutions
 
-## Environment Variables for AWS Deployment
+### 1. AWS RDS PostgreSQL (Recommended)
+- **Cost**: $20-50/month for production workloads
+- **Reliability**: 99.95% uptime SLA
+- **Automatic backups**: Yes
+- **Scaling**: Automatic
 
-### Required Environment Variables
+**Setup Steps:**
+1. Go to AWS RDS Console
+2. Create PostgreSQL database
+3. Choose `db.t3.micro` for development or `db.t3.small` for production
+4. Configure security group to allow connections from your app
+5. Get connection string from RDS dashboard
 
-```bash
-# Database (Auto-configured with fallback)
-DATABASE_URL=postgresql://neondb_owner:npg_fckEhtMz23gx@ep-odd-wildflower-a212fu4p-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+### 2. Digital Ocean Managed Database
+- **Cost**: $15/month
+- **Setup time**: 5 minutes
+- **High availability**: Built-in
 
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ
-ADMIN_USER_ID=5488280696
+### 3. Railway PostgreSQL
+- **Cost**: $5/month
+- **Developer-friendly**: One-click deployment
+- **Built-in monitoring**: Yes
 
-# Security
-SESSION_SECRET=your-production-secret-key-here
+## Enhanced Database Configuration
 
-# Bot Configuration
-MIN_DEPOSIT=0.5
-GLOBAL_DEPOSIT_WALLET=Soa8DkfSzZEmXLJ2AWEqm76fgrSWYxT5iPg6kDdZbKmx
-SUPPORT_USERNAME=SolanaMemoBotAdmin
-```
+I've already implemented robust database handling in your application:
 
-## AWS Deployment Steps
+### Connection Pooling
+- Pool size: 15 connections
+- Max overflow: 25 connections
+- Connection timeout: 60 seconds
+- Automatic connection recycling
 
-### 1. EC2 Instance Setup
-```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
+### Retry Logic
+- Automatic retry for failed operations
+- Exponential backoff strategy
+- Circuit breaker pattern
 
-# Install Python and dependencies
-sudo apt install python3 python3-pip python3-venv nginx -y
+### Health Monitoring
+- Real-time connection status
+- Automatic failover detection
+- Health check endpoints
 
-# Clone your repository
-git clone <your-repo-url>
-cd <your-project>
-```
+## Migration from Neon Database
 
-### 2. Environment Configuration
-```bash
-# Copy environment template
-cp aws_deployment_env.example .env
-
-# Edit with your production values
-nano .env
-```
-
-### 3. Install Dependencies
-```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install requirements
-pip install -r requirements.txt
-```
-
-### 4. Run Application
-```bash
-# Start with Gunicorn
-gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app
-```
-
-### 5. Process Management (Optional)
-```bash
-# Create systemd service
-sudo nano /etc/systemd/system/solana-bot.service
-```
-
-Add this configuration:
-```ini
-[Unit]
-Description=Solana Memecoin Trading Bot
-After=network.target
-
-[Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/your-project
-Environment=PATH=/home/ubuntu/your-project/venv/bin
-ExecStart=/home/ubuntu/your-project/venv/bin/gunicorn --bind 0.0.0.0:5000 main:app
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
+Use the production database setup tool I created:
 
 ```bash
-# Enable and start service
-sudo systemctl daemon-reload
-sudo systemctl enable solana-bot
-sudo systemctl start solana-bot
+python production_database_setup.py
 ```
 
-## Health Monitoring
+This will:
+1. Help you choose a reliable database provider
+2. Test connections automatically
+3. Migrate your existing data
+4. Update configuration files
 
-Your application includes these monitoring endpoints:
+## Environment Variables for Production
 
-- **Health Check**: `http://your-domain/health`
-- **Database Status**: `http://your-domain/db-status`
+Set these in your AWS deployment:
 
-## Security Features
+```bash
+# Primary database
+DATABASE_URL=postgresql://user:password@host:5432/database
 
-- **SSL Database Connection**: Required for all database communications
-- **Connection Pooling**: Prevents connection exhaustion
-- **Automatic Reconnection**: Pool pre-ping ensures connection validity
-- **Environment Variable Protection**: Sensitive data stored in environment variables
+# Optional backup database
+BACKUP_DATABASE_URL=postgresql://backup_user:password@backup_host:5432/database
 
-## Troubleshooting
+# Session security
+SESSION_SECRET=your-secure-random-string-here
+```
 
-### Database Connection Issues
-1. Check health endpoint: `curl http://localhost:5000/health`
-2. Verify environment variables are set
-3. Test direct database connection
+## AWS Deployment Commands
 
-### Bot Not Responding
-1. Check application logs: `sudo journalctl -u solana-bot -f`
-2. Verify Telegram bot token is correct
-3. Ensure admin user ID is configured
+### Using AWS CLI:
+```bash
+# Set database URL
+aws ssm put-parameter \
+  --name "/solana-bot/database-url" \
+  --value "postgresql://your-connection-string" \
+  --type "SecureString"
 
-## Production Checklist
+# Deploy application
+aws deploy create-deployment \
+  --application-name solana-trading-bot \
+  --deployment-group-name production
+```
 
-- [ ] Environment variables configured
-- [ ] Database connection tested
-- [ ] Health endpoints responding
-- [ ] Bot responding to Telegram commands
-- [ ] SSL certificates configured (if using custom domain)
-- [ ] Firewall rules configured
-- [ ] Backup strategy implemented
+### Using Docker on AWS ECS:
+```bash
+docker build -t solana-trading-bot .
+docker tag solana-trading-bot:latest your-ecr-repo/solana-trading-bot:latest
+docker push your-ecr-repo/solana-trading-bot:latest
+```
+
+## Monitoring & Health Checks
+
+Your application now includes health monitoring endpoints:
+
+- `/health` - Basic health check
+- `/db-status` - Detailed database status
+
+Set up AWS CloudWatch alarms on these endpoints for proactive monitoring.
+
+## Cost Optimization
+
+### Database Costs by Provider:
+1. **Neon**: Free tier limited (causes your current issues)
+2. **AWS RDS**: $20-50/month (most reliable)
+3. **Digital Ocean**: $15/month (good balance)
+4. **Railway**: $5/month (cheapest reliable option)
+
+### Recommendation:
+Start with Railway ($5/month) for immediate relief, then migrate to AWS RDS for long-term production stability.
+
+## Next Steps
+
+1. **Immediate**: Run `python production_database_setup.py` to set up a reliable database
+2. **Update environment**: Set new DATABASE_URL in your deployment
+3. **Test**: Verify the bot works with new database
+4. **Monitor**: Set up health check alerts
+
+Your deposit detection system will continue working once the database connectivity is resolved. The enhanced retry logic I implemented will handle any remaining connection issues gracefully.
