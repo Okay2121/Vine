@@ -11,7 +11,7 @@ import time
 def start_bot():
     """Start the bot with embedded token"""
     # Set the token in environment
-    os.environ['TELEGRAM_BOT_TOKEN'] = '7562541416:AAEET_c3AE1KQuhYYJAHSg7SlCaWbVBg-CU'
+    os.environ['TELEGRAM_BOT_TOKEN'] = '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794'
     
     print("🚀 Starting Telegram bot automatically...")
     
