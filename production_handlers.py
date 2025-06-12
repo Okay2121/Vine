@@ -617,10 +617,10 @@ def register_handlers(bot: TelegramBotOptimized) -> None:
     bot.add_command_handler('help', handlers.help_handler)
     
     # Callback handlers
-    bot.add_callback_handler('dashboard', handlers.callback_query_handler)
-    bot.add_callback_handler('deposit', handlers.callback_query_handler)
-    bot.add_callback_handler('start_deposit', handlers.callback_query_handler)
-    bot.add_callback_handler('how_it_works', handlers.callback_query_handler)
-    bot.add_callback_handler('copy_address', handlers.callback_query_handler)
+# DISABLED:     bot.add_callback_handler('dashboard', handlers.callback_query_handler)  # Duplicate handler - use bot_v20_runner.py instead
+# DISABLED:     bot.add_callback_handler('deposit', handlers.callback_query_handler)  # Duplicate handler - use bot_v20_runner.py instead
+# DISABLED:     bot.add_callback_handler('start_deposit', handlers.callback_query_handler)  # Duplicate handler - use bot_v20_runner.py instead
+# DISABLED:     bot.add_callback_handler('how_it_works', handlers.callback_query_handler)  # Duplicate handler - use bot_v20_runner.py instead
+# DISABLED:     bot.add_callback_handler('copy_address', handlers.callback_query_handler)  # Duplicate handler - use bot_v20_runner.py instead
     
     logger.info("Production handlers registered successfully")

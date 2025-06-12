@@ -1,37 +1,13 @@
 #!/usr/bin/env python3
 """
-Persistent Bot Runner - Keeps the bot running and responding
+DEPRECATED: This file has been disabled to prevent duplicate bot instances.
+Use the environment-aware startup system instead:
+- Replit: Auto-start enabled automatically via main.py
+- AWS/Production: Use 'python start_bot_manual.py'
 """
-import os
 import sys
-import time
-import signal
-import logging
+print("⚠️ This script is deprecated. Use environment-aware startup system.")
+print("For manual start: python start_bot_manual.py")
+sys.exit(1)
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Set the bot token
-os.environ['BOT_TOKEN'] = '7562541416:AAGxe-j7r26pO7ku1m5kunmwes0n0e3p2XQ'
-
-# Import and run the bot
-try:
-    import bot_v20_runner
-    
-    def signal_handler(sig, frame):
-        logger.info("Bot shutting down...")
-        sys.exit(0)
-    
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    logger.info("🚀 Starting ThriveQuantbot - Persistent Mode")
-    
-    # Run the bot
-    bot_v20_runner.run_polling()
-    
-except Exception as e:
-    logger.error(f"Bot error: {e}")
-    import traceback
-    traceback.print_exc()
+# Original content disabled to prevent duplicate instances

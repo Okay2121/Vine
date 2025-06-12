@@ -81,11 +81,11 @@ class ProductionIntegration:
         self.bot.add_command_handler('help', help_handler)
         
         # Callback handlers  
-        self.bot.add_callback_handler('dashboard', callback_handler)
-        self.bot.add_callback_handler('deposit', callback_handler)
-        self.bot.add_callback_handler('how_it_works', callback_handler)
+# DISABLED:         self.bot.add_callback_handler('dashboard', callback_handler)  # Duplicate handler - use bot_v20_runner.py instead
+# DISABLED:         self.bot.add_callback_handler('deposit', callback_handler)  # Duplicate handler - use bot_v20_runner.py instead
+# DISABLED:         self.bot.add_callback_handler('how_it_works', callback_handler)  # Duplicate handler - use bot_v20_runner.py instead
         self.bot.add_callback_handler('copy:', callback_handler)
-        self.bot.add_callback_handler('check_deposit', callback_handler)
+# DISABLED:         self.bot.add_callback_handler('check_deposit', callback_handler)  # Duplicate handler - use bot_v20_runner.py instead
         self.bot.add_callback_handler('withdraw', callback_handler)
         self.bot.add_callback_handler('positions', callback_handler)
         self.bot.add_callback_handler('history', callback_handler)

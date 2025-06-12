@@ -1,26 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
-Bot Runner - Direct execution to get the bot responding
+DEPRECATED: This file has been disabled to prevent duplicate bot instances.
+Use the environment-aware startup system instead:
+- Replit: Auto-start enabled automatically via main.py
+- AWS/Production: Use 'python start_bot_manual.py'
 """
-import os
 import sys
-import logging
+print("⚠️ This script is deprecated. Use environment-aware startup system.")
+print("For manual start: python start_bot_manual.py")
+sys.exit(1)
 
-# Add current directory to path
-sys.path.insert(0, os.getcwd())
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Import and start the bot
-try:
-    from bot_v20_runner import bot, run_polling
-    
-    logger.info("Starting bot polling...")
-    run_polling()
-    
-except Exception as e:
-    logger.error(f"Error starting bot: {e}")
-    import traceback
-    traceback.print_exc()
+# Original content disabled to prevent duplicate instances

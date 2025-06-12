@@ -9,6 +9,7 @@ from utils.deposit_monitor import start_deposit_monitor, stop_deposit_monitor, i
 from automated_maintenance import start_maintenance_scheduler, stop_maintenance_scheduler
 from database_monitoring import DatabaseMonitor
 from environment_detector import should_auto_start, get_environment_info
+from duplicate_instance_prevention import get_global_instance_manager
 
 # Configure logging
 logging.basicConfig(
@@ -170,6 +171,12 @@ def set_webhook():
 def start_bot_thread():
     """Start the Telegram bot in a separate thread."""
     global bot_running
+    # Additional duplicate prevention
+    instance_manager = get_global_instance_manager()
+    if not instance_manager.acquire_lock():
+        logger.warning("Another bot instance detected in start_bot_thread, aborting")
+        return False
+
     
     # Use the token from environment variables
     token = os.environ.get('TELEGRAM_BOT_TOKEN')

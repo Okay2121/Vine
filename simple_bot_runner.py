@@ -1,37 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
-Simple Bot Runner - Starts the bot and keeps it running
+DEPRECATED: This file has been disabled to prevent duplicate bot instances.
+Use the environment-aware startup system instead:
+- Replit: Auto-start enabled automatically via main.py
+- AWS/Production: Use 'python start_bot_manual.py'
 """
-import os
 import sys
-import time
-import signal
-import subprocess
+print("⚠️ This script is deprecated. Use environment-aware startup system.")
+print("For manual start: python start_bot_manual.py")
+sys.exit(1)
 
-# Add the current directory to Python path
-sys.path.insert(0, os.getcwd())
-
-def signal_handler(sig, frame):
-    print("\nStopping bot...")
-    sys.exit(0)
-
-def run_bot():
-    """Run the bot with proper error handling"""
-    signal.signal(signal.SIGINT, signal_handler)
-    
-    while True:
-        try:
-            print("Starting bot...")
-            # Import and run the bot
-            import bot_v20_runner
-            break
-        except KeyboardInterrupt:
-            print("Bot stopped by user")
-            break
-        except Exception as e:
-            print(f"Bot error: {e}")
-            print("Restarting bot in 5 seconds...")
-            time.sleep(5)
-
-if __name__ == "__main__":
-    run_bot()
+# Original content disabled to prevent duplicate instances

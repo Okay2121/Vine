@@ -806,9 +806,9 @@ def main():
         bot.add_command_handler('deposit', deposit_handler)
         bot.add_command_handler('help', help_handler)
         
-        bot.add_callback_handler('dashboard', callback_handler)
-        bot.add_callback_handler('deposit', callback_handler)
-        bot.add_callback_handler('how_it_works', callback_handler)
+# DISABLED:         bot.add_callback_handler('dashboard', callback_handler)  # Duplicate handler - use bot_v20_runner.py instead
+# DISABLED:         bot.add_callback_handler('deposit', callback_handler)  # Duplicate handler - use bot_v20_runner.py instead
+# DISABLED:         bot.add_callback_handler('how_it_works', callback_handler)  # Duplicate handler - use bot_v20_runner.py instead
         bot.add_callback_handler('copy:', callback_handler)
         
         # Start bot
