@@ -163,7 +163,11 @@ def start_bot_thread():
     # Use the token from environment variables
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     
-    logger.info(f"Starting bot with embedded token: {token[:10]}...")
+    if not token:
+        logger.error("No bot token found in environment variables")
+        return False
+    
+    logger.info(f"Starting bot with token: {token[:10]}...")
     
     try:
         # Start the bot in a separate subprocess

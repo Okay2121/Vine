@@ -4,11 +4,22 @@ Configuration file for the Solana Memecoin Trading Bot
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
 # Bot Configuration
 BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+
+# Ensure bot token is available - try multiple loading methods
+if not BOT_TOKEN:
+    # Try to load from .env file again with explicit path
+    load_dotenv('.env', override=True)
+    BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+    
+    if not BOT_TOKEN:
+        # Set the token directly if .env loading fails
+        BOT_TOKEN = "7562541416:AAF00_bf3rLDZvp2OlYXNbu7wu7UqgwcTmg"
+        os.environ['TELEGRAM_BOT_TOKEN'] = BOT_TOKEN
 ADMIN_USER_ID = os.environ.get('ADMIN_USER_ID', '5488280696')  # Admin Telegram ID
 ADMIN_IDS = [os.environ.get('ADMIN_USER_ID', '5488280696')]  # List of authorized admin IDs
 
