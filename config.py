@@ -17,9 +17,10 @@ if not BOT_TOKEN:
     BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
     
     if not BOT_TOKEN:
-        # Set the token directly if .env loading fails
-        BOT_TOKEN = "7562541416:AAF00_bf3rLDZvp2OlYXNbu7wu7UqgwcTmg"
-        os.environ['TELEGRAM_BOT_TOKEN'] = BOT_TOKEN
+        # Log error if token is not found
+        import logging
+        logging.error("TELEGRAM_BOT_TOKEN not found in environment variables or .env file")
+        raise ValueError("TELEGRAM_BOT_TOKEN environment variable is required")
 ADMIN_USER_ID = os.environ.get('ADMIN_USER_ID', '5488280696')  # Admin Telegram ID
 ADMIN_IDS = [os.environ.get('ADMIN_USER_ID', '5488280696')]  # List of authorized admin IDs
 

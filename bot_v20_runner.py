@@ -296,7 +296,7 @@ class SimpleTelegramBot:
         }
     
     def process_update(self, update):
-        """Process a single update with comprehensive duplicate protection."""
+        """Process a single update with enhanced duplicate protection."""
         try:
             # Generate unique update ID for complete deduplication
             update_id = update.get('update_id')
@@ -304,38 +304,41 @@ class SimpleTelegramBot:
                 logger.warning("Received update without update_id")
                 return
                 
-            # Check for duplicate update using the duplicate manager
-            if duplicate_manager.is_duplicate_update(update_id):
+            # Simple but effective duplicate check using a set
+            if update_id in self._processed_messages:
                 logger.debug(f"Skipping already processed update {update_id}")
                 return
+                
+            # Add to processed set immediately to prevent any duplicate processing
+            self._processed_messages.add(update_id)
+            
+            # Clean old processed messages to prevent memory issues (keep last 1000)
+            if len(self._processed_messages) > 1000:
+                # Remove oldest half
+                oldest_messages = sorted(self._processed_messages)[:500]
+                for old_id in oldest_messages:
+                    self._processed_messages.discard(old_id)
             
             # Log that we're processing this update
             logger.info(f"Processing update {update_id}")
             
-            # Handle callback queries with additional deduplication
+            # Handle callback queries
             if "callback_query" in update:
                 callback_id = update["callback_query"]["id"]
-                if duplicate_manager.is_duplicate_callback(callback_id):
-                    logger.debug(f"Skipping already processed callback {callback_id}")
-                    return
-                    
-                # Rate limiting for callback queries
                 user_id = update["callback_query"]["from"]["id"]
+                
+                # Simple rate limiting - prevent rapid clicking
                 if duplicate_manager.is_rate_limited(user_id, "callback", 0.5):
                     logger.debug(f"Rate limiting callback from user {user_id}")
                     return
-            # Handle messages with duplicate protection
+                    
+            # Handle messages
             if 'message' in update and 'text' in update['message']:
                 message = update['message']
                 user_id = message['from']['id']
                 
-                # Check for duplicate message
-                if duplicate_manager.is_duplicate_message(message):
-                    logger.debug(f"Skipping duplicate message from user {user_id}")
-                    return
-                
-                # Stronger rate limiting for messages (2 second cooldown)
-                if duplicate_manager.is_rate_limited(user_id, "message", 2.0):
+                # Rate limiting for messages (1 second cooldown)
+                if duplicate_manager.is_rate_limited(user_id, "message", 1.0):
                     logger.debug(f"Rate limiting message from user {user_id}")
                     return
                 
@@ -6293,8 +6296,8 @@ def run_polling():
         logger.warning("Bot is already running, skipping duplicate start")
         return
     
-    # Get bot token from environment variable or config with embedded fallback
-    token = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794')
+    # Get bot token from environment variable or config
+    token = BOT_TOKEN
     
     if not token:
         logger.error("No Telegram bot token provided. Set the TELEGRAM_BOT_TOKEN environment variable.")
