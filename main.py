@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 # Load environment variables from .env file
 load_dotenv()
 
-# Get the bot token from environment variables with fallback
-BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794')
+# Get the bot token from environment variables
+BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 
 # Global flag to track if bot is running
 bot_running = False
@@ -160,9 +160,8 @@ def start_bot_thread():
     """Start the Telegram bot in a separate thread."""
     global bot_running
     
-    # Set the embedded token directly in environment
-    os.environ['TELEGRAM_BOT_TOKEN'] = '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794'
-    token = '7562541416:AAHBl9rvfNPnU_fWjLZtYMmwP3sU4-aK794'
+    # Use the token from environment variables
+    token = os.environ.get('TELEGRAM_BOT_TOKEN')
     
     logger.info(f"Starting bot with embedded token: {token[:10]}...")
     
@@ -239,8 +238,7 @@ def auto_start_bot():
     """Auto-start the bot when the application starts"""
     global bot_running
     if not bot_running:
-        # Set the token and start immediately
-        os.environ['TELEGRAM_BOT_TOKEN'] = '7562541416:AAEET_c3AE1KQuhYYJAHSg7SlCaWbVBg-CU'
+        # Token should already be in environment from .env file
         logger.info("Auto-starting bot on application startup...")
         bot_thread = threading.Thread(target=start_bot_thread)
         bot_thread.daemon = True
