@@ -1,0 +1,101 @@
+============================================================
+DUPLICATE BOT INSTANCE AUDIT REPORT
+============================================================
+
+SUMMARY:
+- Potential startup points found: 47
+- Duplicate handlers found: 6
+- Fixes applied: 2
+
+POTENTIAL STARTUP POINTS:
+- run_telegram_bot.py:50 - if __name__ == "__main__":
+    logger.info("🚀 Starting Telegram bot
+- bot.py:128 - start_polling()
+- fix_bot_commands.py:50 - subprocess.Popen([sys.executable, 'bot_v20_runner
+- fix_telegram_commands.py:74 - start_polling()
+- fix_telegram_commands.py:74 - bot.start_polling
+- fix_telegram_commands.py:136 - if __name__ == "__main__":
+    # Try to fix the command handlers and start the bot
+- fix_telegram_commands.py:119 - subprocess.Popen([sys.executable, 'bot_v20_runner
+- simple_bot_runner.py:36 - if __name__ == "__main__":
+    run_bot
+- bot_runner.py:21 - run_polling()
+- run_bot_persistent.py:32 - run_polling()
+- optimized_bot.py:666 - run_polling()
+- optimized_bot.py:650 - if __name__ == "__main__":
+    # Run bot
+- main.py:438 - if __name__ == "__main__":
+    # Start bot
+- main.py:201 - subprocess.Popen([sys.executable, 'bot_v20_runner
+- main.py:252 - auto_start_bot()
+- main.py:267 - auto_start_bot()
+- bot_v20_runner.py:6290 - run_polling()
+- bot_v20_runner.py:9455 - run_polling()
+- bot_v20_runner.py:6464 - start_polling()
+- bot_v20_runner.py:6464 - bot.start_polling
+- start_bot.py:33 - run_polling()
+- start_bot.py:45 - if __name__ == "__main__":
+    logger.warning("⚠️ This script is deprecated. Use 'python start_bot
+- audit_duplicate_instances.py:34 - Application.*run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_bot.py:4531 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:95 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:97 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:121 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:123 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:132 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:134 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:208 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:210 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:234 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:236 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:245 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/_update.py:247 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_application.py:225 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_application.py:228 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_application.py:231 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_application.py:705 - application, i.e. the methods listed in :attr:`run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_application.py:826 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_applicationbuilder.py:1209 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_applicationbuilder.py:1248 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_applicationbuilder.py:1289 - Application.run_polling
+- .pythonlibs/lib/python3.11/site-packages/telegram/ext/_updater.py:762 - start_polling()
+- bot/main.py:89 - run_polling()
+- bot/main.py:89 - application.run_polling
+
+DUPLICATE HANDLERS:
+- Callback 'dashboard' found in:
+  * production_handlers.py:620
+  * production_bot.py:809
+  * main_production.py:84
+  * bot_v20_runner.py:6347
+- Callback 'deposit' found in:
+  * production_handlers.py:621
+  * production_bot.py:810
+  * main_production.py:85
+  * bot_v20_runner.py:6349
+- Callback 'how_it_works' found in:
+  * production_handlers.py:623
+  * production_bot.py:811
+  * main_production.py:86
+  * bot_v20_runner.py:6352
+- Callback 'copy_address' found in:
+  * production_handlers.py:624
+  * bot_v20_runner.py:6355
+- Callback 'copy:' found in:
+  * production_bot.py:812
+  * main_production.py:87
+- Callback 'referral' found in:
+  * bot_v20_runner.py:6350
+  * bot_v20_runner.py:6379
+
+FIXES APPLIED:
+- Disabled run_telegram_bot.py
+- Disabled fix_telegram_commands.py
+
+RECOMMENDATIONS:
+1. Use only the environment-aware startup system:
+   - Replit: Auto-start via main.py
+   - AWS: Manual start via start_bot_manual.py
+2. Remove or disable any remaining duplicate entry points
+3. Ensure only one bot instance runs at a time
+4. Monitor logs for 'Another bot instance is already running' messages

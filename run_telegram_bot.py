@@ -1,8 +1,20 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
+DEPRECATED: This file has been disabled to prevent duplicate bot instances.
+Use the environment-aware startup system instead:
+- Replit: Auto-start enabled automatically
+- AWS/Production: Use 'python start_bot_manual.py'
+"""
+import sys
+print("⚠️ This script is deprecated. Use environment-aware startup system.")
+sys.exit(1)
+
+# Original content disabled below:
+# #!/usr/bin/env python
+# """
 Dedicated launcher for the Telegram bot
 This addresses issues where the bot may not respond to commands correctly
-"""
+# """
 import os
 import sys
 import logging
@@ -21,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def ensure_bot_responds():
-    """Make sure the bot stays responsive to commands"""
+    # """Make sure the bot stays responsive to commands# """
     try:
         # Fix any circular import issues
         import importlib

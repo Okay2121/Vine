@@ -33,4 +33,8 @@ def start_bot():
         return None
 
 if __name__ == "__main__":
-    start_bot()
+    print("⚠️ This auto-start script is deprecated.")
+    print("The bot now uses environment-aware startup:")
+    print("• Replit: Auto-starts automatically")
+    print("• AWS: Use 'python start_bot_manual.py'")
+    sys.exit(1)

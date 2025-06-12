@@ -43,5 +43,7 @@ def start_bot():
         start_bot()
 
 if __name__ == "__main__":
-    logger.info("🚀 Starting ThriveQuantbot...")
-    start_bot()
+    logger.warning("⚠️ This script is deprecated. Use 'python start_bot_manual.py' for manual start or rely on environment-aware auto-start.")
+    logger.info("For AWS deployment: python start_bot_manual.py")
+    logger.info("For Replit: Auto-start is enabled automatically")
+    sys.exit(1)

@@ -1,9 +1,21 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
+DEPRECATED: This file has been disabled to prevent duplicate bot instances.
+Use the environment-aware startup system instead:
+- Replit: Auto-start enabled automatically
+- AWS/Production: Use 'python start_bot_manual.py'
+"""
+import sys
+print("⚠️ This script is deprecated. Use environment-aware startup system.")
+sys.exit(1)
+
+# Original content disabled below:
+# #!/usr/bin/env python
+# """
 Fix Telegram Bot Commands
 This script ensures that all Telegram bot commands are working properly,
 especially the /start command which is critical for new users.
-"""
+# """
 import os
 import sys
 import logging
@@ -22,7 +34,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 def patch_command_handlers():
-    """Patch the command handlers in bot_v20_runner.py to ensure they work properly"""
+    # """Patch the command handlers in bot_v20_runner.py to ensure they work properly# """
     try:
         # Check if bot_v20_runner.py exists
         if not os.path.exists('bot_v20_runner.py'):
@@ -39,7 +51,7 @@ def patch_command_handlers():
             
             main_function = '''
 def main():
-    """Run the bot as a standalone program"""
+    # """Run the bot as a standalone program# """
     import logging
     import os
     from dotenv import load_dotenv
@@ -96,7 +108,7 @@ if __name__ == "__main__":
         return False
 
 def start_bot_with_proper_settings():
-    """Start the Telegram bot with proper settings"""
+    # """Start the Telegram bot with proper settings# """
     try:
         # Apply patches
         if not patch_command_handlers():

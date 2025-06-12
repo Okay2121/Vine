@@ -6291,17 +6291,22 @@ def run_polling():
     """Start the bot polling loop."""
     global _bot_instance, _bot_running, bot
     
-    # Prevent multiple instances using file lock
-    import fcntl
-    import os
+    # Import the comprehensive duplicate prevention system
+    from duplicate_instance_prevention import prevent_duplicate_startup, setup_signal_handlers, check_and_kill_duplicate_processes
     
+    # Prevent multiple instances using comprehensive protection
     try:
-        # Create a lock file to prevent multiple instances
-        lock_file = open('/tmp/bot_lock.txt', 'w')
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        logger.info("Bot lock acquired successfully")
-    except (IOError, OSError):
-        logger.warning("Another bot instance is already running, exiting")
+        instance_manager = prevent_duplicate_startup()
+        setup_signal_handlers(instance_manager)
+        
+        # Check and terminate any existing duplicates
+        duplicates_killed = check_and_kill_duplicate_processes()
+        if duplicates_killed > 0:
+            logger.info(f"Terminated {duplicates_killed} duplicate bot processes")
+            time.sleep(2)  # Brief pause to ensure clean startup
+            
+    except RuntimeError as e:
+        logger.warning(f"Could not start bot: {e}")
         return
     
     # Additional check for global flag
