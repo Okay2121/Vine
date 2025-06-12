@@ -1204,22 +1204,18 @@ def wallet_address_handler(update, chat_id, text):
                 )
                 bot.send_message(chat_id, deposit_instructions, parse_mode="Markdown")
                 
-                # Generate a deposit wallet address
-                try:
-                    from utils.solana import generate_wallet_address
-                    deposit_wallet = generate_wallet_address()
-                except ImportError:
-                    # Fallback - generate a fixed address for demo
-                    deposit_wallet = "6xabcdefghijklmnopqrstuvwxyz123456789ABCDEFGHIJK"
+                # Use the global admin deposit wallet address
+                from config import GLOBAL_DEPOSIT_WALLET
+                deposit_wallet = GLOBAL_DEPOSIT_WALLET
                 
-                # Update user record with the deposit wallet if possible
+                # Update user record with the global deposit wallet
                 try:
                     user.deposit_wallet = deposit_wallet
                     db.session.commit()
                 except:
                     pass
                 
-                # Display the deposit wallet address
+                # Display the global deposit wallet address
                 bot.send_message(chat_id, f"`{deposit_wallet}`", parse_mode="Markdown")
                 
                 # Final message - Buttons in a 2x2 grid
@@ -6352,7 +6348,11 @@ def run_polling():
     bot.add_callback_handler("how_it_works", help_command)
     bot.add_callback_handler("help", help_command)  # New button name from original design
     bot.add_callback_handler("start", show_main_menu_callback)  # For "Back to Main Menu" button
-    bot.add_callback_handler("copy_address", lambda update, chat_id: bot.send_message(chat_id, "Address copied to clipboard (simulated)"))
+    def copy_address_handler(update, chat_id):
+        from config import GLOBAL_DEPOSIT_WALLET
+        bot.send_message(chat_id, f"✅ Address copied!\n\n`{GLOBAL_DEPOSIT_WALLET}`", parse_mode="Markdown")
+    
+    bot.add_callback_handler("copy_address", copy_address_handler)
     bot.add_callback_handler("deposit_confirmed", deposit_confirmed_handler)
     
     # Dashboard-specific buttons
