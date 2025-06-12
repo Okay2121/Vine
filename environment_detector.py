@@ -13,10 +13,20 @@ logger = logging.getLogger(__name__)
 def is_replit_environment():
     """
     Detect if we're running on Replit by checking for Replit-specific indicators.
+    Explicit BOT_ENVIRONMENT setting takes priority over automatic detection.
     
     Returns:
         bool: True if running on Replit, False otherwise
     """
+    # Check for explicit environment setting first (highest priority)
+    env_setting = os.environ.get('BOT_ENVIRONMENT', '').lower()
+    if env_setting == 'aws':
+        logger.info("Environment forced to AWS via BOT_ENVIRONMENT setting")
+        return False
+    elif env_setting == 'replit':
+        logger.info("Environment forced to Replit via BOT_ENVIRONMENT setting")
+        return True
+    
     # Check for Replit-specific environment variables
     replit_indicators = [
         'REPLIT_CLUSTER',
@@ -31,15 +41,6 @@ def is_replit_environment():
         if os.environ.get(indicator):
             logger.info(f"Detected Replit environment via {indicator}")
             return True
-    
-    # Check for explicit environment setting
-    env_setting = os.environ.get('BOT_ENVIRONMENT', '').lower()
-    if env_setting == 'replit':
-        logger.info("Detected Replit environment via BOT_ENVIRONMENT setting")
-        return True
-    elif env_setting == 'aws':
-        logger.info("Detected AWS environment via BOT_ENVIRONMENT setting")
-        return False
     
     # Check for AWS-specific indicators
     aws_indicators = [

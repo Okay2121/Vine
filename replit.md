@@ -96,8 +96,26 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 - `/bot-optimization`: Bot-specific performance data
 - `/database/health`: Detailed database metrics
 
+## Recent Changes
+
+### Environment-Aware Startup System (June 12, 2025)
+- **Added automatic environment detection** for clean Replit/AWS startup behavior
+- **Replit Environment**: Auto-start enabled for seamless remix functionality
+- **AWS/Production Environment**: Manual start required to prevent conflicts
+- **New Components**:
+  - `environment_detector.py` - Detects environment via indicators and override settings
+  - `start_bot_manual.py` - Clean manual starter for AWS/production environments
+  - `startup_config.py` - Centralized startup configuration management
+  - `/environment` endpoint - Detailed environment debugging information
+- **Benefits**: Single codebase works everywhere, no duplicate instances, production-ready
+
+### Deployment Strategy
+- **Replit**: Auto-start on access (remix-friendly)
+- **AWS**: Manual start via `python start_bot_manual.py` or environment override
+- **Override**: Set `BOT_ENVIRONMENT=aws` to force manual mode even on Replit
+
 ## Changelog
-- June 12, 2025. Initial setup
+- June 12, 2025. Initial setup and environment-aware startup implementation
 
 ## User Preferences
 

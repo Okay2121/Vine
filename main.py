@@ -304,6 +304,23 @@ def deposit_monitor_status_route():
     status = "running" if is_monitor_running() else "stopped"
     return jsonify({"status": status})
 
+@app.route('/environment')
+def environment_info():
+    """Detailed environment information for debugging"""
+    env_info = get_environment_info()
+    return jsonify({
+        "environment_detection": env_info,
+        "startup_behavior": {
+            "auto_start_enabled": env_info['auto_start_enabled'],
+            "startup_mode": "automatic" if env_info['auto_start_enabled'] else "manual",
+            "recommended_start_method": "automatic (remix works)" if env_info['auto_start_enabled'] else "python start_bot_manual.py"
+        },
+        "bot_status": {
+            "currently_running": bot_running,
+            "process_type": "polling_mode"
+        }
+    })
+
 @app.route('/admin/deposit_logs')
 def admin_deposit_logs_route():
     """API route to retrieve recent deposit logs for admin panel"""
