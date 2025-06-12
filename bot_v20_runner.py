@@ -6291,9 +6291,22 @@ def run_polling():
     """Start the bot polling loop."""
     global _bot_instance, _bot_running, bot
     
-    # Prevent multiple instances
+    # Prevent multiple instances using file lock
+    import fcntl
+    import os
+    
+    try:
+        # Create a lock file to prevent multiple instances
+        lock_file = open('/tmp/bot_lock.txt', 'w')
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        logger.info("Bot lock acquired successfully")
+    except (IOError, OSError):
+        logger.warning("Another bot instance is already running, exiting")
+        return
+    
+    # Additional check for global flag
     if _bot_running:
-        logger.warning("Bot is already running, skipping duplicate start")
+        logger.warning("Bot is already running globally, skipping duplicate start")
         return
     
     # Get bot token from environment variable or config
@@ -6303,7 +6316,7 @@ def run_polling():
         logger.error("No Telegram bot token provided. Set the TELEGRAM_BOT_TOKEN environment variable.")
         return
     
-    logger.info(f"Starting bot with embedded token: {token[:10]}...")
+    logger.info(f"Starting bot with token: {token[:10]}...")
     
     # Set running flag immediately to prevent duplicates
     _bot_running = True
@@ -9431,5 +9444,13 @@ def admin_view_completed_withdrawals_handler(update, chat_id):
             ])
         )
 
+# Entry point for subprocess execution
 if __name__ == '__main__':
-    run_polling()
+    try:
+        run_polling()
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Bot crashed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
