@@ -8,6 +8,7 @@ from flask import request, Response, jsonify
 from utils.deposit_monitor import start_deposit_monitor, stop_deposit_monitor, is_monitor_running
 from automated_maintenance import start_maintenance_scheduler, stop_maintenance_scheduler
 from database_monitoring import DatabaseMonitor
+from environment_detector import should_auto_start, get_environment_info
 
 # Configure logging
 logging.basicConfig(
@@ -29,20 +30,30 @@ bot_running = False
 # Define basic health-check route for the application
 @app.route('/')
 def index():
-    # Start the bot automatically in polling mode
+    # Start the bot automatically only in Replit environment
     global bot_running
     
-    if not bot_running:
+    env_info = get_environment_info()
+    
+    if should_auto_start() and not bot_running:
+        logger.info("Auto-starting bot for Replit environment")
         bot_thread = threading.Thread(target=start_bot_thread)
         bot_thread.daemon = True
         bot_thread.start()
         bot_running = True
+        bot_status = "auto-started in polling mode"
+    elif not should_auto_start():
+        bot_status = "manual start required (use /start_bot or run command)"
+    else:
+        bot_status = "already running in polling mode"
     
     return jsonify({
         "status": "online",
         "message": "Solana Memecoin Trading Bot",
-        "bot_status": "running in polling mode",
-        "note": "Bot is running in polling mode for improved reliability"
+        "environment": env_info['environment_type'],
+        "auto_start_enabled": env_info['auto_start_enabled'],
+        "bot_status": bot_status,
+        "note": "Auto-start only enabled on Replit for remix compatibility"
     })
 
 @app.route('/health')
@@ -237,18 +248,22 @@ def start_bot_on_first_request():
     bot_thread.daemon = True  # Thread will exit when main thread exits
     bot_thread.start()
 
-# Auto-start the bot immediately when the module is imported
+# Auto-start the bot immediately when the module is imported (Replit only)
 def auto_start_bot():
-    """Auto-start the bot when the application starts"""
+    """Auto-start the bot when the application starts (Replit environment only)"""
     global bot_running
-    if not bot_running:
+    
+    if should_auto_start() and not bot_running:
         # Token should already be in environment from .env file
-        logger.info("Auto-starting bot on application startup...")
+        logger.info("Auto-starting bot on application startup for Replit environment...")
         bot_thread = threading.Thread(target=start_bot_thread)
         bot_thread.daemon = True
         bot_thread.start()
+    elif not should_auto_start():
+        logger.info("Skipping auto-start - manual start required for AWS/production environment")
+        logger.info("Use 'python main.py' command or /start_bot endpoint to start the bot")
 
-# Auto-start the bot when this module is imported
+# Auto-start the bot when this module is imported (conditional)
 auto_start_bot()
 
 # Route to manually start the bot
