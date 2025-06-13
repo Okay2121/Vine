@@ -689,7 +689,8 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
             await query.edit_message_text(
                 text=history_message,
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                disable_web_page_preview=True
             )
             
         except SQLAlchemyError as e:

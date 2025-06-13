@@ -118,7 +118,7 @@ class SimpleTelegramBot:
             del self.wallet_listeners[chat_id]
             logger.info(f"Removed listener for chat {chat_id}")
     
-    def send_message(self, chat_id, text, parse_mode="Markdown", reply_markup=None):
+    def send_message(self, chat_id, text, parse_mode="Markdown", reply_markup=None, disable_web_page_preview=False):
         """Send a message to a chat with graceful error handling."""
         payload = {
             'chat_id': chat_id,
@@ -128,6 +128,9 @@ class SimpleTelegramBot:
         
         if reply_markup:
             payload['reply_markup'] = reply_markup
+            
+        if disable_web_page_preview:
+            payload['disable_web_page_preview'] = True
             
         try:
             response = requests.post(
@@ -4752,7 +4755,7 @@ def live_positions_handler(update, chat_id):
                 ]
             ])
             
-            bot.send_message(chat_id, position_message, parse_mode="Markdown", reply_markup=keyboard)
+            bot.send_message(chat_id, position_message, parse_mode="Markdown", reply_markup=keyboard, disable_web_page_preview=True)
             
     except Exception as e:
         import logging
