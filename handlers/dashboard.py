@@ -120,14 +120,26 @@ async def show_dashboard(context, chat_id, message_id=None, user_id=None):
                 target_amount = roi_metrics['target_balance']
                 current_amount = roi_metrics['current_balance']
             else:
-                # Fall back to standard calculation
+                # Fall back to standard calculation - sync with performance dashboard
                 target_amount = user.initial_deposit * 2
-                current_amount = user.balance + total_profit_amount
+                # Use synchronized data from performance tracking to avoid double-counting
+                try:
+                    from performance_tracking import get_performance_data
+                    performance_data = get_performance_data(user.id)
+                    
+                    if performance_data:
+                        current_amount = performance_data['current_balance']
+                        total_profit_amount = performance_data['total_profit']
+                        total_profit_percentage = performance_data['total_percentage']
+                    else:
+                        current_amount = user.balance
+                except ImportError:
+                    current_amount = user.balance
                 
             amount_progress = min(100, (current_amount / target_amount) * 100) if target_amount > 0 else 0
             
-            # Format the dashboard message with improved 2x2 grid layout and emoji icons
-            current_balance = user.balance + total_profit_amount
+            # Format the dashboard message with improved 2x2 grid layout and emoji icons - use synchronized balance
+            current_balance = current_amount
             
             dashboard_message = (
                 "📊 *Profit Dashboard*\n\n"
