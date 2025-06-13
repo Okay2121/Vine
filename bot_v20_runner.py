@@ -1754,7 +1754,7 @@ def dashboard_command(update, chat_id):
             from config import MIN_DEPOSIT
             
             # Add a trust-building reminder message - different messages based on deposit status
-            if user.status == UserStatus.ACTIVE and user.balance >= MIN_DEPOSIT:
+            if user.balance >= MIN_DEPOSIT:
                 tips_message = random.choice([
                     "Your Autopilot system is working 24/7 to find and execute trading opportunities.",
                     "Thrive's trading engine targets consistent daily profits when market conditions allow.",
@@ -1818,10 +1818,10 @@ def settings_command(update, chat_id):
             # Create settings message
             settings_message = (
                 "⚙️ *THRIVE Bot Settings*\n\n"
-                f"*Account Status:* {'Active' if user.status == UserStatus.ACTIVE else 'Not Active'}\n"
+                f"*Account Status:* {'Active' if user.balance > 0 else 'Not Active'}\n"
                 f"*Payout Wallet:* `{display_wallet}`\n"
                 f"*Joined:* {user.joined_at.strftime('%Y-%m-%d')}\n"
-                f"*Auto-Trades:* {'Enabled' if user.status == UserStatus.ACTIVE else 'Disabled'}\n\n"
+                f"*Auto-Trades:* {'Enabled' if user.balance > 0 else 'Disabled'}\n\n"
                 f"*Notification Settings:*\n"
                 f"• *Trade Alerts:* Enabled\n"
                 f"• *Daily Reports:* Enabled\n"
