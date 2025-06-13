@@ -4729,12 +4729,6 @@ def live_positions_handler(update, chat_id):
                         else:
                             tx_url = f"https://solscan.io/tx/{position.buy_tx_hash}"
                         tx_display = f"[Transaction]({tx_url})"
-                    elif position.tx_hash:
-                        if position.tx_hash.startswith('http'):
-                            tx_url = position.tx_hash
-                        else:
-                            tx_url = f"https://solscan.io/tx/{position.tx_hash}"
-                        tx_display = f"[Transaction]({tx_url})"
                     
                     position_message += (
                         f"🟡 *LIVE SNIPE - ${position.token_name}*\n\n"
