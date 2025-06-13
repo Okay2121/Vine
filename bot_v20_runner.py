@@ -8537,12 +8537,41 @@ def admin_wallet_address_input_handler(update, chat_id, text):
                 
             db.session.commit()
             
-            # Send confirmation
+            # Update all existing users to use the new wallet address
+            try:
+                from helpers import update_all_user_deposit_wallets
+                updated_count = update_all_user_deposit_wallets()
+                logger.info(f"Updated {updated_count} users to use new deposit wallet")
+            except Exception as update_error:
+                logger.error(f"Error updating user wallets: {str(update_error)}")
+            
+            # Restart deposit monitoring with new wallet address
+            try:
+                from utils.deposit_monitor import stop_deposit_monitor, start_deposit_monitor
+                
+                # Stop current monitoring
+                stop_deposit_monitor()
+                
+                # Wait a moment for clean shutdown
+                import time
+                time.sleep(2)
+                
+                # Start monitoring with new wallet address
+                start_deposit_monitor()
+                
+                logger.info(f"Deposit monitoring restarted with new wallet: {text}")
+                
+            except Exception as monitor_error:
+                logger.error(f"Error restarting deposit monitor: {str(monitor_error)}")
+            
+            # Send confirmation with user update count
             message = (
                 "✅ *Deposit Wallet Updated*\n\n"
                 f"The system deposit wallet has been successfully changed to:\n\n"
                 f"`{text}`\n\n"
-                "This address will now be shown to all users when they visit the deposit page."
+                "This address will now be shown to all users when they visit the deposit page.\n\n"
+                "🔄 *Deposit monitoring has been restarted* to monitor the new wallet address.\n\n"
+                f"📊 Updated wallet address for all existing users in the system."
             )
             
             keyboard = bot.create_inline_keyboard([
