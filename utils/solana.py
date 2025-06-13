@@ -259,7 +259,8 @@ def monitor_admin_wallet_transactions():
     Returns:
         list: List of detected deposits as (user_id, amount, tx_signature) tuples
     """
-    logger.info(f"Monitoring admin wallet {GLOBAL_DEPOSIT_WALLET} for incoming transactions")
+    global_wallet = get_global_deposit_wallet()
+    logger.info(f"Monitoring admin wallet {global_wallet} for incoming transactions")
     detected_deposits = []
     
     try:
@@ -279,7 +280,7 @@ def monitor_admin_wallet_transactions():
                 "id": 1,
                 "method": "getSignaturesForAddress",
                 "params": [
-                    GLOBAL_DEPOSIT_WALLET,
+                    global_wallet,
                     {
                         "limit": 100,  # Check last 100 transactions
                         "commitment": "confirmed"
@@ -380,8 +381,9 @@ def extract_transaction_details(tx_data):
         admin_wallet_index = None
         sender_index = None
         
+        global_wallet = get_global_deposit_wallet()
         for i, account in enumerate(account_keys):
-            if account == GLOBAL_DEPOSIT_WALLET:
+            if account == global_wallet:
                 admin_wallet_index = i
         
         if admin_wallet_index is None:

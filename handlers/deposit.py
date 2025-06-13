@@ -11,8 +11,8 @@ from utils.solana import (
     generate_wallet_address, check_deposit, check_deposit_by_sender,
     link_sender_wallet_to_user, find_user_by_sender_wallet, process_auto_deposit
 )
-from config import SOLANA_NETWORK, GLOBAL_DEPOSIT_WALLET
-from helpers import get_min_deposit
+from config import SOLANA_NETWORK
+from helpers import get_min_deposit, get_global_deposit_wallet
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ async def show_deposit_instructions(context, chat_id, message_id=None, user_id=N
                 f"in just 168 hours!\n\n"
                 f"{sender_wallet_text}"
                 f"*Deposit to this address:*\n\n"
-                f"`{GLOBAL_DEPOSIT_WALLET}`"
+                f"`{get_global_deposit_wallet()}`"
             )
             
             if current_deposit >= min_deposit:
@@ -155,7 +155,8 @@ async def copy_address_callback(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     
     # Copy the global deposit wallet address
-    shortened_address = f"{GLOBAL_DEPOSIT_WALLET[:6]}...{GLOBAL_DEPOSIT_WALLET[-4:]}"
+    global_wallet = get_global_deposit_wallet()
+    shortened_address = f"{global_wallet[:6]}...{global_wallet[-4:]}"
     await query.answer(f"Copied global wallet: {shortened_address}")
     
     # Log the action

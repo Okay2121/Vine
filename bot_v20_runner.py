@@ -1217,8 +1217,8 @@ def wallet_address_handler(update, chat_id, text):
                 bot.send_message(chat_id, deposit_instructions, parse_mode="Markdown")
                 
                 # Use the global admin deposit wallet address
-                from config import GLOBAL_DEPOSIT_WALLET
-                deposit_wallet = GLOBAL_DEPOSIT_WALLET
+                from helpers import get_global_deposit_wallet
+                deposit_wallet = get_global_deposit_wallet()
                 
                 # Update user record with the global deposit wallet
                 try:
