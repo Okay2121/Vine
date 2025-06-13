@@ -160,7 +160,7 @@ class SimpleReferralManager:
                     'active_referrals': active_referrals,
                     'pending_referrals': max(0, total_referrals - active_referrals),
                     'total_earnings': total_earnings,
-                    'referral_link': f"https://t.me/thrivesolanabot?start=ref_{user_id}",
+                    'referral_link': f"https://t.me/ThriveQuantbot?start=ref_{user_id}",
                     'has_code': True,  # Always true for simplified system
                     'code': f"REF{user_id[-6:]}"  # Simple code for display
                 }

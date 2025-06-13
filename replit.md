@@ -98,6 +98,25 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Simplified Referral System Implementation (June 13, 2025)
+- **Implemented code-free referral system** using direct Telegram ID tracking
+- **Updated bot username** to @ThriveQuantbot for correct referral link generation
+- **Enhanced user onboarding** with automatic referral link processing in start command
+- **Fixed day counter logic** to only count days when users have SOL balance (not from registration)
+- **New Components**:
+  - `simple_referral_system.py` - Direct ID-based referral tracking without codes
+  - `nice_referral_formatter.py` - Professional referral message formatting
+  - Enhanced referral interface with copy/share functionality
+  - Automatic 5% commission processing on referred user profits
+- **Benefits**: User-friendly sharing, no complex codes to remember, instant referral tracking
+
+### Referral System Features
+- **Direct Link Format**: `https://t.me/ThriveQuantbot?start=ref_USERID`
+- **Automatic Processing**: New users automatically linked when clicking referral links
+- **Real-time Stats**: Active referrals, earnings tracking, tier progression
+- **Commission System**: 5% of all referred user profits paid to referrer
+- **Day Counter Fix**: Streak only counts days with SOL balance > 0
+
 ### Environment-Aware Startup System (June 12, 2025)
 - **Added automatic environment detection** for clean Replit/AWS startup behavior
 - **Replit Environment**: Auto-start enabled for seamless remix functionality
@@ -115,7 +134,8 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 - **Override**: Set `BOT_ENVIRONMENT=aws` to force manual mode even on Replit
 
 ## Changelog
-- June 12, 2025. Initial setup and environment-aware startup implementation
+- June 13, 2025: Simplified referral system implementation with @ThriveQuantbot username
+- June 12, 2025: Initial setup and environment-aware startup implementation
 
 ## User Preferences
 

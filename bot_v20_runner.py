@@ -1900,19 +1900,15 @@ def referral_command(update, chat_id):
                 f"`{stats['referral_link']}`\n"
             )
             
-            # Create enhanced keyboard with more sharing options
+            # Create enhanced keyboard with sharing options
             keyboard = bot.create_inline_keyboard([
                 [
                     {"text": "📋 Copy Link", "callback_data": "copy_referral_link"},
-                    {"text": "📱 Generate QR", "callback_data": "referral_qr_code"}
+                    {"text": "📤 Share Message", "callback_data": "share_referral"}
                 ],
                 [
-                    {"text": "📊 View Stats", "callback_data": "referral_stats"},
-                    {"text": "📤 Share", "callback_data": "share_referral"}
-                ],
-                [
-                    {"text": "❓ How It Works", "callback_data": "referral_how_it_works"},
-                    {"text": "💡 Tips", "callback_data": "referral_tips"}
+                    {"text": "📊 Refresh Stats", "callback_data": "referral_stats"},
+                    {"text": "💡 How It Works", "callback_data": "referral_how_it_works"}
                 ],
                 [{"text": "🏠 Back to Main Menu", "callback_data": "start"}]
             ])
@@ -9454,6 +9450,133 @@ def admin_view_completed_withdrawals_handler(update, chat_id):
                 [{"text": "🔙 Back to Admin", "callback_data": "admin_back"}]
             ])
         )
+
+def copy_referral_link_handler(update, chat_id):
+    """Handle copy referral link callback"""
+    try:
+        from simple_referral_system import simple_referral_manager
+        
+        with app.app_context():
+            user_id = str(update['callback_query']['from']['id'])
+            stats = simple_referral_manager.get_referral_stats(user_id)
+            
+            message = (
+                "📋 *Referral Link Copied!*\n\n"
+                f"Your link: `{stats['referral_link']}`\n\n"
+                "✅ Copy the link above and share it with friends!\n"
+                "💰 You'll earn 5% of all their trading profits forever."
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
+            ])
+            
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=update['callback_query']['message']['message_id'],
+                text=message,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in copy_referral_link_handler: {e}")
+        bot.send_message(chat_id, "Error copying referral link. Please try again.")
+
+def share_referral_handler(update, chat_id):
+    """Handle share referral callback"""
+    try:
+        from simple_referral_system import simple_referral_manager
+        from nice_referral_formatter import create_shareable_message
+        
+        with app.app_context():
+            user_id = str(update['callback_query']['from']['id'])
+            user = User.query.filter_by(telegram_id=user_id).first()
+            stats = simple_referral_manager.get_referral_stats(user_id)
+            
+            user_name = user.first_name if user else "Trader"
+            share_message = create_shareable_message(user_name, stats['referral_link'])
+            
+            message = (
+                "📤 *Share Your Referral*\n\n"
+                "Copy the message below and share it anywhere:\n\n"
+                f"```\n{share_message}\n```\n\n"
+                "💡 *Share on:*\n"
+                "• Telegram groups\n"
+                "• WhatsApp\n"
+                "• Twitter/X\n"
+                "• Discord servers\n"
+                "• Any social platform!"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
+            ])
+            
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=update['callback_query']['message']['message_id'],
+                text=message,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in share_referral_handler: {e}")
+        bot.send_message(chat_id, "Error generating share message. Please try again.")
+
+def referral_how_it_works_handler(update, chat_id):
+    """Handle referral how it works callback"""
+    try:
+        message = (
+            "💡 *How Referrals Work*\n\n"
+            
+            "🔗 *Step 1: Share Your Link*\n"
+            "Send your unique referral link to friends interested in crypto trading.\n\n"
+            
+            "👥 *Step 2: They Join*\n"
+            "When someone clicks your link and starts using THRIVE, they become your referral.\n\n"
+            
+            "💰 *Step 3: Earn Forever*\n"
+            "You receive 5% of ALL profits they make - for as long as they trade!\n\n"
+            
+            "📊 *Example:*\n"
+            "• Your friend makes $100 profit\n"
+            "• You automatically get $5\n"
+            "• No limits, no expiration\n\n"
+            
+            "✅ *Benefits:*\n"
+            "• Passive income stream\n"
+            "• Automatic payments\n"
+            "• Track all referrals in real-time\n"
+            "• Help friends discover profitable trading"
+        )
+        
+        keyboard = bot.create_inline_keyboard([
+            [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
+        ])
+        
+        bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=update['callback_query']['message']['message_id'],
+            text=message,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in referral_how_it_works_handler: {e}")
+        bot.send_message(chat_id, "Error displaying information. Please try again.")
+
+def referral_stats_handler(update, chat_id):
+    """Handle referral stats refresh callback"""
+    try:
+        # Just redirect to the main referral command for fresh stats
+        referral_command(update, chat_id)
+        
+    except Exception as e:
+        logger.error(f"Error in referral_stats_handler: {e}")
+        bot.send_message(chat_id, "Error refreshing stats. Please try again.")
 
 # Entry point for subprocess execution
 if __name__ == '__main__':
