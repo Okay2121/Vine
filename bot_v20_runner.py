@@ -1723,6 +1723,7 @@ def dashboard_command(update, chat_id):
             
             # Days active calculation - only count days when user has SOL in account
             # Find the first deposit date to start counting from
+            from models import Transaction
             first_deposit = Transaction.query.filter_by(
                 user_id=user.id, 
                 transaction_type='deposit',
