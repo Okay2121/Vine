@@ -5192,7 +5192,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     f"🎯 *Token:* {token_name}\n"
                     f"💰 *Entry Price:* ${entry_price}\n"
                     f"👥 *Users:* {created_count}\n"
-                    f"🔗 *TX:* [View]({tx_link})\n\n"
+                    f"🔗 [TX]({tx_link})\n\n"
                     f"*All users can now see this BUY in their transaction history!*"
                 )
                 
@@ -5291,7 +5291,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                         f"📈 *ROI:* {roi_percentage:.2f}%\n"
                         f"👥 *Positions:* {updated_count}\n"
                         f"💵 *{profit_loss}:* ${abs(total_profit):.2f}\n"
-                        f"🔗 *TX:* [View]({tx_link})\n\n"
+                        f"🔗 [TX]({tx_link})\n\n"
                         f"*All users can now see this SELL in their transaction history!*"
                     )
                 else:
