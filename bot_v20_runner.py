@@ -1586,8 +1586,8 @@ def dashboard_command(update, chat_id):
             today_profit_amount = 0
             today_profit_percentage = 0
             
-            # Calculate profits for active users
-            if user.status == UserStatus.ACTIVE and user.initial_deposit > 0:
+            # Calculate profits for users with deposits (regardless of status)
+            if user.initial_deposit > 0:
                 # Calculate total profit as current balance minus initial deposit
                 total_profit_amount = max(0, user.balance - user.initial_deposit)
                 total_profit_percentage = (total_profit_amount / user.initial_deposit) * 100 if user.initial_deposit > 0 else 0
