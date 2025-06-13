@@ -5353,7 +5353,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
             f"• *Entry:* {entry}\n"
             f"• *Exit:* {exit_price}\n"
             f"• *ROI:* {roi_percent}%\n"
-            f"• *TX:* {tx_link}\n"
+            f"• *Transaction embedded:* {tx_link}\n"
         )
         
         if trade_type:
@@ -7333,7 +7333,7 @@ def transaction_history_handler(update, chat_id):
                         # Add transaction link if available
                         if hasattr(tx, 'tx_hash') and tx.tx_hash:
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
-                            history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
+                            history_message += f"• *Transaction embedded:* [View on Solscan]({explorer_url})\n"
                         
                     elif tx.transaction_type == "deposit" or tx.transaction_type == "admin_credit":
                         # Deposit transaction
@@ -7344,7 +7344,7 @@ def transaction_history_handler(update, chat_id):
                         # Add transaction link if available
                         if hasattr(tx, 'tx_hash') and tx.tx_hash:
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
-                            history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
+                            history_message += f"• *Transaction embedded:* [View on Solscan]({explorer_url})\n"
                     
                     else:
                         # For other transactions (withdrawals, etc.)
@@ -7360,7 +7360,7 @@ def transaction_history_handler(update, chat_id):
                         # Add transaction hash link if available
                         if hasattr(tx, 'tx_hash') and tx.tx_hash:
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
-                            history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
+                            history_message += f"• *Transaction embedded:* [View on Solscan]({explorer_url})\n"
                     
                     history_message += "───────────────────\n\n"
             else:
