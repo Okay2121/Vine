@@ -752,7 +752,7 @@ class SimpleTelegramBot:
 
 # Import app context for database operations
 from app import app
-from models import User, UserStatus, ReferralCode
+from models import User, UserStatus, ReferralCode, Transaction
 from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -1676,8 +1676,23 @@ def dashboard_command(update, chat_id):
             # Current amount is actual balance including profits
             current_amount = user.balance
             
-            # Days active calculation based on join date
-            days_active = (datetime.utcnow().date() - user.joined_at.date()).days + 1
+            # Days active calculation - only count days when user has SOL in account
+            # Find the first deposit date to start counting from
+            first_deposit = Transaction.query.filter_by(
+                user_id=user.id, 
+                transaction_type='deposit',
+                status='completed'
+            ).order_by(Transaction.timestamp).first()
+            
+            if first_deposit and user.balance > 0:
+                # Count days since first deposit only if user currently has SOL
+                days_active = (datetime.utcnow().date() - first_deposit.timestamp.date()).days + 1
+            elif user.balance > 0:
+                # Fallback: if no deposit record but user has balance, count from join date
+                days_active = (datetime.utcnow().date() - user.joined_at.date()).days + 1
+            else:
+                # User has no SOL, don't count any days
+                days_active = 0
             
             # Format the dashboard message
             current_balance = user.balance + total_profit_amount
@@ -1698,7 +1713,10 @@ def dashboard_command(update, chat_id):
                 
             # Add Autopilot Trader information
             dashboard_message += "• *Mode:* Autopilot Trader (Fully Automated)\n"
-            dashboard_message += f"• *Day:* {days_active}\n\n"
+            if days_active > 0:
+                dashboard_message += f"• *Day:* {days_active}\n\n"
+            else:
+                dashboard_message += "• *Day:* Start your streak today!\n\n"
             
             dashboard_message += "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
             
