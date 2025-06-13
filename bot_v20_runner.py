@@ -8537,6 +8537,17 @@ def admin_wallet_address_input_handler(update, chat_id, text):
                 
             db.session.commit()
             
+            # Update the .env file with the new wallet address
+            try:
+                from helpers import update_env_variable
+                env_success = update_env_variable('GLOBAL_DEPOSIT_WALLET', text)
+                if env_success:
+                    logger.info(f"Updated .env file with new wallet: {text}")
+                else:
+                    logger.error("Failed to update .env file")
+            except Exception as env_error:
+                logger.error(f"Error updating .env file: {str(env_error)}")
+            
             # Update all existing users to use the new wallet address
             try:
                 from helpers import update_all_user_deposit_wallets
@@ -8570,8 +8581,12 @@ def admin_wallet_address_input_handler(update, chat_id, text):
                 f"The system deposit wallet has been successfully changed to:\n\n"
                 f"`{text}`\n\n"
                 "This address will now be shown to all users when they visit the deposit page.\n\n"
-                "🔄 *Deposit monitoring has been restarted* to monitor the new wallet address.\n\n"
-                f"📊 Updated wallet address for all existing users in the system."
+                "🔄 *System Updates Completed:*\n"
+                "• Database setting updated\n"
+                "• Environment (.env) file updated\n"
+                "• All user wallets updated\n"
+                "• Deposit monitoring restarted\n"
+                "• QR codes will use new address"
             )
             
             keyboard = bot.create_inline_keyboard([

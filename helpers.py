@@ -99,6 +99,55 @@ def set_system_setting(setting_name, setting_value, updated_by=None):
         logging.error(f"Error setting system setting {setting_name}: {str(e)}")
         return False
 
+def update_env_variable(key, value):
+    """
+    Update an environment variable in the .env file.
+    
+    Args:
+        key: The environment variable name
+        value: The new value to set
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        import os
+        import re
+        
+        env_file_path = '.env'
+        
+        # Read current .env file
+        if os.path.exists(env_file_path):
+            with open(env_file_path, 'r') as f:
+                lines = f.readlines()
+        else:
+            lines = []
+        
+        # Find and update the line, or add it if not found
+        updated = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith(f"{key}="):
+                lines[i] = f"{key}={value}\n"
+                updated = True
+                break
+        
+        # If not found, add the new variable
+        if not updated:
+            lines.append(f"{key}={value}\n")
+        
+        # Write back to .env file
+        with open(env_file_path, 'w') as f:
+            f.writelines(lines)
+            
+        import logging
+        logging.info(f"Updated .env file: {key}={value}")
+        return True
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error updating .env file: {str(e)}")
+        return False
+
 def update_all_user_deposit_wallets():
     """
     Update all user deposit wallets to use the current global deposit wallet.
