@@ -311,3 +311,22 @@ class UserMetrics(db.Model):
     
     def __repr__(self):
         return f'<UserMetrics {self.user_id} - Streak: {self.current_streak}>'
+
+
+class DailySnapshot(db.Model):
+    """Daily balance and performance snapshot for accurate performance tracking"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
+    starting_balance = db.Column(db.Float, nullable=False)
+    ending_balance = db.Column(db.Float, nullable=True)  # Will be set at end of day
+    profit_amount = db.Column(db.Float, nullable=True)  # Will be calculated at end of day
+    profit_percentage = db.Column(db.Float, nullable=True)  # Will be calculated at end of day
+    trades_count = db.Column(db.Integer, default=0)
+    winning_trades = db.Column(db.Integer, default=0)
+    
+    # Relationship to user
+    user = db.relationship('User', backref='daily_snapshots')
+    
+    def __repr__(self):
+        return f'<DailySnapshot {self.date} - User {self.user_id}>'

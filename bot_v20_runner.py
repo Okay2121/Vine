@@ -1576,23 +1576,82 @@ def dashboard_command(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
                 
-            # Import performance tracking to get real-time data (same as Performance Dashboard)
-            from performance_tracking import get_performance_data
-            
-            # Get real-time performance data to ensure synchronization
-            performance_data = get_performance_data(user.id)
-            if not performance_data:
-                bot.send_message(chat_id, "Unable to load performance data. Please try again.")
-                return
-            
-            # Extract values from performance data (synchronized with Performance Dashboard)
-            total_profit_amount = performance_data['total_profit']
-            total_profit_percentage = performance_data['total_percentage']
-            today_profit_amount = performance_data['today_profit']
-            today_profit_percentage = performance_data['today_percentage']
-            
-            # Get streak from performance data for consistency
-            streak = performance_data['streak_days']
+            # Try to use performance tracking for real-time data synchronization
+            try:
+                from performance_tracking import get_performance_data
+                performance_data = get_performance_data(user.id)
+                
+                if performance_data:
+                    # Extract values from performance data (synchronized with Performance Dashboard)
+                    total_profit_amount = performance_data['total_profit']
+                    total_profit_percentage = performance_data['total_percentage']
+                    today_profit_amount = performance_data['today_profit']
+                    today_profit_percentage = performance_data['today_percentage']
+                    streak = performance_data['streak_days']
+                else:
+                    raise Exception("Performance data not available")
+                    
+            except Exception as e:
+                # Fallback to direct calculation if performance tracking fails
+                from sqlalchemy import func
+                from models import Profit, Transaction
+                
+                # Calculate profits for users with deposits (regardless of status)
+                if user.initial_deposit > 0:
+                    # Calculate total profit as current balance minus initial deposit
+                    total_profit_amount = max(0, user.balance - user.initial_deposit)
+                    total_profit_percentage = (total_profit_amount / user.initial_deposit) * 100 if user.initial_deposit > 0 else 0
+                    
+                    # Get today's profits from Transaction table (trade_profit transactions)
+                    today = datetime.utcnow().date()
+                    today_profit = db.session.query(func.sum(Transaction.amount)).filter(
+                        Transaction.user_id == user.id,
+                        Transaction.transaction_type == 'trade_profit',
+                        Transaction.timestamp >= today,
+                        Transaction.status == 'completed'
+                    ).scalar() or 0
+                    
+                    # If no trade_profit transactions today, check Profit table as fallback
+                    if today_profit == 0:
+                        today_profit = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id, date=today).scalar() or 0
+                    
+                    today_profit_amount = today_profit
+                    today_profit_percentage = (today_profit / user.balance) * 100 if user.balance > 0 else 0
+                else:
+                    total_profit_amount = 0
+                    total_profit_percentage = 0
+                    today_profit_amount = 0
+                    today_profit_percentage = 0
+                
+                # Calculate streak manually as fallback
+                streak = 0
+                current_date = datetime.utcnow().date()
+                
+                # Check up to 30 days back (maximum reasonable streak)
+                for i in range(30):
+                    check_date = current_date - timedelta(days=i)
+                    check_date_start = datetime.combine(check_date, datetime.min.time())
+                    check_date_end = datetime.combine(check_date, datetime.max.time())
+                    
+                    # Check for trade_profit transactions on this day
+                    day_profit = db.session.query(func.sum(Transaction.amount)).filter(
+                        Transaction.user_id == user.id,
+                        Transaction.transaction_type == 'trade_profit',
+                        Transaction.timestamp >= check_date_start,
+                        Transaction.timestamp <= check_date_end,
+                        Transaction.status == 'completed'
+                    ).scalar() or 0
+                    
+                    # If no trade_profit transactions, fallback to Profit table
+                    if day_profit == 0:
+                        day_profit = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id, date=check_date).scalar() or 0
+                    
+                    if day_profit > 0:
+                        if i == 0 or streak > 0:  # Today counts or continuing streak
+                            streak += 1
+                    else:
+                        if i > 0:  # Not counting today
+                            break
             
             # Get ROI metrics - internal implementation since we can't import from utils
             def get_user_roi_metrics(user_id):
