@@ -141,7 +141,7 @@ def process_buy_trade(token, price, amount, tx_link, admin_id, bot=None):
             f"*Token:* {token}\n"
             f"*Entry Price:* {price}\n"
             f"*Amount:* {amount}\n"
-            f"*TX:* [View Transaction]({tx_link})\n"
+            f"*Transaction embedded:* [View Transaction]({tx_link})\n"
             f"*Position ID:* {position.id}\n"
             f"*Status:* Waiting for SELL"
         )
@@ -221,7 +221,7 @@ def process_sell_trade(token, price, amount, tx_link, admin_id, bot=None):
             f"*Exit Price:* {exit_price}\n"
             f"*Amount:* {amount}\n"
             f"*ROI:* {roi_emoji} {roi_display}\n"
-            f"*TX:* [View Transaction]({tx_link})\n"
+            f"*Transaction embedded:* [View Transaction]({tx_link})\n"
             f"*Position ID:* {buy_position.id}\n"
             f"*Status:* Closed"
         )
