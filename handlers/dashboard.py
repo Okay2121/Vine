@@ -643,7 +643,7 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                         if tx.tx_hash and not tx.tx_hash.startswith('zin_sell_'):
                             # Create a Solana Explorer link for the transaction
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
-                            history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
+                            history_message += f"• [TX]({explorer_url})\n"
                         
                         # Remove info/notes section to keep transaction history clean
                     
@@ -672,7 +672,7 @@ async def transaction_history_callback(update: Update, context: ContextTypes.DEF
                         if tx.tx_hash and not any(prefix in tx.tx_hash for prefix in ['zin_sell_', 'admin_', 'test_']):
                             # Create a Solana Explorer link for the transaction
                             explorer_url = f"https://solscan.io/tx/{tx.tx_hash}"
-                            history_message += f"• *TX:* [View on Solscan]({explorer_url})\n"
+                            history_message += f"• [TX]({explorer_url})\n"
                     
                     history_message += "───────────────────\n\n"
             else:

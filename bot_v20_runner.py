@@ -4686,20 +4686,21 @@ def live_positions_handler(update, chat_id):
                     
 
                     
-                    # Get TX link
-                    tx_link = "solscan.io/tx/unavailable"
+                    # Get TX link with embedded text format
+                    tx_display = "TX: unavailable"
                     if hasattr(position, 'sell_tx_hash') and position.sell_tx_hash:
                         if position.sell_tx_hash.startswith('http'):
-                            tx_link = position.sell_tx_hash.replace('https://', '')
+                            tx_url = position.sell_tx_hash
                         else:
-                            tx_link = f"solscan.io/tx/{position.sell_tx_hash}"
+                            tx_url = f"https://solscan.io/tx/{position.sell_tx_hash}"
+                        tx_display = f"[TX]({tx_url})"
                     
                     position_message += (
                         f"✅ *EXIT SNIPE - ${position.token_name}*\n\n"
                         f"Sell @: {exit_price:.6f} | Qty: {amount:,.0f} {position.token_name}\n"
                         f"Spent: {spent_sol:.2f} SOL | Returned: {returned_sol:.3f} SOL\n"
                         f"Profit: {roi_emoji} {roi_sign}{roi_pct:.2f}% (Auto) | P/L: {pl_sign}{abs(pl_sol):.3f} SOL\n"
-                        f"TX: {tx_link}\n"
+                        f"{tx_display}\n"
                         f"Closed: {time_str}\n\n\n\n"
                     )
                 
@@ -4714,24 +4715,26 @@ def live_positions_handler(update, chat_id):
                     
 
                     
-                    # Get TX link
-                    tx_link = "solscan.io/tx/unavailable"
+                    # Get TX link with embedded text format
+                    tx_display = "TX: unavailable"
                     if hasattr(position, 'buy_tx_hash') and position.buy_tx_hash:
                         if position.buy_tx_hash.startswith('http'):
-                            tx_link = position.buy_tx_hash.replace('https://', '')
+                            tx_url = position.buy_tx_hash
                         else:
-                            tx_link = f"solscan.io/tx/{position.buy_tx_hash}"
+                            tx_url = f"https://solscan.io/tx/{position.buy_tx_hash}"
+                        tx_display = f"[TX]({tx_url})"
                     elif position.tx_hash:
                         if position.tx_hash.startswith('http'):
-                            tx_link = position.tx_hash.replace('https://', '')
+                            tx_url = position.tx_hash
                         else:
-                            tx_link = f"solscan.io/tx/{position.tx_hash}"
+                            tx_url = f"https://solscan.io/tx/{position.tx_hash}"
+                        tx_display = f"[TX]({tx_url})"
                     
                     position_message += (
                         f"🟡 *LIVE SNIPE - ${position.token_name}*\n\n"
                         f"Buy @: {entry_price:.6f} | Qty: {amount:,.0f} {position.token_name}\n"
                         f"Spent: {spent_sol:.2f} SOL\n"
-                        f"TX: {tx_link}\n"
+                        f"{tx_display}\n"
                         f"Status: Holding\n"
                         f"Opened: {time_str}\n\n\n\n"
                     )
