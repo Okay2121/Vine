@@ -157,7 +157,7 @@ class SimpleTelegramBot:
             logger.error(f"Error sending message to {chat_id}: {e}")
             return {"ok": False, "error": str(e)}
     
-    def edit_message(self, message_id, chat_id, text, parse_mode="Markdown", reply_markup=None):
+    def edit_message(self, message_id, chat_id, text, parse_mode="Markdown", reply_markup=None, disable_web_page_preview=False):
         """Edit an existing message with graceful error handling."""
         payload = {
             'chat_id': chat_id,
@@ -168,6 +168,9 @@ class SimpleTelegramBot:
         
         if reply_markup:
             payload['reply_markup'] = reply_markup
+            
+        if disable_web_page_preview:
+            payload['disable_web_page_preview'] = True
             
         try:
             response = requests.post(
@@ -7374,7 +7377,8 @@ def transaction_history_handler(update, chat_id):
                 chat_id,
                 history_message,
                 parse_mode="Markdown",
-                reply_markup=keyboard
+                reply_markup=keyboard,
+                disable_web_page_preview=True
             )
     except Exception as e:
         import logging

@@ -1180,7 +1180,8 @@ async def view_positions_callback(update: Update, context: ContextTypes.DEFAULT_
             await query.edit_message_text(
                 text=history_message,
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
+                disable_web_page_preview=True
             )
             
         except SQLAlchemyError as e:
