@@ -69,7 +69,7 @@ def generate_realistic_alert(user_balance, token_symbol, token_price, tx_link):
         f"🟡 LIVE SNIPE - ${token_symbol}\n\n"
         f"Buy @: {token_price:.8f} | Qty: {trade['token_quantity']:,} {token_symbol}\n"
         f"Spent: {trade['spent_sol']:.4f} SOL ({trade['risk_percent']:.1f}% risk)\n"
-        f"Transaction embedded: {tx_link}\n"
+        f"Transactions: {tx_link}\n"
         f"Status: Holding\n"
         f"Opened: May 28 - 00:55 UTC"
     )

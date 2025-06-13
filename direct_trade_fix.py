@@ -37,7 +37,7 @@ def fix_trade_broadcast():
                             f"🟡 *LIVE SNIPE* - ${token_name}\\n\\n"
                             f"*Buy @:* {entry_price:.8f} | *Qty:* {realistic_amount:,} {token_name}\\n"
                             f"*Spent:* {spent_sol:.4f} SOL ({risk_percent:.1f}% risk)\\n"
-                            f"*Transaction embedded:* [View]({tx_link})\\n"
+                            f"*Transactions:* [View]({tx_link})\\n"
                             f"*Status:* Holding\\n"
                             f"*Opened:* {datetime.utcnow().strftime('%b %d - %H:%M UTC')}\\n\\n"
                             f"_Smart risk management applied. Position tracking active._"
