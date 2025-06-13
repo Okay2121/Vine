@@ -6,7 +6,7 @@ Models and utilities for tracking user performance metrics and trading history
 
 from datetime import datetime, timedelta
 from app import db
-from models import User, Profit, Transaction, TradingPosition, MilestoneTracker
+from models import User, Profit, Transaction, TradingPosition, MilestoneTracker, UserMetrics
 
 class DailySnapshot(db.Model):
     """Daily balance and performance snapshot for accurate performance tracking"""
