@@ -832,27 +832,33 @@ def start_command(update, chat_id):
                     new_referral_code.user_id = new_user.id
                     db.session.add(new_referral_code)
                     
-                    # Process referral if applicable
+                    # Process referral if applicable using simplified referral system
                     if start_parameter and start_parameter.startswith('ref_'):
                         try:
                             # Extract referrer ID from parameter
                             referrer_id = start_parameter.replace('ref_', '')
                             
-                            # Find referrer in database
-                            referrer = User.query.filter_by(telegram_id=referrer_id).first()
+                            # Use simplified referral system
+                            from simple_referral_system import simple_referral_manager
+                            success = simple_referral_manager.process_referral_signup(user_id, referrer_id)
                             
-                            if referrer and referrer.id != new_user.id:
-                                # Find referrer's referral code
-                                ref_code = ReferralCode.query.filter_by(user_id=referrer.id, is_active=True).first()
+                            if success:
+                                logger.info(f"Successfully processed referral: {user_id} referred by {referrer_id}")
                                 
-                                if ref_code:
-                                    # Connect the new user to the referrer
-                                    new_user.referrer_code_id = ref_code.id
-                                    
-                                    # Update referral stats
-                                    ref_code.total_referrals += 1
-                                    
-                                    logger.info(f"User {user_id} was referred by {referrer_id}")
+                                # Send welcome message mentioning the referral
+                                referrer_user = User.query.filter_by(telegram_id=referrer_id).first()
+                                if referrer_user:
+                                    welcome_with_referral = (
+                                        f"🎉 Welcome {first_name}!\n\n"
+                                        f"You were invited by {referrer_user.first_name or referrer_user.username or 'a friend'}! "
+                                        f"You're both eligible for referral rewards when you start trading.\n\n"
+                                        f"When you make profits, your referrer will earn 5% as a bonus, "
+                                        f"and you'll start earning when you refer others too!"
+                                    )
+                                    bot.send_message(chat_id, welcome_with_referral)
+                            else:
+                                logger.warning(f"Failed to process referral: {user_id} -> {referrer_id}")
+                                
                         except Exception as e:
                             logger.error(f"Error processing referral: {e}")
                     
@@ -1827,31 +1833,16 @@ def settings_command(update, chat_id):
         bot.send_message(chat_id, f"Error displaying settings: {str(e)}")
 
 def referral_command(update, chat_id):
-    """Handle the /referral command with enhanced real-time tracking and visual UI."""
+    """Handle the /referral command with simplified system - no referral codes needed."""
     try:
-        # Import the referral module
-        import referral_module
+        # Use simplified referral system
+        from simple_referral_system import simple_referral_manager
         
         with app.app_context():
-            # Create referral manager if not exists
-            global referral_manager
-            if 'referral_manager' not in globals() or referral_manager is None:
-                referral_manager = referral_module.ReferralManager(app.app_context)
-                referral_manager.set_bot_username("thrivesolanabot")
-                logger.info("Initialized referral manager")
-            
             user_id = str(update['message']['from']['id']) if 'message' in update else str(update['callback_query']['from']['id'])
             
             # Get the user's referral stats
-            stats = referral_manager.get_referral_stats(user_id)
-            
-            # Generate the referral code if needed
-            if not stats['has_code']:
-                code = referral_manager.generate_or_get_referral_code(user_id)
-                if code:
-                    stats['code'] = code
-                    stats['has_code'] = True
-                    stats['referral_link'] = referral_manager.generate_referral_link(user_id)
+            stats = simple_referral_manager.get_referral_stats(user_id)
             
             # Determine referral tier based on number of active referrals
             active_referrals = stats['active_referrals']
@@ -1905,11 +1896,8 @@ def referral_command(update, chat_id):
                 f"Total Earnings: {stats['total_earnings']:.4f} SOL\n"
                 f"Avg. Per Referral: {avg_earnings:.4f} SOL\n\n"
                 
-                f"🔗 *YOUR REFERRAL CODE*\n"
-                f"`{stats['code'] if stats['has_code'] else 'GENERATING...'}`\n\n"
-                
                 f"📱 *YOUR REFERRAL LINK*\n"
-                f"`https://t.me/thrivesolanabot?start=ref_{user_id}`\n"
+                f"`{stats['referral_link']}`\n"
             )
             
             # Create enhanced keyboard with more sharing options
