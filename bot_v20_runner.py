@@ -1900,15 +1900,19 @@ def referral_command(update, chat_id):
                 f"`{stats['referral_link']}`\n"
             )
             
-            # Create enhanced keyboard with sharing options
+            # Create enhanced keyboard with all options
             keyboard = bot.create_inline_keyboard([
                 [
                     {"text": "📋 Copy Link", "callback_data": "copy_referral_link"},
-                    {"text": "📤 Share Message", "callback_data": "share_referral"}
+                    {"text": "📱 Generate QR", "callback_data": "referral_qr_code"}
                 ],
                 [
-                    {"text": "📊 Refresh Stats", "callback_data": "referral_stats"},
-                    {"text": "💡 How It Works", "callback_data": "referral_how_it_works"}
+                    {"text": "📊 View Stats", "callback_data": "referral_stats"},
+                    {"text": "📤 Share", "callback_data": "share_referral"}
+                ],
+                [
+                    {"text": "❓ How It Works", "callback_data": "referral_how_it_works"},
+                    {"text": "💡 Tips", "callback_data": "referral_tips"}
                 ],
                 [{"text": "🏠 Back to Main Menu", "callback_data": "start"}]
             ])
@@ -9471,10 +9475,9 @@ def copy_referral_link_handler(update, chat_id):
                 [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
             ])
             
-            bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=update['callback_query']['message']['message_id'],
-                text=message,
+            bot.send_message(
+                chat_id,
+                message,
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
@@ -9513,10 +9516,9 @@ def share_referral_handler(update, chat_id):
                 [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
             ])
             
-            bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=update['callback_query']['message']['message_id'],
-                text=message,
+            bot.send_message(
+                chat_id,
+                message,
                 parse_mode="Markdown",
                 reply_markup=keyboard
             )
@@ -9556,10 +9558,9 @@ def referral_how_it_works_handler(update, chat_id):
             [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
         ])
         
-        bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=update['callback_query']['message']['message_id'],
-            text=message,
+        bot.send_message(
+            chat_id,
+            message,
             parse_mode="Markdown",
             reply_markup=keyboard
         )
@@ -9577,6 +9578,105 @@ def referral_stats_handler(update, chat_id):
     except Exception as e:
         logger.error(f"Error in referral_stats_handler: {e}")
         bot.send_message(chat_id, "Error refreshing stats. Please try again.")
+
+def referral_qr_code_handler(update, chat_id):
+    """Handle QR code generation for referral link"""
+    try:
+        from simple_referral_system import simple_referral_manager
+        import qrcode
+        from io import BytesIO
+        
+        with app.app_context():
+            user_id = str(update['callback_query']['from']['id'])
+            stats = simple_referral_manager.get_referral_stats(user_id)
+            
+            # Generate QR code
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(stats['referral_link'])
+            qr.make(fit=True)
+            
+            # Create QR code image
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convert to bytes
+            bio = BytesIO()
+            img.save(bio, 'PNG')
+            bio.seek(0)
+            
+            message = (
+                "📱 *QR Code Generated!*\n\n"
+                "Share this QR code with friends. When they scan it, they'll be taken directly to your referral link!\n\n"
+                f"Link: `{stats['referral_link']}`"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
+            ])
+            
+            # Send QR code image with caption
+            bot.send_photo(
+                chat_id,
+                photo=bio,
+                caption=message,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in referral_qr_code_handler: {e}")
+        bot.send_message(chat_id, "Error generating QR code. Please try again.")
+
+def referral_tips_handler(update, chat_id):
+    """Handle referral tips callback"""
+    try:
+        message = (
+            "💡 *Referral Success Tips*\n\n"
+            
+            "🎯 *Best Places to Share:*\n"
+            "• Crypto trading groups\n"
+            "• Discord servers\n"
+            "• Twitter/X crypto communities\n"
+            "• Reddit crypto subreddits\n"
+            "• WhatsApp groups\n\n"
+            
+            "📝 *What to Say:*\n"
+            "• Share your actual results\n"
+            "• Mention the passive income opportunity\n"
+            "• Emphasize the 5% forever commission\n"
+            "• Show transparency with live trades\n\n"
+            
+            "⏰ *Best Times to Share:*\n"
+            "• After big market moves\n"
+            "• When you have good profits to show\n"
+            "• During crypto bull runs\n"
+            "• When friends ask about trading\n\n"
+            
+            "🚀 *Pro Tips:*\n"
+            "• Use your QR code for easy scanning\n"
+            "• Share profit screenshots (with permission)\n"
+            "• Be helpful, not pushy\n"
+            "• Focus on long-term wealth building"
+        )
+        
+        keyboard = bot.create_inline_keyboard([
+            [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
+        ])
+        
+        bot.send_message(
+            chat_id,
+            message,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in referral_tips_handler: {e}")
+        bot.send_message(chat_id, "Error displaying tips. Please try again.")
 
 # Entry point for subprocess execution
 if __name__ == '__main__':
