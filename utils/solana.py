@@ -4,7 +4,8 @@ import string
 import time
 import re
 from datetime import datetime
-from config import SOLANA_NETWORK, SOLANA_RPC_URL, MIN_DEPOSIT, GLOBAL_DEPOSIT_WALLET
+from config import SOLANA_NETWORK, SOLANA_RPC_URL, MIN_DEPOSIT
+from helpers import get_global_deposit_wallet
 from app import db, app
 from models import User, Transaction, SenderWallet
 
@@ -112,7 +113,8 @@ def check_deposit_by_sender(sender_address):
     Returns:
         tuple: (deposit_detected (bool), amount (float), tx_signature (str))
     """
-    logger.info(f"Checking for payments from {sender_address} to admin wallet {GLOBAL_DEPOSIT_WALLET}")
+    global_wallet = get_global_deposit_wallet()
+    logger.info(f"Checking for payments from {sender_address} to admin wallet {global_wallet}")
     
     try:
         import requests
@@ -139,7 +141,7 @@ def check_deposit_by_sender(sender_address):
             "id": 1,
             "method": "getSignaturesForAddress",
             "params": [
-                GLOBAL_DEPOSIT_WALLET,  # Check admin wallet, not user wallet
+                get_global_deposit_wallet(),  # Check admin wallet, not user wallet
                 {
                     "limit": 50,  # Check more transactions for thorough monitoring
                     "before": None,  # Get most recent transactions
@@ -197,7 +199,7 @@ def check_deposit_by_sender(sender_address):
                             for account in account_keys:
                                 if account == sender_address:
                                     sender_found = True
-                                elif account == GLOBAL_DEPOSIT_WALLET:
+                                elif account == global_wallet:
                                     recipient_found = True
                             
                             # If both sender and recipient are found, this is our transaction
@@ -210,7 +212,7 @@ def check_deposit_by_sender(sender_address):
                                     # Find the admin wallet index
                                     admin_wallet_index = None
                                     for i, account in enumerate(account_keys):
-                                        if account == GLOBAL_DEPOSIT_WALLET:
+                                        if account == global_wallet:
                                             admin_wallet_index = i
                                             break
                                     
