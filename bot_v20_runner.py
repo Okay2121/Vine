@@ -6754,31 +6754,104 @@ def trading_history_handler(update, chat_id):
             else:
                 performance_message += f"Profit: {total_profit_amount:.2f} SOL ({total_profit_percentage:.1f}%)\n\n"
             
-            # Get today's profit data
-            today_profit = Profit.query.filter_by(user_id=user.id, date=today_date).first()
-            today_profit_amount = today_profit.amount if today_profit else 0
-            today_profit_percentage = today_profit.percentage if today_profit else 0
+            # Get today's profit data from multiple sources for real-time accuracy
+            today_start = datetime.combine(today_date, datetime.min.time())
+            today_end = datetime.combine(today_date, datetime.max.time())
+            
+            # Check Transaction table for today's trade profits
+            today_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
+                Transaction.user_id == user.id,
+                Transaction.transaction_type == 'trade_profit',
+                Transaction.timestamp >= today_start,
+                Transaction.timestamp <= today_end,
+                Transaction.status == 'completed'
+            ).scalar() or 0
+            
+            # Check TradingPosition table for today's closed positions
+            today_positions = TradingPosition.query.filter(
+                TradingPosition.user_id == user.id,
+                TradingPosition.status == 'closed',
+                TradingPosition.timestamp >= today_start,
+                TradingPosition.timestamp <= today_end
+            ).all()
+            
+            today_position_profits = 0
+            for position in today_positions:
+                if hasattr(position, 'roi_percentage') and position.roi_percentage:
+                    # Calculate profit from ROI percentage
+                    position_profit = (position.entry_price * position.amount * position.roi_percentage / 100)
+                    today_position_profits += position_profit
+                elif position.current_price and position.entry_price:
+                    # Calculate profit from price difference
+                    position_profit = (position.current_price - position.entry_price) * position.amount
+                    today_position_profits += position_profit
+            
+            # Use the higher value between trade profits and position profits
+            today_profit_amount = max(today_trade_profits, today_position_profits)
+            
+            # If still no profits found, check Profit table as fallback
+            if today_profit_amount == 0:
+                today_profit_record = Profit.query.filter_by(user_id=user.id, date=today_date).first()
+                today_profit_amount = today_profit_record.amount if today_profit_record else 0
+            
+            # Calculate today's profit percentage
+            starting_balance = user.balance - today_profit_amount
+            today_profit_percentage = (today_profit_amount / starting_balance * 100) if starting_balance > 0 else 0
             
             # Today's profit - emphasized and eye-catching
             performance_message += "📈 *TODAY'S PERFORMANCE*\n"
             if today_profit_amount > 0:
                 performance_message += f"Profit today: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
-                performance_message += f"Starting: {user.balance - today_profit_amount:.2f} SOL\n\n"
+                performance_message += f"Starting: {starting_balance:.2f} SOL\n\n"
             elif today_profit_amount < 0:
                 performance_message += f"Today: {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
-                performance_message += f"Starting: {user.balance - today_profit_amount:.2f} SOL\n\n"
+                performance_message += f"Starting: {starting_balance:.2f} SOL\n\n"
             else:
                 performance_message += "No profit recorded yet today\n"
                 performance_message += f"Starting: {user.balance:.2f} SOL\n\n"
             
-            # Calculate current streak
+            # Calculate current streak using real-time data
             streak = 0
             current_date = datetime.utcnow().date()
-            while True:
-                profit = Profit.query.filter_by(user_id=user.id, date=current_date).first()
-                if profit and profit.amount > 0:
+            
+            for days_back in range(30):  # Check up to 30 days
+                check_date = current_date - timedelta(days=days_back)
+                check_start = datetime.combine(check_date, datetime.min.time())
+                check_end = datetime.combine(check_date, datetime.max.time())
+                
+                # Check Transaction table for day's profits
+                day_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type == 'trade_profit',
+                    Transaction.timestamp >= check_start,
+                    Transaction.timestamp <= check_end,
+                    Transaction.status == 'completed'
+                ).scalar() or 0
+                
+                # Check TradingPosition table for day's profits
+                day_positions = TradingPosition.query.filter(
+                    TradingPosition.user_id == user.id,
+                    TradingPosition.status == 'closed',
+                    TradingPosition.timestamp >= check_start,
+                    TradingPosition.timestamp <= check_end
+                ).all()
+                
+                day_position_profits = 0
+                for pos in day_positions:
+                    if hasattr(pos, 'roi_percentage') and pos.roi_percentage:
+                        day_position_profits += (pos.entry_price * pos.amount * pos.roi_percentage / 100)
+                    elif pos.current_price and pos.entry_price:
+                        day_position_profits += (pos.current_price - pos.entry_price) * pos.amount
+                
+                day_profit = max(day_trade_profits, day_position_profits)
+                
+                # Fallback to Profit table if no data found
+                if day_profit == 0:
+                    profit_record = Profit.query.filter_by(user_id=user.id, date=check_date).first()
+                    day_profit = profit_record.amount if profit_record else 0
+                
+                if day_profit > 0:
                     streak += 1
-                    current_date -= timedelta(days=1)
                 else:
                     break
             
