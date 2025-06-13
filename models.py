@@ -31,7 +31,7 @@ class User(db.Model):
     
     # Trading info
     wallet_address = db.Column(db.String(64), unique=True)  # Payout wallet
-    deposit_wallet = db.Column(db.String(64), unique=True, nullable=True)  # Deposit wallet
+    deposit_wallet = db.Column(db.String(64), nullable=True)  # Deposit wallet (shared global address)
     balance = db.Column(db.Float, default=0.0)
     initial_deposit = db.Column(db.Float, default=0.0)
     last_activity = db.Column(db.DateTime, default=datetime.utcnow)
