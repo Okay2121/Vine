@@ -16,7 +16,7 @@ import schedule
 from app import db, app, retry_database_operation
 from models import User, UserStatus, Transaction, SenderWallet
 from utils.solana import check_deposit_by_sender, process_auto_deposit
-from config import GLOBAL_DEPOSIT_WALLET
+from helpers import get_global_deposit_wallet
 from sqlalchemy.exc import OperationalError, DisconnectionError
 
 logger = logging.getLogger(__name__)
