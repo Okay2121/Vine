@@ -9827,4 +9827,9 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Bot crashed: {e}")
         import traceback
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
         logger.error(traceback.format_exc())

@@ -1,0 +1,21 @@
+[Unit]
+Description=Solana Memecoin Trading Bot
+After=network.target
+Wants=network.target
+
+[Service]
+Type=forking
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/solana-memecoin-bot
+Environment=BOT_ENVIRONMENT=aws
+Environment=NODE_ENV=production
+EnvironmentFile=/home/ubuntu/solana-memecoin-bot/.env
+ExecStart=/home/ubuntu/solana-memecoin-bot/start_aws.sh
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
