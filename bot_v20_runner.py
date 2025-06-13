@@ -4693,13 +4693,13 @@ def live_positions_handler(update, chat_id):
 
                     
                     # Get TX link with embedded text format
-                    tx_display = "TX: unavailable"
+                    tx_display = "Transaction: unavailable"
                     if hasattr(position, 'sell_tx_hash') and position.sell_tx_hash:
                         if position.sell_tx_hash.startswith('http'):
                             tx_url = position.sell_tx_hash
                         else:
                             tx_url = f"https://solscan.io/tx/{position.sell_tx_hash}"
-                        tx_display = f"[TX]({tx_url})"
+                        tx_display = f"[Transaction]({tx_url})"
                     
                     position_message += (
                         f"✅ *EXIT SNIPE - ${position.token_name}*\n\n"
@@ -4722,19 +4722,19 @@ def live_positions_handler(update, chat_id):
 
                     
                     # Get TX link with embedded text format
-                    tx_display = "TX: unavailable"
+                    tx_display = "Transaction: unavailable"
                     if hasattr(position, 'buy_tx_hash') and position.buy_tx_hash:
                         if position.buy_tx_hash.startswith('http'):
                             tx_url = position.buy_tx_hash
                         else:
                             tx_url = f"https://solscan.io/tx/{position.buy_tx_hash}"
-                        tx_display = f"[TX]({tx_url})"
+                        tx_display = f"[Transaction]({tx_url})"
                     elif position.tx_hash:
                         if position.tx_hash.startswith('http'):
                             tx_url = position.tx_hash
                         else:
                             tx_url = f"https://solscan.io/tx/{position.tx_hash}"
-                        tx_display = f"[TX]({tx_url})"
+                        tx_display = f"[Transaction]({tx_url})"
                     
                     position_message += (
                         f"🟡 *LIVE SNIPE - ${position.token_name}*\n\n"
@@ -5198,7 +5198,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     f"🎯 *Token:* {token_name}\n"
                     f"💰 *Entry Price:* ${entry_price}\n"
                     f"👥 *Users:* {created_count}\n"
-                    f"🔗 [TX]({tx_link})\n\n"
+                    f"🔗 [Transaction]({tx_link})\n\n"
                     f"*All users can now see this BUY in their transaction history!*"
                 )
                 
@@ -5297,7 +5297,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                         f"📈 *ROI:* {roi_percentage:.2f}%\n"
                         f"👥 *Positions:* {updated_count}\n"
                         f"💵 *{profit_loss}:* ${abs(total_profit):.2f}\n"
-                        f"🔗 [TX]({tx_link})\n\n"
+                        f"🔗 [Transaction]({tx_link})\n\n"
                         f"*All users can now see this SELL in their transaction history!*"
                     )
                 else:
