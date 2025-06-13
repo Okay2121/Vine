@@ -290,3 +290,24 @@ class SystemSettings(db.Model):
     
     def __repr__(self):
         return f'<SystemSettings {self.setting_name}>'
+
+
+class UserMetrics(db.Model):
+    """Real-time performance metrics for dashboard"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    current_streak = db.Column(db.Integer, default=0)
+    best_streak = db.Column(db.Integer, default=0)
+    last_streak_update = db.Column(db.DateTime, default=datetime.utcnow)
+    next_milestone = db.Column(db.Float, default=10.0)
+    milestone_progress = db.Column(db.Float, default=0.0)
+    current_goal = db.Column(db.Float, default=100.0)
+    goal_progress = db.Column(db.Float, default=0.0)
+    trading_mode = db.Column(db.String(20), default='autopilot')
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship to user
+    user = db.relationship('User', backref='metrics')
+    
+    def __repr__(self):
+        return f'<UserMetrics {self.user_id} - Streak: {self.current_streak}>'

@@ -24,32 +24,7 @@ class DailySnapshot(db.Model):
         return f'<DailySnapshot {self.date} - User {self.user_id}>'
 
 
-class UserMetrics(db.Model):
-    """Persistent user metrics that need to be quickly accessible"""
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
-    
-    # Streak tracking
-    current_streak = db.Column(db.Integer, default=0)  # Current consecutive profitable days
-    best_streak = db.Column(db.Integer, default=0)  # Best streak ever achieved
-    last_streak_update = db.Column(db.Date, nullable=True)
-    
-    # Milestone tracking
-    next_milestone = db.Column(db.Float, nullable=True)  # Next profit milestone (SOL amount)
-    milestone_progress = db.Column(db.Float, default=0)  # Progress toward milestone (percentage)
-    
-    # Goal tracking
-    current_goal = db.Column(db.Float, nullable=True)  # Current balance goal
-    goal_progress = db.Column(db.Float, default=0)  # Progress toward goal (percentage)
-    
-    # Mode
-    trading_mode = db.Column(db.String(20), default='autopilot')  # autopilot, manual, etc.
-    
-    # Last update timestamp
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<UserMetrics for User {self.user_id}>'
+# UserMetrics class moved to models.py to avoid duplicate table definition
 
 
 class TradeLog(db.Model):
