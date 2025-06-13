@@ -894,9 +894,21 @@ async def trading_history_callback(update: Update, context: ContextTypes.DEFAULT
             daily_profits = []
             current_date = datetime.utcnow().date()
             
-            # Calculate target amount (2x initial deposit)
+            # Calculate target amount (2x initial deposit) - sync with performance dashboard
             target_amount = user.initial_deposit * 2.0
-            current_amount = user.balance + total_profit_amount
+            # Use synchronized data from performance tracking to avoid double-counting
+            try:
+                from performance_tracking import get_performance_data
+                performance_data = get_performance_data(user.id)
+                
+                if performance_data:
+                    current_amount = performance_data['current_balance']
+                    total_profit_amount = performance_data['total_profit']
+                    total_profit_percentage = performance_data['total_percentage']
+                else:
+                    current_amount = user.balance
+            except ImportError:
+                current_amount = user.balance
             amount_needed = max(0, target_amount - current_amount)
             
             # Collect daily performance data
