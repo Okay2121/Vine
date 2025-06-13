@@ -131,7 +131,7 @@ def prevent_duplicate_startup():
     
     if not manager.acquire_lock():
         logger.warning("Another bot instance is running, exiting")
-        sys.exit(0)
+        raise RuntimeError("Another bot instance is already running")
     
     return manager
 

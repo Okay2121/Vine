@@ -6358,18 +6358,34 @@ def run_polling():
     
     # Prevent multiple instances using comprehensive protection
     try:
-        instance_manager = prevent_duplicate_startup()
-        setup_signal_handlers(instance_manager)
-        
-        # Check and terminate any existing duplicates
+        # First, check and terminate any existing duplicates
         duplicates_killed = check_and_kill_duplicate_processes()
         if duplicates_killed > 0:
             logger.info(f"Terminated {duplicates_killed} duplicate bot processes")
-            time.sleep(2)  # Brief pause to ensure clean startup
+            time.sleep(3)  # Wait for processes to fully terminate
+        
+        # Now try to acquire the lock
+        instance_manager = prevent_duplicate_startup()
+        setup_signal_handlers(instance_manager)
             
     except RuntimeError as e:
         logger.warning(f"Could not start bot: {e}")
-        return
+        logger.info("Attempting cleanup and retry...")
+        
+        # Try to clean up stale locks and retry once
+        try:
+            from duplicate_instance_prevention import BotInstanceManager
+            cleanup_manager = BotInstanceManager()
+            cleanup_manager.cleanup_stale_locks()
+            time.sleep(2)
+            
+            # Retry acquiring lock after cleanup
+            instance_manager = prevent_duplicate_startup()
+            setup_signal_handlers(instance_manager)
+            logger.info("Successfully acquired lock after cleanup")
+        except RuntimeError:
+            logger.error("Failed to start bot even after cleanup - another instance may be legitimately running")
+            return
     
     # Additional check for global flag
     if _bot_running:
