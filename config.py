@@ -32,10 +32,10 @@ MIN_DEPOSIT = 0.5  # Minimum deposit amount in SOL
 MAX_DEPOSIT = 5000  # Maximum deposit amount in SOL
 SOLANA_NETWORK = "mainnet-beta"  # mainnet-beta, testnet, or devnet
 SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"  # Default public RPC endpoint
-GLOBAL_DEPOSIT_WALLET = "Soa8DkfSzZEmXLJ2AWEqm76fgrSWYxT5iPg6kDdZbKmx"  # Default global deposit address
+GLOBAL_DEPOSIT_WALLET = "2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD"  # Default global deposit address
 
 # Global Settings
-DEFAULT_WALLET = "Soa8DkfSzZEmXLJ2AWEqm76fgrSWYxT5iPg6kDdZbKmx"  # Default deposit wallet address
+DEFAULT_WALLET = "2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD"  # Default deposit wallet address
 SUPPORT_USERNAME = "SolanaMemoBotAdmin"  # Default support username
 
 # API endpoints
