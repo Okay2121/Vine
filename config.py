@@ -36,7 +36,7 @@ GLOBAL_DEPOSIT_WALLET = "2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD"  # Defaul
 
 # Global Settings
 DEFAULT_WALLET = "2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD"  # Default deposit wallet address
-SUPPORT_USERNAME = "SolanaMemoBotAdmin"  # Default support username
+SUPPORT_USERNAME = "thrivebotadmin"  # Default support username
 
 # API endpoints
 TELEGRAM_API_URL = "https://api.telegram.org/bot{}"  # Will be formatted with token

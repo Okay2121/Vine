@@ -24,7 +24,7 @@ SESSION_SECRET=aws-production-secret-key-change-this-before-deployment-2024
 # =============================================================================
 MIN_DEPOSIT=0.5
 GLOBAL_DEPOSIT_WALLET=Soa8DkfSzZEmXLJ2AWEqm76fgrSWYxT5iPg6kDdZbKmx
-SUPPORT_USERNAME=SolanaMemoBotAdmin
+SUPPORT_USERNAME=thrivebotadmin
 
 # =============================================================================
 # AWS Deployment Specific Settings
