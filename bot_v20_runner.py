@@ -597,7 +597,14 @@ class SimpleTelegramBot:
                 
                 # Process the callback data
                 if data in self.handlers:
-                    self.handlers[data](update, chat_id)
+                    logger.info(f"Processing callback: {data} for chat {chat_id}")
+                    try:
+                        self.handlers[data](update, chat_id)
+                    except Exception as callback_error:
+                        logger.error(f"Error in callback handler {data}: {callback_error}")
+                        import traceback
+                        logger.error(traceback.format_exc())
+                        self.send_message(chat_id, f"Error processing request: {str(callback_error)}")
                 # Handle custom withdrawal amounts with pattern matching
                 elif data.startswith('custom_withdraw_'):
                     try:
@@ -622,6 +629,9 @@ class SimpleTelegramBot:
                     except Exception as e:
                         logger.error(f"Error denying withdrawal: {e}")
                         self.send_message(chat_id, "⚠️ Error denying withdrawal. Please try again.")
+                else:
+                    logger.warning(f"No handler found for callback: {data}")
+                    self.send_message(chat_id, f"Unknown action: {data}")
                 
         except Exception as e:
             logger.error(f"Error processing update: {e}")
@@ -3245,99 +3255,137 @@ def admin_view_active_users_handler(update, chat_id):
 def admin_view_all_users_handler(update, chat_id):
     """Handle the view all users button in admin panel."""
     import logging
-    logging.info(f"View All Users button clicked by {chat_id}")
+    import traceback
+    logging.info(f"View All Users button clicked by chat_id: {chat_id}")
     
     try:
+        # Verify admin access first
+        if not is_admin(chat_id):
+            bot.send_message(chat_id, "❌ Access denied. Admin permissions required.")
+            return
+            
+        # Send loading message
+        bot.send_message(chat_id, "📊 Loading user data...")
+        
         with app.app_context():
             from models import User, UserStatus, Transaction, Profit, ReferralCode
             from app import db
-            from sqlalchemy import func
+            from sqlalchemy import func, desc
             from datetime import datetime, timedelta
-            import traceback
             
-            # Log everything for debugging
-            logging.info(f"Admin View All Users handler called by chat_id {chat_id}")
+            logging.info(f"Starting database query for all users")
             
-            # Let's ensure the database is accessible
-            # For SQLAlchemy connections, we'll use a simpler approach
-            
-            # Get all users ordered by registration date (most recent first)
-            users = []
+            # Test database connection first
             try:
-                # Create a fresh query for all users
-                users = User.query.order_by(User.joined_at.desc()).limit(10).all()
-                logging.info(f"Found {len(users)} users in the database")
-            except Exception as db_error:
-                logging.error(f"Error querying users: {db_error}")
-                logging.error(traceback.format_exc())
-                # Don't modify the database - just return empty list
-                users = []
-            
-            if not users:
-                message = (
-                    "👥 *All Users*\n\n"
-                    "There are currently no registered users in the system.\n\n"
-                    "Users will appear here after they interact with the bot.\n"
-                    "You can also manually add a user using the admin commands."
-                )
-                
-                keyboard = bot.create_inline_keyboard([
-                    [{"text": "Back to User Management", "callback_data": "admin_user_management"}]
-                ])
-                
-                bot.send_message(
-                    chat_id,
-                    message,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard
-                )
+                from sqlalchemy import text
+                db.session.execute(text('SELECT 1'))
+                logging.info("Database connection verified")
+            except Exception as conn_error:
+                logging.error(f"Database connection failed: {conn_error}")
+                bot.send_message(chat_id, f"❌ Database connection error: {str(conn_error)}")
                 return
             
-            # Create working user list (simplified format)
-            message = "👥 All Registered Users\n\n"
-            
-            for idx, user in enumerate(users, 1):
-                registration_date = user.joined_at.strftime("%m-%d") if user.joined_at else "N/A"
-                username_display = f"@{user.username}" if user.username else "No Username"
+            # Get all users with detailed information
+            try:
+                users = User.query.order_by(desc(User.joined_at)).limit(15).all()
+                logging.info(f"Successfully queried {len(users)} users from database")
                 
-                message += f"{idx}. {username_display}\n"
-                message += f"   ID: {user.telegram_id}\n"
-                message += f"   Balance: {user.balance:.3f} SOL\n"
-                message += f"   Joined: {registration_date}\n"
-                message += f"   Status: {user.status.value}\n\n"
-            
-            message += f"Showing {len(users)} users. Use search for specific users."
-            
-            keyboard = bot.create_inline_keyboard([
-                [
-                    {"text": "Search User", "callback_data": "admin_search_user"},
-                    {"text": "Export CSV", "callback_data": "admin_export_csv"}
-                ],
-                [
-                    {"text": "View Active", "callback_data": "admin_view_active_users"},
-                    {"text": "Back", "callback_data": "admin_user_management"}
-                ]
-            ])
-            
-            bot.send_message(
-                chat_id,
-                message,
-                reply_markup=keyboard
-            )
+                if not users:
+                    message = (
+                        "👥 *All Users*\n\n"
+                        "No registered users found in the system.\n\n"
+                        "Users will appear here after they start the bot with /start command."
+                    )
+                    
+                    keyboard = bot.create_inline_keyboard([
+                        [{"text": "🔙 Back to User Management", "callback_data": "admin_user_management"}]
+                    ])
+                    
+                    bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+                    return
+                
+                # Build user list with enhanced formatting
+                message = "👥 *All Registered Users*\n\n"
+                
+                for idx, user in enumerate(users, 1):
+                    # Safe data extraction with defaults
+                    try:
+                        registration_date = user.joined_at.strftime("%m/%d/%Y") if user.joined_at else "Unknown"
+                        username_display = f"@{user.username}" if user.username else "No Username"
+                        status_display = user.status.value if hasattr(user, 'status') and user.status else "unknown"
+                        balance = getattr(user, 'balance', 0.0)
+                        
+                        # Get additional stats for this user
+                        try:
+                            total_deposits = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter_by(
+                                user_id=user.id, transaction_type='deposit'
+                            ).scalar() or 0
+                            
+                            referral_count = ReferralCode.query.filter_by(referrer_id=user.id).count()
+                        except Exception as stats_error:
+                            logging.warning(f"Error getting stats for user {user.id}: {stats_error}")
+                            total_deposits = 0
+                            referral_count = 0
+                        
+                        message += (
+                            f"*{idx}. {username_display}*\n"
+                            f"• ID: `{user.telegram_id}`\n"
+                            f"• Balance: {balance:.4f} SOL\n"
+                            f"• Deposits: {total_deposits:.4f} SOL\n"
+                            f"• Referrals: {referral_count}\n"
+                            f"• Status: {status_display}\n"
+                            f"• Joined: {registration_date}\n\n"
+                        )
+                        
+                    except Exception as user_error:
+                        logging.warning(f"Error processing user {user.id}: {user_error}")
+                        message += f"*{idx}. Error loading user data*\n\n"
+                        continue
+                
+                message += f"📊 *Total: {len(users)} users shown (most recent first)*"
+                
+                # Create navigation keyboard
+                keyboard = bot.create_inline_keyboard([
+                    [
+                        {"text": "🔍 Search User", "callback_data": "admin_search_user"},
+                        {"text": "📊 Active Only", "callback_data": "admin_view_active_users"}
+                    ],
+                    [
+                        {"text": "📄 Export CSV", "callback_data": "admin_export_csv"},
+                        {"text": "🔄 Refresh", "callback_data": "admin_view_all_users"}
+                    ],
+                    [
+                        {"text": "🔙 Back to User Management", "callback_data": "admin_user_management"}
+                    ]
+                ])
+                
+                bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+                logging.info(f"Successfully sent user list to admin {chat_id}")
+                
+            except Exception as query_error:
+                logging.error(f"Database query error: {query_error}")
+                logging.error(traceback.format_exc())
+                bot.send_message(
+                    chat_id, 
+                    f"❌ *Database Query Error*\n\n{str(query_error)}\n\nPlease try again or contact system administrator.",
+                    parse_mode="Markdown"
+                )
+                
     except Exception as e:
-        import logging
-        logging.error(f"Error in admin_view_all_users_handler: {e}")
-        import traceback
+        logging.error(f"Critical error in admin_view_all_users_handler: {e}")
         logging.error(traceback.format_exc())
         
-        # Handle the case when bot isn't initialized
         try:
-            if 'bot' in globals() and bot is not None:
-                bot.send_message(chat_id, f"Error displaying all users: {str(e)}")
-            else:
-                logging.error("Cannot send error message - bot not initialized")
-        except Exception as inner_e:
-            logging.error(f"Error sending error message: {inner_e}")
+            bot.send_message(
+                chat_id, 
+                f"❌ *System Error*\n\nUnexpected error occurred: {str(e)}\n\nPlease try again later.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "🔙 Back to Admin Panel", "callback_data": "admin_back"}]
+                ])
+            )
+        except Exception as send_error:
+            logging.error(f"Failed to send error message: {send_error}")
 
 def admin_search_user_handler(update, chat_id):
     """Handle the search user button in admin panel."""
