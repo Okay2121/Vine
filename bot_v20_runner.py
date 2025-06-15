@@ -3254,13 +3254,13 @@ def admin_view_active_users_handler(update, chat_id):
 
 def admin_view_all_users_handler(update, chat_id):
     """Handle the view all users button in admin panel."""
+    global _bot_instance
     import logging
     import traceback
     logging.info(f"View All Users button clicked by chat_id: {chat_id}")
     
     try:
         # Get the global bot instance
-        global _bot_instance
         if _bot_instance is None:
             logging.error("Bot instance not available")
             return
@@ -3384,7 +3384,6 @@ def admin_view_all_users_handler(update, chat_id):
         logging.error(traceback.format_exc())
         
         try:
-            global _bot_instance
             if _bot_instance is not None:
                 _bot_instance.send_message(
                     chat_id, 
