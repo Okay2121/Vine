@@ -1656,45 +1656,63 @@ def dashboard_command(update, chat_id):
                 from sqlalchemy import func
                 from models import Profit, Transaction
                 
-                # Calculate profits for users with deposits (regardless of status)
-                if user.initial_deposit > 0:
-                    # Calculate total profit as current balance minus initial deposit
-                    total_profit_amount = max(0, user.balance - user.initial_deposit)
-                    total_profit_percentage = (total_profit_amount / user.initial_deposit) * 100 if user.initial_deposit > 0 else 0
-                    
-                    # Get today's profits from Transaction table (trade_profit transactions)
-                    today = datetime.utcnow().date()
-                    today_profit = db.session.query(func.sum(Transaction.amount)).filter(
-                        Transaction.user_id == user.id,
-                        Transaction.transaction_type == 'trade_profit',
-                        Transaction.timestamp >= today,
-                        Transaction.status == 'completed'
-                    ).scalar() or 0
-                    
-                    # If no trade_profit transactions today, check Profit table as fallback
-                    if today_profit == 0:
-                        today_profit = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id, date=today).scalar() or 0
-                    
-                    today_profit_amount = today_profit
-                    today_profit_percentage = (today_profit / user.balance) * 100 if user.balance > 0 else 0
-                else:
-                    total_profit_amount = 0
-                    total_profit_percentage = 0
-                    today_profit_amount = 0
-                    today_profit_percentage = 0
+                # Calculate profits for all users who have made transactions
+                # Get total profits from both Transaction and Profit tables
+                total_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type == 'trade_profit',
+                    Transaction.status == 'completed'
+                ).scalar() or 0
                 
-                # Calculate streak manually as fallback
+                total_profit_table = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id).scalar() or 0
+                
+                # Use the higher value to account for both tracking methods
+                total_profit_amount = max(total_trade_profits, total_profit_table)
+                
+                # Calculate percentage based on initial deposit or current balance
+                if user.initial_deposit > 0:
+                    total_profit_percentage = (total_profit_amount / user.initial_deposit) * 100
+                elif user.balance > 0:
+                    # If no initial deposit set, use current balance as baseline
+                    total_profit_percentage = (total_profit_amount / max(user.balance, 0.01)) * 100
+                else:
+                    total_profit_percentage = 0
+                
+                # Get today's profits from both sources
+                today = datetime.utcnow().date()
+                today_start = datetime.combine(today, datetime.min.time())
+                today_end = datetime.combine(today, datetime.max.time())
+                
+                today_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type == 'trade_profit',
+                    Transaction.timestamp >= today_start,
+                    Transaction.timestamp <= today_end,
+                    Transaction.status == 'completed'
+                ).scalar() or 0
+                
+                today_profit_table = db.session.query(func.sum(Profit.amount)).filter_by(
+                    user_id=user.id, 
+                    date=today
+                ).scalar() or 0
+                
+                # Use the higher value for today's profit
+                today_profit_amount = max(today_trade_profits, today_profit_table)
+                today_profit_percentage = (today_profit_amount / max(user.balance, 0.01)) * 100 if user.balance > 0 else 0
+                
+                # Calculate streak manually as fallback - count consecutive days with profits
                 streak = 0
                 current_date = datetime.utcnow().date()
                 
                 # Check up to 30 days back (maximum reasonable streak)
+                consecutive_streak = True
                 for i in range(30):
                     check_date = current_date - timedelta(days=i)
                     check_date_start = datetime.combine(check_date, datetime.min.time())
                     check_date_end = datetime.combine(check_date, datetime.max.time())
                     
                     # Check for trade_profit transactions on this day
-                    day_profit = db.session.query(func.sum(Transaction.amount)).filter(
+                    day_trade_profit = db.session.query(func.sum(Transaction.amount)).filter(
                         Transaction.user_id == user.id,
                         Transaction.transaction_type == 'trade_profit',
                         Transaction.timestamp >= check_date_start,
@@ -1702,15 +1720,21 @@ def dashboard_command(update, chat_id):
                         Transaction.status == 'completed'
                     ).scalar() or 0
                     
-                    # If no trade_profit transactions, fallback to Profit table
-                    if day_profit == 0:
-                        day_profit = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id, date=check_date).scalar() or 0
+                    # Also check Profit table
+                    day_profit_table = db.session.query(func.sum(Profit.amount)).filter_by(
+                        user_id=user.id, 
+                        date=check_date
+                    ).scalar() or 0
                     
-                    if day_profit > 0:
-                        if i == 0 or streak > 0:  # Today counts or continuing streak
-                            streak += 1
-                    else:
-                        if i > 0:  # Not counting today
+                    # Use the higher value for this day
+                    day_profit = max(day_trade_profit, day_profit_table)
+                    
+                    if day_profit > 0 and consecutive_streak:
+                        streak += 1
+                    elif day_profit <= 0:
+                        # Break the streak if no profit found
+                        consecutive_streak = False
+                        if i > 0:  # Don't break on today
                             break
             
             # Get ROI metrics - internal implementation since we can't import from utils
@@ -1781,23 +1805,46 @@ def dashboard_command(update, chat_id):
             # Current amount is actual balance including profits
             current_amount = user.balance
             
-            # Days active calculation - only count days when user has SOL in account
-            # Find the first deposit date to start counting from
+            # Days active calculation - count days since user first had SOL balance
+            # This should count consecutive days of having SOL balance, not just since first deposit
             from models import Transaction
+            
+            # Start counting from when user first had SOL (either from deposit or admin adjustment)
+            first_balance_date = None
+            
+            # Check for first successful deposit
             first_deposit = Transaction.query.filter_by(
                 user_id=user.id, 
                 transaction_type='deposit',
                 status='completed'
             ).order_by(Transaction.timestamp).first()
             
-            if first_deposit and user.balance > 0:
-                # Count days since first deposit only if user currently has SOL
-                days_active = (datetime.utcnow().date() - first_deposit.timestamp.date()).days + 1
+            if first_deposit:
+                first_balance_date = first_deposit.timestamp.date()
+            
+            # Also check for admin balance adjustments that might have given initial balance
+            first_admin_adjustment = Transaction.query.filter_by(
+                user_id=user.id,
+                transaction_type='admin_adjustment',
+                status='completed'
+            ).filter(Transaction.amount > 0).order_by(Transaction.timestamp).first()
+            
+            if first_admin_adjustment:
+                admin_date = first_admin_adjustment.timestamp.date()
+                if not first_balance_date or admin_date < first_balance_date:
+                    first_balance_date = admin_date
+            
+            # Calculate days active based on balance status
+            if user.balance > 0 and first_balance_date:
+                # Count days since first had balance, only if currently has balance
+                days_active = (datetime.utcnow().date() - first_balance_date).days + 1
+                # Cap at reasonable maximum
+                days_active = min(days_active, 365)
             elif user.balance > 0:
-                # Fallback: if no deposit record but user has balance, count from join date
-                days_active = (datetime.utcnow().date() - user.joined_at.date()).days + 1
+                # Fallback: if no transaction record but user has balance, count from join date
+                days_active = min((datetime.utcnow().date() - user.joined_at.date()).days + 1, 365)
             else:
-                # User has no SOL, don't count any days
+                # User has no SOL, day counter shows 0
                 days_active = 0
             
             # Format the dashboard message - sync with performance dashboard
