@@ -2860,7 +2860,7 @@ def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
             logging.info(f"Sending basic user info to chat {chat_id}")
             logging.info(f"Message content: {repr(basic_message)}")
             
-            response = bot.send_message(chat_id, basic_message, parse_mode=None)
+            response = bot.send_message(chat_id, basic_message, parse_mode="")
             logging.info(f"Basic message response: {response}")
             
             # Check response and provide detailed error info
@@ -2868,7 +2868,7 @@ def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
                 logging.error(f"Message failed with response: {response}")
                 # Try an even simpler message
                 simple_msg = f"User 7611754415 found. Balance: 0.0000 SOL. Enter adjustment amount:"
-                simple_response = bot.send_message(chat_id, simple_msg, parse_mode=None)
+                simple_response = bot.send_message(chat_id, simple_msg, parse_mode="")
                 logging.info(f"Simple fallback response: {simple_response}")
             else:
                 # Only add keyboard if basic message worked
