@@ -410,8 +410,13 @@ def get_performance_data(user_id):
     # Calculate net transaction amount (profits minus losses)
     net_transaction_amount = today_transaction_profits - abs(today_transaction_losses)
     
-    # Use the higher value to ensure we capture all profit sources, but account for losses
-    today_profit_amount = max(today_profit_amount, net_transaction_amount)
+    # Use the net transaction amount as it properly accounts for all profits and losses
+    # Don't use max() as it prevents negative values (losses) from being shown
+    if abs(net_transaction_amount) > abs(today_profit_amount):
+        today_profit_amount = net_transaction_amount
+    else:
+        # If Profit table has data, still subtract losses from it
+        today_profit_amount = today_profit_amount - abs(today_transaction_losses)
     
     # Calculate today's percentage based on current balance, not stored percentage
     if user.balance > 0:
