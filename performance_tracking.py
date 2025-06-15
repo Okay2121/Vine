@@ -385,10 +385,11 @@ def get_performance_data(user_id):
         date=today
     ).scalar() or 0
     
-    # Also check Transaction table for trade_profit entries today
+    # Also check Transaction table for all trade-related entries today
     today_start = datetime.combine(today, datetime.min.time())
     today_end = datetime.combine(today, datetime.max.time())
     
+    # Get all trade profits (positive amounts)
     today_transaction_profits = db.session.query(func.sum(Transaction.amount)).filter(
         Transaction.user_id == user_id,
         Transaction.transaction_type == 'trade_profit',
@@ -397,8 +398,20 @@ def get_performance_data(user_id):
         Transaction.status == 'completed'
     ).scalar() or 0
     
-    # Use the higher value to ensure we capture all profit sources
-    today_profit_amount = max(today_profit_amount, today_transaction_profits)
+    # Get all trade losses (negative amounts or separate loss transactions)
+    today_transaction_losses = db.session.query(func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.transaction_type == 'trade_loss',
+        Transaction.timestamp >= today_start,
+        Transaction.timestamp <= today_end,
+        Transaction.status == 'completed'
+    ).scalar() or 0
+    
+    # Calculate net transaction amount (profits minus losses)
+    net_transaction_amount = today_transaction_profits - abs(today_transaction_losses)
+    
+    # Use the higher value to ensure we capture all profit sources, but account for losses
+    today_profit_amount = max(today_profit_amount, net_transaction_amount)
     
     # Calculate today's percentage based on current balance, not stored percentage
     if user.balance > 0:
