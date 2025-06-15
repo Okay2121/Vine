@@ -1636,7 +1636,7 @@ def dashboard_command(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
                 
-            # Try to use performance tracking for real-time data synchronization
+            # Use performance tracking for real-time data synchronization with Performance Dashboard
             try:
                 from performance_tracking import get_performance_data
                 performance_data = get_performance_data(user.id)
@@ -1648,6 +1648,10 @@ def dashboard_command(update, chat_id):
                     today_profit_amount = performance_data['today_profit']
                     today_profit_percentage = performance_data['today_percentage']
                     streak = performance_data['streak_days']
+                    
+                    # Log successful data retrieval for debugging
+                    import logging
+                    logging.info(f"Autopilot Dashboard - Real-time data retrieved: streak={streak}, today_profit={today_profit_amount}, total_profit={total_profit_amount}")
                 else:
                     raise Exception("Performance data not available")
                     
@@ -1867,12 +1871,13 @@ def dashboard_command(update, chat_id):
                 f"• *Total Profit:* +{total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
             )
             
-            # Add streak with fire emoji for gamification
+            # Add streak with real-time data from performance tracking
             if streak > 0:
                 fire_emojis = "🔥" * min(3, streak)
                 dashboard_message += f"• *Profit Streak:* {streak}-Day Green Streak! {fire_emojis}\n"
             else:
-                dashboard_message += "• *Profit Streak:* Start your streak today!\n"
+                # Show actual streak value (could be 0) instead of static text
+                dashboard_message += f"• *Profit Streak:* {streak} Days\n"
                 
             # Add Autopilot Trader information
             dashboard_message += "• *Mode:* Autopilot Trader (Fully Automated)\n"
