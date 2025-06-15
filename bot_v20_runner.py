@@ -2841,42 +2841,28 @@ def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
             admin_adjust_telegram_id = user.telegram_id
             admin_adjust_current_balance = user.balance
             
-            # Use completely plain text to avoid any formatting issues
-            username_text = f"@{user.username}" if user.username else "No username"
+            # Use the safe message formatter to avoid Markdown issues
+            from telegram_message_formatter import format_balance_adjustment_user_found, safe_send_message
             
-            # Start with the most basic message format
-            basic_message = (
-                f"USER FOUND\n\n"
-                f"User: {username_text}\n"
-                f"Telegram ID: {user.telegram_id}\n"
-                f"Current Balance: {user.balance:.4f} SOL\n\n"
-                f"Enter adjustment amount:\n"
-                f"+ for add funds (e.g. 5.5)\n"
-                f"- for remove funds (e.g. -3.2)\n"
-                f"Type 'cancel' to abort"
+            # Format the message safely
+            message_text, parse_mode = format_balance_adjustment_user_found(
+                user.username or "", 
+                user.telegram_id, 
+                user.balance
             )
             
-            # Send without any formatting or keyboard first
-            logging.info(f"Sending basic user info to chat {chat_id}")
-            logging.info(f"Message content: {repr(basic_message)}")
+            # Send using safe method with automatic fallback
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "❌ Cancel", "callback_data": "admin_back"}]
+            ])
             
-            response = bot.send_message(chat_id, basic_message, parse_mode="")
-            logging.info(f"Basic message response: {response}")
-            
-            # Check response and provide detailed error info
-            if not response.get("ok", False):
-                logging.error(f"Message failed with response: {response}")
-                # Try an even simpler message
-                simple_msg = f"User 7611754415 found. Balance: 0.0000 SOL. Enter adjustment amount:"
-                simple_response = bot.send_message(chat_id, simple_msg, parse_mode="")
-                logging.info(f"Simple fallback response: {simple_response}")
-            else:
-                # Only add keyboard if basic message worked
-                keyboard = bot.create_inline_keyboard([
-                    [{"text": "Cancel", "callback_data": "admin_back"}]
-                ])
-                keyboard_msg = "Use the Cancel button below or type 'cancel' to abort."
-                bot.send_message(chat_id, keyboard_msg, parse_mode=None, reply_markup=keyboard)
+            response = safe_send_message(
+                bot=bot,
+                chat_id=chat_id,
+                message_text=message_text,
+                parse_mode=parse_mode,
+                reply_markup=keyboard
+            )
             
             # Remove current listener and add listener for the adjustment amount
             bot.remove_listener(chat_id)
@@ -2915,11 +2901,17 @@ def admin_adjust_balance_amount_handler(update, chat_id, text):
             global admin_adjustment_reason
             admin_adjustment_reason = "Bonus"  # Set a simple default reason
             
-            # Show confirmation with just the amount, then proceed to confirmation
-            confirmation_message = (
-                f"💰 *Confirm Balance Adjustment*\n\n"
-                f"Amount: {'➕' if adjustment > 0 else '➖'} {abs(adjustment):.4f} SOL\n\n"
-                f"Click confirm to process this adjustment."
+            # Show confirmation using safe formatter
+            from telegram_message_formatter import format_balance_adjustment_confirmation, safe_send_message
+            
+            # Get current user info for confirmation
+            global admin_adjust_telegram_id, admin_adjust_current_balance
+            
+            confirmation_message, parse_mode = format_balance_adjustment_confirmation(
+                telegram_id=admin_adjust_telegram_id or "Unknown",
+                current_balance=admin_adjust_current_balance or 0.0,
+                adjustment_amount=adjustment,
+                reason=admin_adjustment_reason or "Admin adjustment"
             )
             
             keyboard = bot.create_inline_keyboard([
@@ -2929,10 +2921,11 @@ def admin_adjust_balance_amount_handler(update, chat_id, text):
                 ]
             ])
             
-            bot.send_message(
-                chat_id,
-                confirmation_message,
-                parse_mode="Markdown",
+            safe_send_message(
+                bot=bot,
+                chat_id=chat_id,
+                message_text=confirmation_message,
+                parse_mode=parse_mode,
                 reply_markup=keyboard
             )
             
@@ -3067,36 +3060,44 @@ def admin_confirm_adjustment_handler(update, chat_id):
                 # Process the adjustment
                 success, message = adjust_balance_fixed(tg_id, amount, reason)
                 
-                # Send response to admin
+                # Send response to admin using safe formatter
+                from telegram_message_formatter import format_balance_adjustment_result, safe_send_message
+                
+                result_message, parse_mode = format_balance_adjustment_result(success, amount, message)
+                
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+                ])
+                
+                safe_send_message(
+                    bot=bot,
+                    chat_id=chat_id,
+                    message_text=result_message,
+                    parse_mode=parse_mode,
+                    reply_markup=keyboard
+                )
+                
                 if success:
-                    action = "added" if amount > 0 else "deducted"
-                    bot.send_message(
-                        chat_id,
-                        f"✅ Balance adjustment completed!\n\n{abs(amount):.4f} SOL {action}\n\n{message}",
-                        reply_markup=bot.create_inline_keyboard([
-                            [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
-                        ])
-                    )
                     logging.info(f"Balance adjustment successful for {tg_id}")
                 else:
-                    bot.send_message(
-                        chat_id,
-                        f"❌ Balance adjustment failed: {message}",
-                        reply_markup=bot.create_inline_keyboard([
-                            [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
-                        ])
-                    )
                     logging.error(f"Balance adjustment failed for {tg_id}: {message}")
                     
             except Exception as e:
                 logging.error(f"Error in adjustment thread: {e}")
                 try:
-                    bot.send_message(
-                        chat_id,
-                        f"❌ Error processing adjustment: {str(e)}",
-                        reply_markup=bot.create_inline_keyboard([
-                            [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
-                        ])
+                    from telegram_message_formatter import safe_send_message
+                    
+                    error_message = f"❌ Error processing adjustment: {str(e)}"
+                    keyboard = bot.create_inline_keyboard([
+                        [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+                    ])
+                    
+                    safe_send_message(
+                        bot=bot,
+                        chat_id=chat_id,
+                        message_text=error_message,
+                        parse_mode=None,
+                        reply_markup=keyboard
                     )
                 except:
                     pass
