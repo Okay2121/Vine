@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 """
-Telegram Bot Runner - Compatible with any version (fallback)
-This script implements a simple API-based version of the Telegram bot.
+Telegram Bot Runner - Environment-Aware Startup
+===============================================
+This script implements a dual startup system:
+1. AWS: Manual execution with .env loading via `python bot_v20_runner.py`
+2. Replit: Auto-start when remixed (handled by main.py)
+
+The bot detects the environment and loads configuration accordingly.
 """
 import logging
 import os
@@ -12,6 +17,37 @@ import json
 import random
 from datetime import datetime, timedelta
 from threading import Thread
+
+# Environment detection and .env loading for AWS
+def setup_environment():
+    """Setup environment variables based on execution context"""
+    
+    # Check if we're running directly (AWS mode) or imported (Replit mode)
+    is_direct_execution = __name__ == "__main__"
+    
+    # Check for .env file existence (AWS indicator)
+    env_file_exists = os.path.exists('.env')
+    
+    # Load .env for AWS deployment
+    if is_direct_execution and env_file_exists:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+            logging.info("✅ AWS Environment: Loaded .env file successfully")
+        except ImportError:
+            logging.warning("⚠️  python-dotenv not installed, install with: pip install python-dotenv")
+        except Exception as e:
+            logging.error(f"❌ Error loading .env file: {e}")
+    elif is_direct_execution:
+        logging.info("🔍 AWS Environment: No .env file found, using system environment variables")
+    else:
+        logging.info("🎯 Replit Environment: Using Replit's built-in environment variables")
+    
+    return is_direct_execution
+
+# Setup environment before other imports
+is_aws_execution = setup_environment()
+
 from config import BOT_TOKEN, MIN_DEPOSIT
 
 # Import enhanced duplicate handler
@@ -9720,16 +9756,41 @@ def referral_tips_handler(update, chat_id):
         logger.error(f"Error in referral_tips_handler: {e}")
         bot.send_message(chat_id, "Error displaying tips. Please try again.")
 
-# Entry point for subprocess execution
-if __name__ == '__main__':
+# AWS Entry Point - Direct execution via `python bot_v20_runner.py`
+def main():
+    """Main entry point for AWS deployment"""
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+    
+    logger.info("🚀 Starting Telegram Bot in AWS Mode")
+    logger.info("=" * 50)
+    logger.info("Execution method: Direct Python execution")
+    logger.info("Environment loading: .env file (if present)")
+    logger.info("Startup mode: Manual")
+    
     try:
+        # Verify critical environment variables
+        if not BOT_TOKEN:
+            logger.error("❌ BOT_TOKEN not found in environment variables")
+            logger.error("Please ensure your .env file contains BOT_TOKEN=your_bot_token")
+            sys.exit(1)
+        
+        logger.info(f"✅ Bot token found (ending in ...{BOT_TOKEN[-5:]})")
+        
+        # Start the bot
+        logger.info("🤖 Starting bot polling...")
         run_polling()
+        
     except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
+        logger.info("🛑 Bot stopped by user (Ctrl+C)")
     except Exception as e:
-        logger.error(f"Bot crashed: {e}")
+        logger.error(f"❌ Bot crashed: {e}")
         import traceback
+        logger.error(traceback.format_exc())
+        sys.exit(1)
 
-# Load environment variables from .env file
-from dotenv import load_dotenv
-load_dotenv()
+# Entry point for AWS execution
+if __name__ == '__main__':
+    main()

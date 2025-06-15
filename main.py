@@ -202,25 +202,24 @@ def start_bot_thread():
         else:
             logger.warning(f"Failed to remove webhook: {result}")
         
-        # Try v20 runner first, then fall back to v13 if needed
+        # Import and start the bot directly without subprocess to avoid conflicts
         try:
-            # Start the polling bot in a separate process using v20 compatible runner
-            bot_process = subprocess.Popen([sys.executable, 'bot_v20_runner.py'])
+            # Import the bot module and start it in the current thread
+            from bot_v20_runner import run_polling
             
-            if bot_process.poll() is None:
-                logger.info("Started bot polling in background (v20)")
-                bot_running = True
-            else:
-                # If v20 fails, try the original polling runner
-                logger.warning("v20 bot runner failed, trying v13 compatible runner")
-                bot_process = subprocess.Popen([sys.executable, 'bot_polling_runner.py'])
-                
-                if bot_process.poll() is None:
-                    logger.info("Started bot polling in background (v13)")
-                    bot_running = True
-                else:
-                    logger.error(f"Bot process exited immediately with code {bot_process.returncode}")
-                    return False
+            # Start bot in a background thread (not subprocess) to prevent AWS/Replit conflicts
+            def run_bot():
+                try:
+                    run_polling()
+                except Exception as e:
+                    logger.error(f"Bot polling error: {e}")
+            
+            bot_thread = threading.Thread(target=run_bot)
+            bot_thread.daemon = True
+            bot_thread.start()
+            
+            logger.info("Started bot polling in background thread (Replit mode)")
+            bot_running = True
         except Exception as e:
             logger.error(f"Error starting bot: {e}")
             return False
