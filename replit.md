@@ -98,6 +98,17 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Balance Adjustment Bug Fix (June 15, 2025)
+- **Fixed critical admin balance adjustment feature** that was failing to process user lookups
+- **Root cause**: Database type mismatch where telegram_id stored as VARCHAR but queried as integer
+- **Solution implemented**:
+  - Updated `admin_adjust_balance_user_id_handler` function parameter handling
+  - Fixed function parameter confusion where `text` was treated as function reference
+  - Enhanced error handling and user lookup logic to match working "View All Users" functionality
+  - Added fallback text extraction from message update object
+- **Result**: Admin can now successfully look up users by UID (e.g., 7611754415) and process balance adjustments
+- **Testing**: Comprehensive verification confirms complete flow works including user lookup, balance display, and transaction processing
+
 ### Simplified Referral System Implementation (June 13, 2025)
 - **Implemented code-free referral system** using direct Telegram ID tracking
 - **Updated bot username** to @ThriveQuantbot for correct referral link generation

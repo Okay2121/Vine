@@ -2717,11 +2717,18 @@ def admin_adjust_balance_handler(update, chat_id):
         except Exception as inner_e:
             logging.error(f"Error sending error message: {inner_e}")
 
-def admin_adjust_balance_user_id_handler(update, chat_id, text):
+def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
     """Process the user ID for balance adjustment."""
     try:
+        # Extract the actual text from the message if it's not already a string
+        if isinstance(message_text, str):
+            user_input = message_text
+        else:
+            # Fallback: extract text from update if message_text is not a string
+            user_input = update.get('message', {}).get('text', str(message_text))
+        
         # Check for cancellation
-        if text.lower() == 'cancel':
+        if user_input.lower() == 'cancel':
             bot.send_message(
                 chat_id,
                 "Operation cancelled. Returning to admin panel.",
@@ -2735,12 +2742,12 @@ def admin_adjust_balance_user_id_handler(update, chat_id, text):
         # Process the user ID or username
         with app.app_context():
             from models import User
-            from sqlalchemy import func, text
+            from sqlalchemy import func, text as sql_text
             import logging
             
             # Test database connection first (same as working View All Users)
             try:
-                db.session.execute(text('SELECT 1'))
+                db.session.execute(sql_text('SELECT 1'))
                 logging.info("Database connection verified for balance adjustment")
             except Exception as conn_error:
                 logging.error(f"Database connection failed in balance adjustment: {conn_error}")
@@ -2749,7 +2756,7 @@ def admin_adjust_balance_user_id_handler(update, chat_id, text):
             
             # Enhanced user search with better error handling and logging
             user = None
-            search_input = text.strip()
+            search_input = user_input.strip()
             
             logging.info(f"Searching for user with input: '{search_input}'")
             
