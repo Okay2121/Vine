@@ -2104,46 +2104,29 @@ def admin_user_management_handler(update, chat_id):
             active_users = User.query.filter_by(status=UserStatus.ACTIVE).count()
             
             message = (
-                "👥 *User Management*\n\n"
+                f"👥 User Management\n\n"
                 f"Total users: {total_users}\n"
                 f"Active users: {active_users}\n\n"
-                "Select an action below:"
+                f"Select an action below:"
             )
-            
-            # Show all users directly instead of requiring another button click
-            # This is a temporary workaround for the non-responsive button
-            try:
-                # Get all users ordered by registration date (most recent first)
-                users = User.query.order_by(User.joined_at.desc()).limit(10).all()
-                logging.info(f"Found {len(users)} users in the database")
-                
-                if users:
-                    user_list = "\n\n*Recent Users:*\n"
-                    for idx, user in enumerate(users, 1):
-                        username = f"@{user.username}" if user.username else "No username"
-                        user_list += f"{idx}. {username} - {user.balance:.4f} SOL\n"
-                    
-                    message += user_list
-            except Exception as e:
-                logging.error(f"Error listing users: {e}")
             
             keyboard = bot.create_inline_keyboard([
                 [
-                    {"text": "🔍 Search User", "callback_data": "admin_search_user"},
-                    {"text": "✅ View Active Only", "callback_data": "admin_view_active_users"}
+                    {"text": "View All Users", "callback_data": "admin_view_all_users"},
+                    {"text": "View Active Users", "callback_data": "admin_view_active_users"}
                 ],
                 [
-                    {"text": "📊 Export Users (CSV)", "callback_data": "admin_export_csv"}
+                    {"text": "Search User", "callback_data": "admin_search_user"},
+                    {"text": "Export CSV", "callback_data": "admin_export_csv"}
                 ],
                 [
-                    {"text": "Back to Admin Panel", "callback_data": "admin_back"}
+                    {"text": "Back to Admin", "callback_data": "admin_back"}
                 ]
             ])
             
             bot.send_message(
                 chat_id,
                 message,
-                parse_mode="Markdown",
                 reply_markup=keyboard
             )
     except Exception as e:
@@ -3310,11 +3293,30 @@ def admin_view_all_users_handler(update, chat_id):
                 )
                 return
             
-            # Test with completely basic message
-            message = "Admin View All Users - Test Message"
+            # Create working user list (simplified format)
+            message = "👥 All Registered Users\n\n"
+            
+            for idx, user in enumerate(users, 1):
+                registration_date = user.joined_at.strftime("%m-%d") if user.joined_at else "N/A"
+                username_display = f"@{user.username}" if user.username else "No Username"
+                
+                message += f"{idx}. {username_display}\n"
+                message += f"   ID: {user.telegram_id}\n"
+                message += f"   Balance: {user.balance:.3f} SOL\n"
+                message += f"   Joined: {registration_date}\n"
+                message += f"   Status: {user.status.value}\n\n"
+            
+            message += f"Showing {len(users)} users. Use search for specific users."
             
             keyboard = bot.create_inline_keyboard([
-                [{"text": "Back", "callback_data": "admin_user_management"}]
+                [
+                    {"text": "Search User", "callback_data": "admin_search_user"},
+                    {"text": "Export CSV", "callback_data": "admin_export_csv"}
+                ],
+                [
+                    {"text": "View Active", "callback_data": "admin_view_active_users"},
+                    {"text": "Back", "callback_data": "admin_user_management"}
+                ]
             ])
             
             bot.send_message(
