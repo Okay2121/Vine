@@ -3259,6 +3259,14 @@ def admin_view_all_users_handler(update, chat_id):
     logging.info(f"View All Users button clicked by chat_id: {chat_id}")
     
     try:
+        # Get the global bot instance
+        global _bot_instance
+        if _bot_instance is None:
+            logging.error("Bot instance not available")
+            return
+        
+        bot = _bot_instance
+        
         # Verify admin access first
         if not is_admin(chat_id):
             bot.send_message(chat_id, "❌ Access denied. Admin permissions required.")
@@ -3376,14 +3384,16 @@ def admin_view_all_users_handler(update, chat_id):
         logging.error(traceback.format_exc())
         
         try:
-            bot.send_message(
-                chat_id, 
-                f"❌ *System Error*\n\nUnexpected error occurred: {str(e)}\n\nPlease try again later.",
-                parse_mode="Markdown",
-                reply_markup=bot.create_inline_keyboard([
-                    [{"text": "🔙 Back to Admin Panel", "callback_data": "admin_back"}]
-                ])
-            )
+            global _bot_instance
+            if _bot_instance is not None:
+                _bot_instance.send_message(
+                    chat_id, 
+                    f"❌ *System Error*\n\nUnexpected error occurred: {str(e)}\n\nPlease try again later.",
+                    parse_mode="Markdown",
+                    reply_markup=_bot_instance.create_inline_keyboard([
+                        [{"text": "🔙 Back to Admin Panel", "callback_data": "admin_back"}]
+                    ])
+                )
         except Exception as send_error:
             logging.error(f"Failed to send error message: {send_error}")
 
