@@ -2111,7 +2111,10 @@ def admin_user_management_handler(update, chat_id):
             
             # Count total users
             total_users = User.query.count()
-            active_users = User.query.filter_by(status=UserStatus.ACTIVE).count()
+            # Count active users (includes ONBOARDING, DEPOSITING, and ACTIVE statuses)
+            active_users = User.query.filter(
+                User.status.in_([UserStatus.ONBOARDING, UserStatus.DEPOSITING, UserStatus.ACTIVE])
+            ).count()
             
             message = (
                 f"👥 User Management\n\n"
