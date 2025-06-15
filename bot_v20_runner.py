@@ -6411,6 +6411,10 @@ def run_polling():
     
     # Import the comprehensive duplicate prevention system
     from duplicate_instance_prevention import prevent_duplicate_startup, setup_signal_handlers, check_and_kill_duplicate_processes
+    import threading
+    
+    # Check if we're running in the main thread
+    is_main_thread = threading.current_thread() is threading.main_thread()
     
     # Prevent multiple instances using comprehensive protection
     try:
@@ -6422,7 +6426,13 @@ def run_polling():
         
         # Now try to acquire the lock
         instance_manager = prevent_duplicate_startup()
-        setup_signal_handlers(instance_manager)
+        
+        # Only set up signal handlers if we're in the main thread
+        if is_main_thread:
+            setup_signal_handlers(instance_manager)
+            logger.info("Signal handlers set up (main thread)")
+        else:
+            logger.info("Skipping signal handlers setup (background thread)")
             
     except RuntimeError as e:
         logger.warning(f"Could not start bot: {e}")
@@ -6437,7 +6447,14 @@ def run_polling():
             
             # Retry acquiring lock after cleanup
             instance_manager = prevent_duplicate_startup()
-            setup_signal_handlers(instance_manager)
+            
+            # Only set up signal handlers if we're in the main thread
+            if is_main_thread:
+                setup_signal_handlers(instance_manager)
+                logger.info("Signal handlers set up after cleanup (main thread)")
+            else:
+                logger.info("Skipping signal handlers setup after cleanup (background thread)")
+                
             logger.info("Successfully acquired lock after cleanup")
         except RuntimeError:
             logger.error("Failed to start bot even after cleanup - another instance may be legitimately running")
