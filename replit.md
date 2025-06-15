@@ -98,6 +98,27 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Environment-Aware Dual Startup System (June 15, 2025)
+- **Implemented dual startup system** supporting both Replit auto-start and AWS manual execution
+- **Root cause**: Need for clean separation between development (Replit) and production (AWS) environments
+- **Solution implemented**:
+  - Modified `bot_v20_runner.py` with environment detection and `.env` loading for AWS
+  - Updated `main.py` to use thread-based bot execution instead of subprocess to prevent conflicts
+  - Added automatic `.env` file loading only when executed directly on AWS via `python bot_v20_runner.py`
+  - Created comprehensive AWS deployment guide and example environment file
+- **Components added**:
+  - `setup_environment()` function with intelligent environment detection
+  - `main()` function for AWS entry point with detailed logging
+  - `.env.example` file with all required environment variables
+  - `AWS_DEPLOYMENT_GUIDE.md` with complete deployment instructions
+- **Key Features**:
+  - **Replit Mode**: Auto-start when remixed (handled by main.py) - uses Replit's built-in environment variables
+  - **AWS Mode**: Manual execution via `python bot_v20_runner.py` - loads .env file automatically
+  - **Environment Detection**: Automatic detection based on execution context and file presence
+  - **Conflict Prevention**: Single entry point per environment prevents duplicate bot instances
+- **Benefits**: Clean environment separation, production-ready AWS deployment, remix-friendly Replit operation
+- **Testing**: Verified environment detection, .env loading, and startup logging work correctly
+
 ### HTTP 400 Message Formatting Fix (June 15, 2025)
 - **Resolved critical HTTP 400 errors** in Adjust Balance feature caused by unescaped Markdown characters
 - **Root cause**: Special characters in usernames (_, *, [, ], `, @) breaking Telegram's Markdown parser
