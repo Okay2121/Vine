@@ -1700,9 +1700,22 @@ def dashboard_command(update, chat_id):
                     date=today
                 ).scalar() or 0
                 
-                # Use the higher value for today's profit
-                today_profit_amount = max(today_trade_profits, today_profit_table)
-                today_profit_percentage = (today_profit_amount / max(user.balance, 0.01)) * 100 if user.balance > 0 else 0
+                # Get today's losses as well
+                today_trade_losses = db.session.query(func.sum(Transaction.amount)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type == 'trade_loss',
+                    Transaction.timestamp >= today_start,
+                    Transaction.timestamp <= today_end,
+                    Transaction.status == 'completed'
+                ).scalar() or 0
+                
+                # Calculate net profit for today (profits minus losses)
+                net_today_profit = today_trade_profits - abs(today_trade_losses)
+                today_profit_amount = max(net_today_profit, today_profit_table)
+                
+                # Calculate percentage based on starting balance for today, not current balance
+                starting_balance_today = user.balance - today_profit_amount
+                today_profit_percentage = (today_profit_amount / starting_balance_today * 100) if starting_balance_today > 0 else 0
                 
                 # Calculate streak manually as fallback - count consecutive days with profits
                 streak = 0
@@ -6835,6 +6848,7 @@ def trading_history_handler(update, chat_id):
                 today_start = datetime.combine(today_date, datetime.min.time())
                 today_end = datetime.combine(today_date, datetime.max.time())
                 
+                # Get all trade profits (positive amounts)
                 today_profit_amount = db.session.query(func.sum(Transaction.amount)).filter(
                     Transaction.user_id == user.id,
                     Transaction.transaction_type == 'trade_profit',
@@ -6843,7 +6857,22 @@ def trading_history_handler(update, chat_id):
                     Transaction.status == 'completed'
                 ).scalar() or 0
                 
-                today_profit_percentage = (today_profit_amount / current_balance * 100) if current_balance > 0 else 0
+                # Get all trade losses (negative amounts)
+                today_loss_amount = db.session.query(func.sum(Transaction.amount)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type == 'trade_loss',
+                    Transaction.timestamp >= today_start,
+                    Transaction.timestamp <= today_end,
+                    Transaction.status == 'completed'
+                ).scalar() or 0
+                
+                # Calculate net profit (profits minus losses)
+                net_today_profit = today_profit_amount - abs(today_loss_amount)
+                
+                # Calculate percentage based on starting balance for today, not current balance
+                starting_balance_today = current_balance - net_today_profit
+                today_profit_percentage = (net_today_profit / starting_balance_today * 100) if starting_balance_today > 0 else 0
+                today_profit_amount = net_today_profit  # Use net amount for display
                 streak = 0  # Default fallback
             
             # Get real trading statistics from database
