@@ -1847,25 +1847,18 @@ def dashboard_command(update, chat_id):
                 # User has no SOL, day counter shows 0
                 days_active = 0
             
-            # Format the dashboard message - sync with performance dashboard
-            # Use performance tracking for consistent balance calculation
+            # Set current balance - use actual user balance as the primary source
+            current_balance = user.balance
+            
+            # Try to get performance tracking data but don't override calculated values
             try:
                 from performance_tracking import get_performance_data
                 performance_data = get_performance_data(user.id)
                 
-                if performance_data:
-                    # Use synchronized data from performance tracking
+                if performance_data and performance_data.get('current_balance'):
                     current_balance = performance_data['current_balance']
-                    today_profit_amount = performance_data['today_profit']
-                    today_profit_percentage = performance_data['today_percentage']
-                    total_profit_amount = performance_data['total_profit']
-                    total_profit_percentage = performance_data['total_percentage']
-                else:
-                    # Fallback to direct calculation without double-counting
-                    current_balance = user.balance
             except ImportError:
-                # Fallback if performance tracking not available
-                current_balance = user.balance
+                pass  # Use already calculated values
             
             dashboard_message = (
                 "📊 *Autopilot Dashboard*\n\n"
