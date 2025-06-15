@@ -3316,100 +3316,18 @@ def admin_view_all_users_handler(update, chat_id):
                 "Most recent registrations:\n\n"
             )
             
-            # Add user details to the message
+            # Add user details to the message (simplified to avoid message length limits)
             for idx, user in enumerate(users, 1):
-                # Calculate total deposits
-                total_deposits = db.session.query(func.sum(Transaction.amount)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type == "deposit",
-                    Transaction.status == "completed"
-                ).scalar() or 0.0
-                
-                # Calculate total withdrawals
-                total_withdrawn = db.session.query(func.sum(Transaction.amount)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type == "withdraw",
-                    Transaction.status == "completed"
-                ).scalar() or 0.0
-                
-                # Calculate total profits
-                total_profits = db.session.query(func.sum(Profit.amount)).filter(
-                    Profit.user_id == user.id
-                ).scalar() or 0.0
-                
-                # Count referrals
-                referral_code = ReferralCode.query.filter_by(user_id=user.id).first()
-                referral_count = 0
-                if referral_code:
-                    referral_count = User.query.filter_by(referrer_code_id=referral_code.id).count()
-                
-                # Format wallet address for readability
-                wallet_address = user.wallet_address or "Not set"
-                display_wallet = wallet_address
-                if wallet_address != "Not set" and len(wallet_address) > 10:
-                    display_wallet = f"{wallet_address[:6]}...{wallet_address[-4:]}"
-                
                 # Get registration date
-                registration_date = user.joined_at.strftime("%Y-%m-%d") if user.joined_at else "N/A"
+                registration_date = user.joined_at.strftime("%m-%d") if user.joined_at else "N/A"
                 
-                # Get referral earnings (5% profit)
-                referral_earnings = user.referral_bonus if user.referral_bonus is not None else 0.0
+                # Format username display
+                username_display = f"@{user.username}" if user.username else "No Username"
                 
-                # Format deposit wallet display
-                deposit_wallet = user.deposit_wallet or "Not set"
-                display_deposit_wallet = deposit_wallet
-                if deposit_wallet != "Not set" and len(deposit_wallet) > 10:
-                    display_deposit_wallet = f"{deposit_wallet[:6]}...{deposit_wallet[-4:]}"
-                
-                # Get user's name information
-                name_display = ""
-                if user.first_name or user.last_name:
-                    name_display = f"• Name: {user.first_name or ''} {user.last_name or ''}\n"
-                
-                # Calculate ROI (Return on Investment)
-                roi_percentage = 0
-                if user.initial_deposit > 0:
-                    roi_percentage = (total_profits / user.initial_deposit) * 100
-                
-                # Calculate net profit (total profit - total deposited + total withdrawn)
-                net_profit = user.balance - total_deposits
-                
-                # Calculate active trading amount 
-                active_trading = user.balance
-                
-                # Get last activity time with date and time
-                last_activity = "N/A"
-                if user.last_activity:
-                    last_activity = user.last_activity.strftime("%Y-%m-%d %H:%M:%S")
-                
-                # Create user entry with full details
+                # Create simplified user entry
                 user_entry = (
-                    f"*User #{idx}*\n"
-                    f"• User ID (copy): `{user.id}`\n"
-                    f"• Telegram ID (copy): `{user.telegram_id}`\n"
-                    f"• Username: @{user.username or 'No Username'}\n"
-                    f"{name_display}"
-                    f"• Registered: {registration_date}\n"
-                    f"• Last Activity: {last_activity}\n"
-                    f"• Status: {user.status.value}\n\n"
-                    
-                    f"*Financial Details*\n"
-                    f"• Current Balance: {user.balance:.4f} SOL\n"
-                    f"• Initial Deposit: {user.initial_deposit:.4f} SOL\n" 
-                    f"• Total Deposited: {total_deposits:.4f} SOL\n"
-                    f"• Total Withdrawn: {total_withdrawn:.4f} SOL\n"
-                    f"• Total Profit: {total_profits:.4f} SOL\n"
-                    f"• Net Profit: {net_profit:.4f} SOL\n"
-                    f"• ROI: {roi_percentage:.2f}%\n"
-                    f"• Active Trading: {active_trading:.4f} SOL\n\n"
-                    
-                    f"*Referral System*\n"
-                    f"• Referral Count: {referral_count}\n"
-                    f"• Referral Earnings: {referral_earnings:.4f} SOL\n\n"
-                    
-                    f"*Wallet Information*\n"
-                    f"• Payout Wallet (copy):\n`{wallet_address}`\n\n"
-                    f"• Deposit Wallet (copy):\n`{deposit_wallet}`\n\n"
+                    f"{idx}. {username_display} | ID: `{user.telegram_id}`\n"
+                    f"   Balance: {user.balance:.3f} SOL | Joined: {registration_date} | {user.status.value}\n\n"
                 )
                 
                 message += user_entry
