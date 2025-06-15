@@ -2735,43 +2735,86 @@ def admin_adjust_balance_user_id_handler(update, chat_id, text):
         # Process the user ID or username
         with app.app_context():
             from models import User
+            from sqlalchemy import func, text
+            import logging
             
-            # Try to find user by telegram ID first
-            user = None
+            # Test database connection first (same as working View All Users)
             try:
-                # Try as telegram_id (number)
-                user = User.query.filter_by(telegram_id=text).first()
+                db.session.execute(text('SELECT 1'))
+                logging.info("Database connection verified for balance adjustment")
+            except Exception as conn_error:
+                logging.error(f"Database connection failed in balance adjustment: {conn_error}")
+                bot.send_message(chat_id, f"❌ Database connection error: {str(conn_error)}")
+                return
+            
+            # Enhanced user search with better error handling and logging
+            user = None
+            search_input = text.strip()
+            
+            logging.info(f"Searching for user with input: '{search_input}'")
+            
+            # Method 1: Try as telegram_id (string) - database stores as VARCHAR
+            try:
+                user = User.query.filter_by(telegram_id=search_input).first()
+                if user:
+                    logging.info(f"Found user by telegram_id (string): {user.telegram_id}")
             except Exception as e:
-                # Log the error but continue with other search methods
-                import logging
-                logging.error(f"Error searching by telegram_id: {e}")
-                pass
-                
-            # Import function for case-insensitive search
-            from sqlalchemy import func
+                logging.error(f"Error searching by telegram_id (string): {e}")
             
-            # If not found, try by username (case-insensitive)
-            if not user and text.startswith('@'):
-                username = text[1:]  # Remove @ prefix
-                user = User.query.filter(func.lower(User.username) == func.lower(username)).first()
-            elif not user:
-                # Try with username anyway (in case they forgot the @)
-                user = User.query.filter(func.lower(User.username) == func.lower(text)).first()
-            
-            if not user:
-                # Try using admin_balance_manager method which has a robust search
+            # Method 2: Try casting database field to string for comparison (fallback)
+            if not user and search_input.isdigit():
                 try:
-                    import admin_balance_manager
-                    user = admin_balance_manager.find_user(text)
+                    from sqlalchemy import cast, String
+                    user = User.query.filter(cast(User.telegram_id, String) == search_input).first()
+                    if user:
+                        logging.info(f"Found user by telegram_id (cast): {user.telegram_id}")
                 except Exception as e:
-                    import logging
-                    logging.error(f"Error using admin_balance_manager.find_user: {e}")
+                    logging.error(f"Error searching by telegram_id (cast): {e}")
+            
+            # Method 3: Try by username (with @ prefix)
+            if not user and search_input.startswith('@'):
+                try:
+                    username = search_input[1:]  # Remove @ prefix
+                    user = User.query.filter(func.lower(User.username) == func.lower(username)).first()
+                    if user:
+                        logging.info(f"Found user by username (with @): {user.username}")
+                except Exception as e:
+                    logging.error(f"Error searching by username (with @): {e}")
+            
+            # Method 4: Try username without @ prefix
+            if not user:
+                try:
+                    user = User.query.filter(func.lower(User.username) == func.lower(search_input)).first()
+                    if user:
+                        logging.info(f"Found user by username (without @): {user.username}")
+                except Exception as e:
+                    logging.error(f"Error searching by username (without @): {e}")
+            
+            # Method 5: Last resort - search all users and check partial matches
+            if not user:
+                try:
+                    # Check if it might be a partial telegram_id or username
+                    all_users = User.query.all()
+                    for u in all_users:
+                        if (str(u.telegram_id) == search_input or 
+                            (u.username and u.username.lower() == search_input.lower())):
+                            user = u
+                            logging.info(f"Found user via full scan: {u.telegram_id}")
+                            break
+                except Exception as e:
+                    logging.error(f"Error in full user scan: {e}")
             
             if not user:
-                bot.send_message(
-                    chat_id,
-                    "⚠️ User not found. Please try again with a valid Telegram ID or username, or type 'cancel' to go back."
+                error_msg = (
+                    f"⚠️ User not found with input: '{search_input}'\n\n"
+                    "Please try:\n"
+                    "• Valid Telegram ID (e.g., 7611754415)\n"
+                    "• Username with @ (e.g., @username)\n"
+                    "• Username without @ (e.g., username)\n"
+                    "• Type 'cancel' to go back"
                 )
+                logging.warning(f"User not found with any method for input: '{search_input}'")
+                bot.send_message(chat_id, error_msg)
                 return
             
             # Store user info in global variables
