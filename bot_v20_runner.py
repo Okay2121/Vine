@@ -2111,10 +2111,8 @@ def admin_user_management_handler(update, chat_id):
             
             # Count total users
             total_users = User.query.count()
-            # Count active users (includes ONBOARDING, DEPOSITING, and ACTIVE statuses)
-            active_users = User.query.filter(
-                User.status.in_([UserStatus.ONBOARDING, UserStatus.DEPOSITING, UserStatus.ACTIVE])
-            ).count()
+            # Count active users (users with SOL balance > 0)
+            active_users = User.query.filter(User.balance > 0).count()
             
             message = (
                 f"👥 User Management\n\n"
