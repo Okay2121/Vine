@@ -6789,7 +6789,7 @@ def withdraw_profit_handler(update, chat_id):
         bot.send_message(chat_id, f"Error displaying withdrawal options: {str(e)}")
 
 def trading_history_handler(update, chat_id):
-    """Handle the request to view trading history."""
+    """Handle the request to view trading history with real-time data."""
     try:
         user_id = update['callback_query']['from']['id']
         with app.app_context():
@@ -6800,15 +6800,51 @@ def trading_history_handler(update, chat_id):
                 bot.send_message(chat_id, "⚠️ User not found in database.")
                 return
             
-            # Get today's date for filtering trades
-            today_date = datetime.now().date()
-            
-            # Get all trades for today
-            trades_today = Transaction.query.filter(
-                Transaction.user_id == user.id,
-                Transaction.transaction_type.in_(['buy', 'sell']),
-                Transaction.timestamp >= datetime.combine(today_date, datetime.min.time())
-            ).all()
+            # Use the same real-time data system as autopilot dashboard
+            try:
+                from performance_tracking import get_performance_data
+                performance_data = get_performance_data(user.id)
+                
+                if performance_data:
+                    # Extract real-time data
+                    current_balance = performance_data['current_balance']
+                    initial_deposit = performance_data['initial_deposit']
+                    total_profit_amount = performance_data['total_profit']
+                    total_profit_percentage = performance_data['total_percentage']
+                    today_profit_amount = performance_data['today_profit']
+                    today_profit_percentage = performance_data['today_percentage']
+                    streak = performance_data['streak_days']
+                    
+                    # Log successful real-time data retrieval
+                    logger.info(f"Performance Dashboard - Real-time data retrieved: streak={streak}, today_profit={today_profit_amount}, total_profit={total_profit_amount}")
+                else:
+                    raise Exception("Performance data not available")
+                    
+            except Exception as e:
+                logger.warning(f"Performance tracking failed, using fallback calculation: {e}")
+                # Fallback to direct calculation if performance tracking fails
+                from sqlalchemy import func
+                
+                current_balance = user.balance
+                initial_deposit = user.initial_deposit or 1.0  # Prevent division by zero
+                total_profit_amount = current_balance - initial_deposit
+                total_profit_percentage = (total_profit_amount / initial_deposit) * 100
+                
+                # Calculate today's profit from transactions
+                today_date = datetime.now().date()
+                today_start = datetime.combine(today_date, datetime.min.time())
+                today_end = datetime.combine(today_date, datetime.max.time())
+                
+                today_profit_amount = db.session.query(func.sum(Transaction.amount)).filter(
+                    Transaction.user_id == user.id,
+                    Transaction.transaction_type == 'trade_profit',
+                    Transaction.timestamp >= today_start,
+                    Transaction.timestamp <= today_end,
+                    Transaction.status == 'completed'
+                ).scalar() or 0
+                
+                today_profit_percentage = (today_profit_amount / current_balance * 100) if current_balance > 0 else 0
+                streak = 0  # Default fallback
             
             # Get real trading statistics from database
             profitable_trades = 0
@@ -6862,86 +6898,24 @@ def trading_history_handler(update, chat_id):
             total_trades = profitable_trades + loss_trades
             win_rate = (profitable_trades / total_trades * 100) if total_trades > 0 else 0
             
-            # Build a visually stunning and user-friendly performance dashboard
+            # Build a visually stunning and user-friendly performance dashboard with real-time data
             performance_message = "🚀 *PERFORMANCE DASHBOARD* 🚀\n\n"
             
-            # Calculate actual initial deposit from deposit transactions if not set
-            actual_initial_deposit = user.initial_deposit
-            if actual_initial_deposit <= 0:
-                # Calculate from actual deposit transactions
-                deposit_transactions = Transaction.query.filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type.in_(['deposit', 'admin_credit']),
-                    Transaction.amount > 0
-                ).all()
-                actual_initial_deposit = sum(tx.amount for tx in deposit_transactions)
-                
-                # Update user's initial deposit if we found deposits
-                if actual_initial_deposit > 0:
-                    user.initial_deposit = actual_initial_deposit
-                    db.session.commit()
-            
-            # Balance section - highlight the important numbers
+            # Balance section - highlight the important numbers using real-time data
             performance_message += "💰 *BALANCE*\n"
-            performance_message += f"Initial: {actual_initial_deposit:.2f} SOL\n"
-            performance_message += f"Current: {user.balance:.2f} SOL\n"
+            performance_message += f"Initial: {initial_deposit:.2f} SOL\n"
+            performance_message += f"Current: {current_balance:.2f} SOL\n"
             
-            # Get total profit with correct initial deposit
-            total_profit_amount = user.balance - actual_initial_deposit
-            total_profit_percentage = (total_profit_amount / actual_initial_deposit * 100) if actual_initial_deposit > 0 else 0
-            
-            # Show profit with proper formatting and percentage
+            # Show profit with proper formatting and percentage using real-time data
             if total_profit_amount >= 0:
                 performance_message += f"Profit: +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n\n"
             else:
                 performance_message += f"Profit: {total_profit_amount:.2f} SOL ({total_profit_percentage:.1f}%)\n\n"
             
-            # Get today's profit data from multiple sources for real-time accuracy
-            today_start = datetime.combine(today_date, datetime.min.time())
-            today_end = datetime.combine(today_date, datetime.max.time())
-            
-            # Check Transaction table for today's trade profits
-            today_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
-                Transaction.user_id == user.id,
-                Transaction.transaction_type == 'trade_profit',
-                Transaction.timestamp >= today_start,
-                Transaction.timestamp <= today_end,
-                Transaction.status == 'completed'
-            ).scalar() or 0
-            
-            # Check TradingPosition table for today's closed positions
-            today_positions = TradingPosition.query.filter(
-                TradingPosition.user_id == user.id,
-                TradingPosition.status == 'closed',
-                TradingPosition.timestamp >= today_start,
-                TradingPosition.timestamp <= today_end
-            ).all()
-            
-            today_position_profits = 0
-            for position in today_positions:
-                if hasattr(position, 'roi_percentage') and position.roi_percentage:
-                    # Calculate profit from ROI percentage
-                    position_profit = (position.entry_price * position.amount * position.roi_percentage / 100)
-                    today_position_profits += position_profit
-                elif position.current_price and position.entry_price:
-                    # Calculate profit from price difference
-                    position_profit = (position.current_price - position.entry_price) * position.amount
-                    today_position_profits += position_profit
-            
-            # Use the higher value between trade profits and position profits
-            today_profit_amount = max(today_trade_profits, today_position_profits)
-            
-            # If still no profits found, check Profit table as fallback
-            if today_profit_amount == 0:
-                today_profit_record = Profit.query.filter_by(user_id=user.id, date=today_date).first()
-                today_profit_amount = today_profit_record.amount if today_profit_record else 0
-            
-            # Calculate today's profit percentage
-            starting_balance = user.balance - today_profit_amount
-            today_profit_percentage = (today_profit_amount / starting_balance * 100) if starting_balance > 0 else 0
-            
-            # Today's profit - emphasized and eye-catching
+            # Today's profit - emphasized and eye-catching using real-time data
             performance_message += "📈 *TODAY'S PERFORMANCE*\n"
+            starting_balance = current_balance - today_profit_amount
+            
             if today_profit_amount > 0:
                 performance_message += f"Profit today: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
                 performance_message += f"Starting: {starting_balance:.2f} SOL\n\n"
@@ -6950,52 +6924,9 @@ def trading_history_handler(update, chat_id):
                 performance_message += f"Starting: {starting_balance:.2f} SOL\n\n"
             else:
                 performance_message += "No profit recorded yet today\n"
-                performance_message += f"Starting: {user.balance:.2f} SOL\n\n"
+                performance_message += f"Starting: {current_balance:.2f} SOL\n\n"
             
-            # Calculate current streak using real-time data
-            streak = 0
-            current_date = datetime.utcnow().date()
-            
-            for days_back in range(30):  # Check up to 30 days
-                check_date = current_date - timedelta(days=days_back)
-                check_start = datetime.combine(check_date, datetime.min.time())
-                check_end = datetime.combine(check_date, datetime.max.time())
-                
-                # Check Transaction table for day's profits
-                day_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type == 'trade_profit',
-                    Transaction.timestamp >= check_start,
-                    Transaction.timestamp <= check_end,
-                    Transaction.status == 'completed'
-                ).scalar() or 0
-                
-                # Check TradingPosition table for day's profits
-                day_positions = TradingPosition.query.filter(
-                    TradingPosition.user_id == user.id,
-                    TradingPosition.status == 'closed',
-                    TradingPosition.timestamp >= check_start,
-                    TradingPosition.timestamp <= check_end
-                ).all()
-                
-                day_position_profits = 0
-                for pos in day_positions:
-                    if hasattr(pos, 'roi_percentage') and pos.roi_percentage:
-                        day_position_profits += (pos.entry_price * pos.amount * pos.roi_percentage / 100)
-                    elif pos.current_price and pos.entry_price:
-                        day_position_profits += (pos.current_price - pos.entry_price) * pos.amount
-                
-                day_profit = max(day_trade_profits, day_position_profits)
-                
-                # Fallback to Profit table if no data found
-                if day_profit == 0:
-                    profit_record = Profit.query.filter_by(user_id=user.id, date=check_date).first()
-                    day_profit = profit_record.amount if profit_record else 0
-                
-                if day_profit > 0:
-                    streak += 1
-                else:
-                    break
+            # Use streak from real-time data (already calculated in performance_data)
             
             # Profit streak - motivational and prominent
             performance_message += "🔥 *WINNING STREAK*\n"
