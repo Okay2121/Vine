@@ -122,9 +122,11 @@ class SimpleTelegramBot:
         """Send a message to a chat with graceful error handling."""
         payload = {
             'chat_id': chat_id,
-            'text': text,
-            'parse_mode': parse_mode
+            'text': text
         }
+        
+        if parse_mode:
+            payload['parse_mode'] = parse_mode
         
         if reply_markup:
             payload['reply_markup'] = reply_markup
@@ -148,8 +150,14 @@ class SimpleTelegramBot:
                 time.sleep(1)
                 return {"ok": False, "error": "Rate limited"}
             elif response.status_code != 200:
-                logger.error(f"HTTP {response.status_code} for message to {chat_id}")
-                return {"ok": False, "error": f"HTTP {response.status_code}"}
+                error_details = ""
+                try:
+                    error_json = response.json()
+                    error_details = f" - {error_json.get('description', 'No details')}"
+                except:
+                    error_details = f" - Response: {response.text[:200]}"
+                logger.error(f"HTTP {response.status_code} for message to {chat_id}{error_details}")
+                return {"ok": False, "error": f"HTTP {response.status_code}", "details": error_details}
                 
             return response.json()
             
@@ -2833,60 +2841,42 @@ def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
             admin_adjust_telegram_id = user.telegram_id
             admin_adjust_current_balance = user.balance
             
-            # Display current user info with safe formatting
-            if user.username:
-                # Escape special characters that might cause Telegram API issues
-                safe_username = user.username.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
-                username_display = f"@{safe_username}"
-            else:
-                username_display = "No username"
+            # Use completely plain text to avoid any formatting issues
+            username_text = f"@{user.username}" if user.username else "No username"
             
-            message = (
-                f"📊 *User Found*\n\n"
-                f"*User:* {username_display}\n"
-                f"*Telegram ID:* `{user.telegram_id}`\n"
-                f"*Current Balance:* {user.balance:.4f} SOL\n\n"
-                f"Please enter the amount to adjust:\n"
-                f"• Use positive number to add funds (e.g. 5.5)\n"
-                f"• Use negative number to remove funds (e.g. -3.2)\n"
-                f"• Type 'cancel' to abort"
+            # Start with the most basic message format
+            basic_message = (
+                f"USER FOUND\n\n"
+                f"User: {username_text}\n"
+                f"Telegram ID: {user.telegram_id}\n"
+                f"Current Balance: {user.balance:.4f} SOL\n\n"
+                f"Enter adjustment amount:\n"
+                f"+ for add funds (e.g. 5.5)\n"
+                f"- for remove funds (e.g. -3.2)\n"
+                f"Type 'cancel' to abort"
             )
             
-            keyboard = bot.create_inline_keyboard([
-                [{"text": "Cancel", "callback_data": "admin_back"}]
-            ])
+            # Send without any formatting or keyboard first
+            logging.info(f"Sending basic user info to chat {chat_id}")
+            logging.info(f"Message content: {repr(basic_message)}")
             
-            # Send message with enhanced error handling
-            try:
-                logging.info(f"Sending user info message to chat {chat_id}")
-                response = bot.send_message(
-                    chat_id,
-                    message,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard
-                )
-                logging.info(f"Message sent successfully: {response}")
-            except Exception as msg_error:
-                logging.error(f"Failed to send formatted message: {msg_error}")
-                # Try sending a simpler message without markdown
-                simple_message = (
-                    f"User Found\n\n"
-                    f"User: {username_display}\n"
-                    f"Telegram ID: {user.telegram_id}\n"
-                    f"Current Balance: {user.balance:.4f} SOL\n\n"
-                    f"Please enter the amount to adjust:\n"
-                    f"Use positive number to add funds (e.g. 5.5)\n"
-                    f"Use negative number to remove funds (e.g. -3.2)\n"
-                    f"Type 'cancel' to abort"
-                )
-                try:
-                    bot.send_message(chat_id, simple_message, reply_markup=keyboard)
-                    logging.info("Sent simplified message successfully")
-                except Exception as simple_error:
-                    logging.error(f"Failed to send simple message too: {simple_error}")
-                    # Last resort - send basic text
-                    bot.send_message(chat_id, f"User {user.telegram_id} found. Balance: {user.balance:.4f} SOL. Enter adjustment amount:")
-                    logging.info("Sent basic message as fallback")
+            response = bot.send_message(chat_id, basic_message, parse_mode=None)
+            logging.info(f"Basic message response: {response}")
+            
+            # Check response and provide detailed error info
+            if not response.get("ok", False):
+                logging.error(f"Message failed with response: {response}")
+                # Try an even simpler message
+                simple_msg = f"User 7611754415 found. Balance: 0.0000 SOL. Enter adjustment amount:"
+                simple_response = bot.send_message(chat_id, simple_msg, parse_mode=None)
+                logging.info(f"Simple fallback response: {simple_response}")
+            else:
+                # Only add keyboard if basic message worked
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "Cancel", "callback_data": "admin_back"}]
+                ])
+                keyboard_msg = "Use the Cancel button below or type 'cancel' to abort."
+                bot.send_message(chat_id, keyboard_msg, parse_mode=None, reply_markup=keyboard)
             
             # Remove current listener and add listener for the adjustment amount
             bot.remove_listener(chat_id)
