@@ -418,9 +418,11 @@ def get_performance_data(user_id):
         # If Profit table has data, still subtract losses from it
         today_profit_amount = today_profit_amount - abs(today_transaction_losses)
     
-    # Calculate today's percentage based on current balance, not stored percentage
-    if user.balance > 0:
-        today_profit_percentage = (today_profit_amount / user.balance) * 100
+    # Calculate today's percentage based on starting balance for today, not current balance
+    # This ensures losses are properly reflected as negative percentages
+    starting_balance_today = user.balance - today_profit_amount
+    if starting_balance_today > 0:
+        today_profit_percentage = (today_profit_amount / starting_balance_today) * 100
     else:
         today_profit_percentage = 0
     
