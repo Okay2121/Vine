@@ -3310,8 +3310,8 @@ def admin_view_all_users_handler(update, chat_id):
                 )
                 return
             
-            # Test with minimal message to identify HTTP 400 cause
-            message = f"Users found: {len(users)}\n\nFirst user: {users[0].username if users[0].username else 'No username'}"
+            # Test with completely basic message
+            message = "Admin View All Users - Test Message"
             
             keyboard = bot.create_inline_keyboard([
                 [{"text": "Back", "callback_data": "admin_user_management"}]
