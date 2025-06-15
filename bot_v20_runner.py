@@ -3310,46 +3310,16 @@ def admin_view_all_users_handler(update, chat_id):
                 )
                 return
             
-            # Create header for users list
-            message = (
-                "👥 *All Registered Users*\n\n"
-                "Most recent registrations:\n\n"
-            )
-            
-            # Add user details to the message (simplified to avoid message length limits)
-            for idx, user in enumerate(users, 1):
-                # Get registration date
-                registration_date = user.joined_at.strftime("%m-%d") if user.joined_at else "N/A"
-                
-                # Format username display
-                username_display = f"@{user.username}" if user.username else "No Username"
-                
-                # Create simplified user entry
-                user_entry = (
-                    f"{idx}. {username_display} | ID: `{user.telegram_id}`\n"
-                    f"   Balance: {user.balance:.3f} SOL | Joined: {registration_date} | {user.status.value}\n\n"
-                )
-                
-                message += user_entry
-            
-            # Add pagination note
-            message += "\nShowing 10 most recent users. Use search for specific users."
+            # Test with minimal message to identify HTTP 400 cause
+            message = f"Users found: {len(users)}\n\nFirst user: {users[0].username if users[0].username else 'No username'}"
             
             keyboard = bot.create_inline_keyboard([
-                [
-                    {"text": "Search User", "callback_data": "admin_search_user"},
-                    {"text": "Export Users (CSV)", "callback_data": "admin_export_csv"}
-                ],
-                [
-                    {"text": "View Active Users", "callback_data": "admin_view_active_users"},
-                    {"text": "Back to User Management", "callback_data": "admin_user_management"}
-                ]
+                [{"text": "Back", "callback_data": "admin_user_management"}]
             ])
             
             bot.send_message(
                 chat_id,
                 message,
-                parse_mode="Markdown",
                 reply_markup=keyboard
             )
     except Exception as e:
