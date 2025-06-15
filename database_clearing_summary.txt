@@ -1,0 +1,20 @@
+
+DATABASE CLEARING COMPLETED SUCCESSFULLY
+=======================================
+
+✓ All user data removed:
+  • Users: 6 records deleted
+  • Transactions: 5 records deleted  
+  • Trading positions: 4 records deleted
+  • Profits: 2 records deleted
+  • Referral codes: 2 records deleted
+  • User metrics: 2 records deleted
+  • Daily snapshots: 6 records deleted
+
+✓ Database sequences reset to start from ID 1
+✓ Foreign key constraints handled properly
+✓ Telegram cache cleared
+✓ Admin settings preserved
+
+RESULT: Clean slate with zero user records
+Next user registration will start with ID 1
