@@ -112,7 +112,7 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
   - Created `fix_autopilot_realtime_data.py` and `fix_specific_user_streak.py` for data correction
   - Updated performance tracking system to properly calculate consecutive profitable days
 - **Result**: Autopilot dashboard now displays real-time data identical to performance dashboard
-- **Testing**: Verified user with 5 consecutive profit days now shows "5-Day Green Streak! 🔥🔥🔥" instead of "Start your streak today!"
+- **Testing**: Verified user with 5 consecutive profit days now shows "5-Day Green Streak" (fire emojis removed as requested)
 - **Data synchronization**: Both autopilot and performance dashboards now pull from same data source ensuring consistency
 
 ### Environment-Aware Dual Startup System (June 15, 2025)

@@ -375,14 +375,36 @@ def get_performance_data(user_id):
     # Calculate days active (capped at 30)
     days_active = min(30, (datetime.utcnow().date() - user.created_at.date()).days + 1) if hasattr(user, 'created_at') else 1
     
-    # Get today's profit
-    today_profit = Profit.query.filter_by(
-        user_id=user_id,
-        date=datetime.utcnow().date()
-    ).first()
+    # Get today's profit - sum all profits for today to accumulate throughout the day
+    from sqlalchemy import func
+    today = datetime.utcnow().date()
     
-    today_profit_amount = today_profit.amount if today_profit else 0
-    today_profit_percentage = today_profit.percentage if today_profit else 0
+    # Sum all profit amounts for today from Profit table
+    today_profit_amount = db.session.query(func.sum(Profit.amount)).filter_by(
+        user_id=user_id,
+        date=today
+    ).scalar() or 0
+    
+    # Also check Transaction table for trade_profit entries today
+    today_start = datetime.combine(today, datetime.min.time())
+    today_end = datetime.combine(today, datetime.max.time())
+    
+    today_transaction_profits = db.session.query(func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.transaction_type == 'trade_profit',
+        Transaction.timestamp >= today_start,
+        Transaction.timestamp <= today_end,
+        Transaction.status == 'completed'
+    ).scalar() or 0
+    
+    # Use the higher value to ensure we capture all profit sources
+    today_profit_amount = max(today_profit_amount, today_transaction_profits)
+    
+    # Calculate today's percentage based on current balance, not stored percentage
+    if user.balance > 0:
+        today_profit_percentage = (today_profit_amount / user.balance) * 100
+    else:
+        today_profit_percentage = 0
     
     # Calculate total profit
     profit_amount = user.balance - user.initial_deposit

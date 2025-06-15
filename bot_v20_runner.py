@@ -1871,10 +1871,9 @@ def dashboard_command(update, chat_id):
                 f"• *Total Profit:* +{total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
             )
             
-            # Add streak with real-time data from performance tracking
+            # Add streak with real-time data from performance tracking (no fire emojis)
             if streak > 0:
-                fire_emojis = "🔥" * min(3, streak)
-                dashboard_message += f"• *Profit Streak:* {streak}-Day Green Streak! {fire_emojis}\n"
+                dashboard_message += f"• *Profit Streak:* {streak}-Day Green Streak\n"
             else:
                 # Show actual streak value (could be 0) instead of static text
                 dashboard_message += f"• *Profit Streak:* {streak} Days\n"
