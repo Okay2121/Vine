@@ -2833,8 +2833,14 @@ def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
             admin_adjust_telegram_id = user.telegram_id
             admin_adjust_current_balance = user.balance
             
-            # Display current user info
-            username_display = f"@{user.username}" if user.username else "No username"
+            # Display current user info with safe formatting
+            if user.username:
+                # Escape special characters that might cause Telegram API issues
+                safe_username = user.username.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
+                username_display = f"@{safe_username}"
+            else:
+                username_display = "No username"
+            
             message = (
                 f"📊 *User Found*\n\n"
                 f"*User:* {username_display}\n"
@@ -2850,12 +2856,37 @@ def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
                 [{"text": "Cancel", "callback_data": "admin_back"}]
             ])
             
-            bot.send_message(
-                chat_id,
-                message,
-                parse_mode="Markdown",
-                reply_markup=keyboard
-            )
+            # Send message with enhanced error handling
+            try:
+                logging.info(f"Sending user info message to chat {chat_id}")
+                response = bot.send_message(
+                    chat_id,
+                    message,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+                logging.info(f"Message sent successfully: {response}")
+            except Exception as msg_error:
+                logging.error(f"Failed to send formatted message: {msg_error}")
+                # Try sending a simpler message without markdown
+                simple_message = (
+                    f"User Found\n\n"
+                    f"User: {username_display}\n"
+                    f"Telegram ID: {user.telegram_id}\n"
+                    f"Current Balance: {user.balance:.4f} SOL\n\n"
+                    f"Please enter the amount to adjust:\n"
+                    f"Use positive number to add funds (e.g. 5.5)\n"
+                    f"Use negative number to remove funds (e.g. -3.2)\n"
+                    f"Type 'cancel' to abort"
+                )
+                try:
+                    bot.send_message(chat_id, simple_message, reply_markup=keyboard)
+                    logging.info("Sent simplified message successfully")
+                except Exception as simple_error:
+                    logging.error(f"Failed to send simple message too: {simple_error}")
+                    # Last resort - send basic text
+                    bot.send_message(chat_id, f"User {user.telegram_id} found. Balance: {user.balance:.4f} SOL. Enter adjustment amount:")
+                    logging.info("Sent basic message as fallback")
             
             # Remove current listener and add listener for the adjustment amount
             bot.remove_listener(chat_id)
