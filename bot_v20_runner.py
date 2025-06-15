@@ -1880,7 +1880,7 @@ def dashboard_command(update, chat_id):
             dashboard_message = (
                 "📊 *Autopilot Dashboard*\n\n"
                 f"• *Balance:* {current_balance:.2f} SOL\n"
-                f"• *Today's Profit:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}% of balance)\n"
+                f"• *Today's Profit:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
                 f"• *Total Profit:* +{total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
             )
             
