@@ -3313,12 +3313,27 @@ def admin_view_active_users_handler(update, chat_id):
                 # Get last activity timestamp
                 last_activity = user.last_activity.strftime("%Y-%m-%d %H:%M") if user.last_activity else "N/A"
                 
-                # Create user entry
+                # Escape special characters for Markdown safety
+                def escape_markdown(text):
+                    """Escape special Markdown characters"""
+                    if not text:
+                        return "Not set"
+                    special_chars = ['*', '_', '`', '[', ']', '(', ')', '~', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+                    escaped = str(text)
+                    for char in special_chars:
+                        escaped = escaped.replace(char, f'\\{char}')
+                    return escaped
+                
+                # Safely format username and wallet
+                safe_username = escape_markdown(user.username) if user.username else "Not set"
+                safe_wallet = escape_markdown(display_wallet)
+                
+                # Create user entry with escaped content
                 user_entry = (
                     f"*User #{idx}*\n"
                     f"• ID: `{user.telegram_id}`\n"
-                    f"• Username: @{user.username or 'Not set'}\n"
-                    f"• Wallet: `{display_wallet}`\n"
+                    f"• Username: @{safe_username}\n"
+                    f"• Wallet: `{safe_wallet}`\n"
                     f"• Balance: {user.balance:.4f} SOL\n"
                     f"• Total Deposits: {total_deposits:.4f} SOL\n"
                     f"• Total Profits: {total_profits:.4f} SOL\n"
