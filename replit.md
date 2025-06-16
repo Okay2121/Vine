@@ -110,7 +110,13 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
   - Added proper sign formatting for both positive and negative values
   - Enhanced loss tracking to show actual net losses when losses exceed gains
   - Maintained percentage calculations for both profit and loss scenarios
-- **Result**: Both dashboards now consistently use P/L terminology and accurately display gains/losses
+  - Fixed streak calculations to use net P/L (profits minus losses) instead of raw profits
+- **Streak calculation fix**:
+  - Updated autopilot dashboard streak logic to calculate net daily P/L
+  - Enhanced performance tracking system to use actual net P/L for streak determination
+  - Fixed streak counting to only increment on days with positive net P/L
+  - Ensured consistent streak calculation across both dashboard systems
+- **Result**: Both dashboards now consistently use P/L terminology, accurately display gains/losses, and properly calculate streaks based on net P/L
 
 ### Autopilot Dashboard Real-time Data Connection Fix (June 15, 2025)
 - **Fixed autopilot dashboard real-time data synchronization** with performance tracking system

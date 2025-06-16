@@ -1717,7 +1717,7 @@ def dashboard_command(update, chat_id):
                 starting_balance_today = user.balance - today_profit_amount
                 today_profit_percentage = (today_profit_amount / starting_balance_today * 100) if starting_balance_today > 0 else 0
                 
-                # Calculate streak manually as fallback - count consecutive days with profits
+                # Calculate streak manually with proper P/L logic - count consecutive days with net positive P/L
                 streak = 0
                 current_date = datetime.utcnow().date()
                 
@@ -1728,10 +1728,19 @@ def dashboard_command(update, chat_id):
                     check_date_start = datetime.combine(check_date, datetime.min.time())
                     check_date_end = datetime.combine(check_date, datetime.max.time())
                     
-                    # Check for trade_profit transactions on this day
+                    # Get profits for this day
                     day_trade_profit = db.session.query(func.sum(Transaction.amount)).filter(
                         Transaction.user_id == user.id,
                         Transaction.transaction_type == 'trade_profit',
+                        Transaction.timestamp >= check_date_start,
+                        Transaction.timestamp <= check_date_end,
+                        Transaction.status == 'completed'
+                    ).scalar() or 0
+                    
+                    # Get losses for this day
+                    day_trade_loss = db.session.query(func.sum(Transaction.amount)).filter(
+                        Transaction.user_id == user.id,
+                        Transaction.transaction_type == 'trade_loss',
                         Transaction.timestamp >= check_date_start,
                         Transaction.timestamp <= check_date_end,
                         Transaction.status == 'completed'
@@ -1743,13 +1752,17 @@ def dashboard_command(update, chat_id):
                         date=check_date
                     ).scalar() or 0
                     
-                    # Use the higher value for this day
-                    day_profit = max(day_trade_profit, day_profit_table)
+                    # Calculate net P/L for this day (profits minus losses)
+                    net_day_pl = day_trade_profit - abs(day_trade_loss)
                     
-                    if day_profit > 0 and consecutive_streak:
+                    # Use the higher value between calculated net P/L and Profit table
+                    day_pl = max(net_day_pl, day_profit_table)
+                    
+                    # Only count as streak if net P/L is positive
+                    if day_pl > 0 and consecutive_streak:
                         streak += 1
-                    elif day_profit <= 0:
-                        # Break the streak if no profit found
+                    elif day_pl <= 0:
+                        # Break the streak if net P/L is zero or negative
                         consecutive_streak = False
                         if i > 0:  # Don't break on today
                             break

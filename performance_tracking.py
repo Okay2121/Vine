@@ -168,11 +168,11 @@ def end_of_day_processing(user_id):
 
 def update_streak(user_id, is_profitable_day):
     """
-    Update the user's streak based on daily profit
+    Update the user's streak based on daily net P/L (profits minus losses)
     
     Args:
         user_id (int): User ID
-        is_profitable_day (bool): Whether today was profitable
+        is_profitable_day (bool): Whether today had net positive P/L
         
     Returns:
         int: The updated streak count
@@ -190,14 +190,50 @@ def update_streak(user_id, is_profitable_day):
     
     # Check if this is a new day
     if metrics.last_streak_update != today:
-        if is_profitable_day:
-            # Increment streak for profitable day
+        # Calculate actual net P/L for today to determine if profitable
+        today_start = datetime.combine(today, datetime.min.time())
+        today_end = datetime.combine(today, datetime.max.time())
+        
+        # Get today's profits
+        from sqlalchemy import func
+        today_profits = db.session.query(func.sum(Transaction.amount)).filter(
+            Transaction.user_id == user_id,
+            Transaction.transaction_type == 'trade_profit',
+            Transaction.timestamp >= today_start,
+            Transaction.timestamp <= today_end,
+            Transaction.status == 'completed'
+        ).scalar() or 0
+        
+        # Get today's losses
+        today_losses = db.session.query(func.sum(Transaction.amount)).filter(
+            Transaction.user_id == user_id,
+            Transaction.transaction_type == 'trade_loss',
+            Transaction.timestamp >= today_start,
+            Transaction.timestamp <= today_end,
+            Transaction.status == 'completed'
+        ).scalar() or 0
+        
+        # Also check Profit table
+        today_profit_table = db.session.query(func.sum(Profit.amount)).filter_by(
+            user_id=user_id, 
+            date=today
+        ).scalar() or 0
+        
+        # Calculate net P/L (profits minus losses)
+        net_pl = today_profits - abs(today_losses)
+        
+        # Use the higher value between calculated net P/L and Profit table
+        actual_net_pl = max(net_pl, today_profit_table)
+        
+        # Update streak based on actual net P/L, not just the passed parameter
+        if actual_net_pl > 0:
+            # Increment streak for profitable day (net positive P/L)
             metrics.current_streak += 1
             # Update best streak if current is better
             if metrics.current_streak > metrics.best_streak:
                 metrics.best_streak = metrics.current_streak
         else:
-            # Reset streak on non-profitable day
+            # Reset streak on non-profitable day (net zero or negative P/L)
             metrics.current_streak = 0
         
         metrics.last_streak_update = today
