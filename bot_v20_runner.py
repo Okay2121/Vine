@@ -1877,16 +1877,27 @@ def dashboard_command(update, chat_id):
             except ImportError:
                 pass  # Use already calculated values
             
-            # Format P/L values with proper sign handling
-            today_pl_sign = "+" if today_profit_amount >= 0 else ""
-            total_pl_sign = "+" if total_profit_amount >= 0 else ""
-            
+            # Format P/L values with proper sign handling for both positive and negative values
             dashboard_message = (
                 "📊 *Autopilot Dashboard*\n\n"
                 f"• *Balance:* {current_balance:.2f} SOL\n"
-                f"• *Today's P/L:* {today_pl_sign}{today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
-                f"• *Total P/L:* {total_pl_sign}{total_profit_percentage:.1f}% ({total_pl_sign}{total_profit_amount:.2f} SOL)\n"
             )
+            
+            # Today's P/L with proper sign formatting
+            if today_profit_amount > 0:
+                dashboard_message += f"• *Today's P/L:* +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
+            elif today_profit_amount < 0:
+                dashboard_message += f"• *Today's P/L:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
+            else:
+                dashboard_message += f"• *Today's P/L:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
+            
+            # Total P/L with proper sign formatting
+            if total_profit_amount > 0:
+                dashboard_message += f"• *Total P/L:* +{total_profit_percentage:.1f}% (+{total_profit_amount:.2f} SOL)\n"
+            elif total_profit_amount < 0:
+                dashboard_message += f"• *Total P/L:* {total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
+            else:
+                dashboard_message += f"• *Total P/L:* {total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
             
             # Add streak with real-time data from performance tracking (no fire emojis)
             if streak > 0:
@@ -6773,12 +6784,21 @@ def withdraw_profit_handler(update, chat_id):
             else:
                 display_wallet = wallet_address
             
-            # Show initial withdrawal screen with real-time processing
-            total_pl_sign = "+" if total_profit_amount >= 0 else ""
+            # Show initial withdrawal screen with real-time processing and proper P/L formatting
             withdrawal_message = (
                 "💰 *Withdraw Funds*\n\n"
                 f"Available Balance: *{available_balance:.2f} SOL*\n"
-                f"Total P/L: *{total_pl_sign}{total_profit_amount:.2f} SOL* ({total_profit_percentage:.1f}%)\n\n"
+            )
+            
+            # Add Total P/L with proper sign formatting
+            if total_profit_amount > 0:
+                withdrawal_message += f"Total P/L: *+{total_profit_amount:.2f} SOL* (+{total_profit_percentage:.1f}%)\n\n"
+            elif total_profit_amount < 0:
+                withdrawal_message += f"Total P/L: *{total_profit_amount:.2f} SOL* ({total_profit_percentage:.1f}%)\n\n"
+            else:
+                withdrawal_message += f"Total P/L: *{total_profit_amount:.2f} SOL* ({total_profit_percentage:.1f}%)\n\n"
+            
+            withdrawal_message += (
                 f"Withdrawal Wallet: `{display_wallet}`\n\n"
                 "Select an option below to withdraw your funds:"
             )
