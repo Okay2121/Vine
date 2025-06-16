@@ -375,7 +375,7 @@ def get_performance_data(user_id):
     # Calculate days active (capped at 30)
     days_active = min(30, (datetime.utcnow().date() - user.created_at.date()).days + 1) if hasattr(user, 'created_at') else 1
     
-    # Get today's profit - sum all profits for today to accumulate throughout the day
+    # Get today's P/L - sum all profits/losses for today to accumulate throughout the day
     from sqlalchemy import func
     today = datetime.utcnow().date()
     

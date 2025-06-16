@@ -98,6 +98,20 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### P/L Terminology Update (June 16, 2025)
+- **Updated dashboard terminology** from "Today's Profit" and "Total Profit" to "Today's P/L" and "Total P/L"
+- **Enhanced P/L calculations** to properly handle both gains and losses with correct sign formatting
+- **Components updated**:
+  - Autopilot Dashboard: Changed "Today's Profit" to "Today's P/L" with proper +/- sign handling
+  - Performance Dashboard: Updated "Total Profit" to "Total P/L" and "P/L today" formatting
+  - Withdrawal screen: Changed "Total Profit" to "Total P/L" display
+  - Performance tracking comments updated to reflect P/L terminology
+- **Calculation improvements**:
+  - Added proper sign formatting for both positive and negative values
+  - Enhanced loss tracking to show actual net losses when losses exceed gains
+  - Maintained percentage calculations for both profit and loss scenarios
+- **Result**: Both dashboards now consistently use P/L terminology and accurately display gains/losses
+
 ### Autopilot Dashboard Real-time Data Connection Fix (June 15, 2025)
 - **Fixed autopilot dashboard real-time data synchronization** with performance tracking system
 - **Root cause**: Profit streak showing "Start your streak today!" instead of actual streak values from performance data
