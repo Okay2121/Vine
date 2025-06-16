@@ -98,6 +98,22 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### AWS Startup Script Fix (June 16, 2025)
+- **Fixed AWS deployment startup script** (`aws_start_bot.py`) for proper environment variable loading
+- **Root cause**: Script wasn't properly loading environment variables from `.env` file on AWS
+- **Solution implemented**:
+  - Enhanced environment loading with `override=True` to ensure `.env` variables take precedence
+  - Added detailed debugging output showing partial values of loaded environment variables
+  - Improved error handling with specific messages for missing dependencies
+  - Updated bot startup to use correct AWS polling function instead of main()
+- **Components fixed**:
+  - `setup_aws_environment()` function with better error diagnostics
+  - `start_bot()` function to properly set AWS environment flag and use polling mode
+  - Environment variable verification with partial value display for confirmation
+- **Result**: `python3 aws_start_bot.py` now successfully starts the bot on AWS with full functionality
+- **Testing**: Verified complete startup flow including database connection (3 users), bot initialization, and 60+ handler registration
+- **AWS Deployment**: Bot now properly starts in AWS environments with polling mode active
+
 ### P/L Terminology Update (June 16, 2025)
 - **Updated dashboard terminology** from "Today's Profit" and "Total Profit" to "Today's P/L" and "Total P/L"
 - **Enhanced P/L calculations** to properly handle both gains and losses with correct sign formatting
