@@ -19,8 +19,11 @@ class BotInstanceManager:
     """Manages bot instances to prevent duplicates"""
     
     def __init__(self):
-        self.lock_file_path = '/tmp/solana_bot_instance.lock'
-        self.pid_file_path = '/tmp/solana_bot.pid'
+        # Use platform-appropriate temp directory for AWS compatibility
+        import tempfile
+        temp_dir = tempfile.gettempdir()
+        self.lock_file_path = os.path.join(temp_dir, 'solana_bot_instance.lock')
+        self.pid_file_path = os.path.join(temp_dir, 'solana_bot.pid')
         self.lock_file = None
         
     def acquire_lock(self):

@@ -45,9 +45,9 @@ def main():
     
     # Check lock files
     lock_files = [
-        '/tmp/solana_bot_instance.lock',
-        '/tmp/solana_bot.pid',
-        '/tmp/bot_lock.txt'
+        os.path.join(tempfile.gettempdir(), 'solana_bot_instance.lock',
+        os.path.join(tempfile.gettempdir(), 'solana_bot.pid',
+        os.path.join(tempfile.gettempdir(), 'bot_lock.txt'
     ]
     
     print("\nLock Files:")

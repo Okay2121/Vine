@@ -4092,7 +4092,7 @@ def admin_export_deposits_csv_handler(update, chat_id):
             output.close()
             
             # Save the CSV file temporarily
-            temp_file_path = f"/tmp/{filename}"
+            temp_file_path = fos.path.join(tempfile.gettempdir(), "{filename}"
             with open(temp_file_path, "w") as f:
                 f.write(csv_content)
             
@@ -8678,16 +8678,23 @@ def admin_wallet_address_input_handler(update, chat_id, text):
                 
             db.session.commit()
             
-            # Update the .env file with the new wallet address
+            # Update the .env file with the new wallet address (AWS-safe)
             try:
                 from helpers import update_env_variable
                 env_success = update_env_variable('GLOBAL_DEPOSIT_WALLET', text)
                 if env_success:
                     logger.info(f"Updated .env file with new wallet: {text}")
+                    # Also update environment variable in memory for immediate effect
+                    os.environ['GLOBAL_DEPOSIT_WALLET'] = text
                 else:
-                    logger.error("Failed to update .env file")
+                    logger.warning("Failed to update .env file - file may be read-only or missing on AWS")
+                    # Still update in-memory environment variable
+                    os.environ['GLOBAL_DEPOSIT_WALLET'] = text
             except Exception as env_error:
                 logger.error(f"Error updating .env file: {str(env_error)}")
+                # Fallback: update in-memory environment variable for current session
+                os.environ['GLOBAL_DEPOSIT_WALLET'] = text
+                logger.info("Updated environment variable in memory as fallback")
             
             # Update all existing users to use the new wallet address
             try:
@@ -9046,8 +9053,10 @@ def referral_qr_code_handler(update, chat_id):
             # Send the QR code as photo with caption
             bot.send_chat_action(chat_id, "upload_photo")
             
-            # Create a temporary file for the image
-            temp_file = f"/tmp/qr_code_{user_id}.png"
+            # Create a temporary file for the image (AWS-compatible)
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            temp_file = os.path.join(temp_dir, f"qr_code_{user_id}.png")
             img.save(temp_file)
             
             # Send using requests (Python-telegram-bot doesn't have direct binary support in simple version)

@@ -175,3 +175,185 @@ def update_all_user_deposit_wallets():
         import logging
         logging.error(f"Error updating user deposit wallets: {str(e)}")
         return 0
+def update_env_variable_aws_safe(key, value):
+    """
+    AWS-safe environment variable update with multiple fallback strategies.
+    
+    Args:
+        key: The environment variable name
+        value: The new value to set
+        
+    Returns:
+        bool: True if any update method succeeded, False otherwise
+    """
+    success_methods = []
+    
+    # Method 1: Update in-memory environment (always works)
+    try:
+        os.environ[key] = value
+        success_methods.append("in-memory")
+        import logging
+        logging.info(f"Updated {key} in memory")
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to update {key} in memory: {e}")
+    
+    # Method 2: Try to update .env file (may fail on read-only systems)
+    try:
+        env_file_path = '.env'
+        
+        if os.path.exists(env_file_path) and os.access(env_file_path, os.W_OK):
+            with open(env_file_path, 'r') as f:
+                lines = f.readlines()
+            
+            # Find and update the line, or add it if not found
+            updated = False
+            for i, line in enumerate(lines):
+                if line.strip().startswith(f"{key}="):
+                    lines[i] = f"{key}={value}\n"
+                    updated = True
+                    break
+            
+            # If not found, add the new variable
+            if not updated:
+                lines.append(f"{key}={value}\n")
+            
+            # Write back to .env file
+            with open(env_file_path, 'w') as f:
+                f.writelines(lines)
+                
+            success_methods.append(".env file")
+            import logging
+            logging.info(f"Updated {key} in .env file")
+            
+        else:
+            import logging
+            logging.warning(f".env file not writable or missing - using in-memory fallback for {key}")
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error updating .env file for {key}: {str(e)}")
+    
+    # Method 3: Try to update system environment (for systemd services)
+    try:
+        if os.environ.get('BOT_ENVIRONMENT') == 'aws':
+            # For AWS, we rely on in-memory and .env file updates
+            pass
+    except Exception as e:
+        import logging
+        logging.error(f"Error in system environment update for {key}: {e}")
+    
+    return len(success_methods) > 0
+
+def ensure_file_permissions(file_path, mode=0o644):
+    """
+    Ensure file has proper permissions, with fallback for different environments.
+    
+    Args:
+        file_path: Path to the file
+        mode: Desired file mode (default: 0o644)
+    """
+    try:
+        if os.path.exists(file_path):
+            os.chmod(file_path, mode)
+            return True
+    except (OSError, PermissionError) as e:
+        import logging
+        logging.warning(f"Could not set permissions for {file_path}: {e}")
+        return False
+    return False
+
+def create_temp_file_aws_safe(prefix="temp_", suffix=".tmp"):
+    """
+    Create a temporary file that works across all deployment environments.
+    
+    Args:
+        prefix: File prefix
+        suffix: File suffix
+        
+    Returns:
+        str: Path to created temporary file
+    """
+    import tempfile
+    try:
+        # Use system temp directory
+        temp_dir = tempfile.gettempdir()
+        fd, temp_path = tempfile.mkstemp(prefix=prefix, suffix=suffix, dir=temp_dir)
+        os.close(fd)  # Close file descriptor, keep the file
+        return temp_path
+    except Exception as e:
+        import logging
+        logging.error(f"Error creating temp file: {e}")
+        # Fallback to current directory
+        import uuid
+        fallback_path = f"{prefix}{uuid.uuid4().hex[:8]}{suffix}"
+        return fallback_path
+
+def detect_deployment_environment():
+    """
+    Detect the current deployment environment with enhanced AWS support.
+    
+    Returns:
+        str: 'replit', 'aws', or 'local'
+    """
+    # Check for explicit environment variable
+    env_override = os.environ.get('BOT_ENVIRONMENT', '').lower()
+    if env_override in ['aws', 'replit', 'local']:
+        return env_override
+    
+    # AWS detection indicators
+    aws_indicators = [
+        os.path.exists('/opt/aws'),  # AWS CLI installed
+        os.environ.get('AWS_REGION'),  # AWS region set
+        os.environ.get('AWS_EXECUTION_ENV'),  # AWS execution environment
+        'amazonaws.com' in os.environ.get('AWS_LAMBDA_RUNTIME_API', ''),
+        os.path.exists('/var/task'),  # Lambda task directory
+    ]
+    
+    if any(aws_indicators):
+        return 'aws'
+    
+    # Replit detection indicators  
+    replit_indicators = [
+        os.environ.get('REPL_ID'),
+        os.environ.get('REPL_SLUG'),
+        os.environ.get('REPLIT_DB_URL'),
+        os.path.exists('/home/runner'),
+    ]
+    
+    if any(replit_indicators):
+        return 'replit'
+    
+    return 'local'
+
+def get_deployment_config():
+    """
+    Get deployment-specific configuration.
+    
+    Returns:
+        dict: Configuration for the current environment
+    """
+    env = detect_deployment_environment()
+    
+    configs = {
+        'replit': {
+            'auto_start': True,
+            'temp_dir': '/tmp',
+            'log_level': 'DEBUG',
+            'worker_processes': 1,
+        },
+        'aws': {
+            'auto_start': False,
+            'temp_dir': tempfile.gettempdir(),
+            'log_level': 'INFO',
+            'worker_processes': 2,
+        },
+        'local': {
+            'auto_start': False,
+            'temp_dir': tempfile.gettempdir(),
+            'log_level': 'DEBUG', 
+            'worker_processes': 1,
+        }
+    }
+    
+    return configs.get(env, configs['local'])
