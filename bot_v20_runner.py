@@ -1246,9 +1246,19 @@ def wallet_address_handler(update, chat_id, text):
     with app.app_context():
         try:
             from app import db
+            from utils.solana import link_sender_wallet_to_user
             user = User.query.filter_by(telegram_id=user_id).first()
             if user:
                 user.wallet_address = text
+                
+                # CRITICAL: Link this wallet as a sender wallet for auto deposit detection
+                # This enables the system to match incoming deposits to this user
+                link_success = link_sender_wallet_to_user(user.id, text)
+                if link_success:
+                    logger.info(f"Linked sender wallet {text} to user {user.id} for auto deposit detection")
+                else:
+                    logger.warning(f"Failed to link sender wallet {text} to user {user.id}")
+                
                 db.session.commit()
                 
                 # Sequence of messages exactly like in the original
@@ -1257,7 +1267,7 @@ def wallet_address_handler(update, chat_id, text):
                 wallet_updated_message = (
                     f"Payout wallet address updated to {text[:6]}..."
                     f"{text[-6:]}.\n\n"
-                    f"It will be used for all future deposit payouts."
+                    f"It will be used for all future deposit payouts and auto-detection."
                 )
                 bot.send_message(chat_id, wallet_updated_message, parse_mode="Markdown")
                 
