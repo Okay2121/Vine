@@ -9958,15 +9958,12 @@ def main():
     finally:
         # Cleanup
         try:
+            from duplicate_instance_prevention import get_global_instance_manager
+            instance_manager = get_global_instance_manager()
             instance_manager.release_lock()
         except:
             pass
 
 # Entry point for AWS execution
 if __name__ == '__main__':
-    # Only run if this is direct execution, not import
-    if env_info['is_direct_execution']:
-        main()
-    else:
-        logger = logging.getLogger(__name__)
-        logger.info("📦 Module imported, skipping direct execution")
+    main()
