@@ -18,3 +18,4 @@ werkzeug>=2.3.0
 python-dotenv
 telegram
 python-dotenv
+python-dotenv
