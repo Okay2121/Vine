@@ -1877,11 +1877,15 @@ def dashboard_command(update, chat_id):
             except ImportError:
                 pass  # Use already calculated values
             
+            # Format P/L values with proper sign handling
+            today_pl_sign = "+" if today_profit_amount >= 0 else ""
+            total_pl_sign = "+" if total_profit_amount >= 0 else ""
+            
             dashboard_message = (
                 "📊 *Autopilot Dashboard*\n\n"
                 f"• *Balance:* {current_balance:.2f} SOL\n"
-                f"• *Today's Profit:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
-                f"• *Total Profit:* +{total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
+                f"• *Today's P/L:* {today_pl_sign}{today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
+                f"• *Total P/L:* {total_pl_sign}{total_profit_percentage:.1f}% ({total_pl_sign}{total_profit_amount:.2f} SOL)\n"
             )
             
             # Add streak with real-time data from performance tracking (no fire emojis)
@@ -6770,10 +6774,11 @@ def withdraw_profit_handler(update, chat_id):
                 display_wallet = wallet_address
             
             # Show initial withdrawal screen with real-time processing
+            total_pl_sign = "+" if total_profit_amount >= 0 else ""
             withdrawal_message = (
                 "💰 *Withdraw Funds*\n\n"
                 f"Available Balance: *{available_balance:.2f} SOL*\n"
-                f"Total Profit: *{total_profit_amount:.2f} SOL* ({total_profit_percentage:.1f}%)\n\n"
+                f"Total P/L: *{total_pl_sign}{total_profit_amount:.2f} SOL* ({total_profit_percentage:.1f}%)\n\n"
                 f"Withdrawal Wallet: `{display_wallet}`\n\n"
                 "Select an option below to withdraw your funds:"
             )
@@ -6935,24 +6940,25 @@ def trading_history_handler(update, chat_id):
             performance_message += f"Initial: {initial_deposit:.2f} SOL\n"
             performance_message += f"Current: {current_balance:.2f} SOL\n"
             
-            # Show profit with proper formatting and percentage using real-time data
+            # Show P/L with proper formatting and percentage using real-time data
+            total_pl_sign = "+" if total_profit_amount >= 0 else ""
             if total_profit_amount >= 0:
-                performance_message += f"Profit: +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n\n"
+                performance_message += f"Total P/L: +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n\n"
             else:
-                performance_message += f"Profit: {total_profit_amount:.2f} SOL ({total_profit_percentage:.1f}%)\n\n"
+                performance_message += f"Total P/L: {total_profit_amount:.2f} SOL ({total_profit_percentage:.1f}%)\n\n"
             
-            # Today's profit - emphasized and eye-catching using real-time data
+            # Today's P/L - emphasized and eye-catching using real-time data
             performance_message += "📈 *TODAY'S PERFORMANCE*\n"
             starting_balance = current_balance - today_profit_amount
             
             if today_profit_amount > 0:
-                performance_message += f"Profit today: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
+                performance_message += f"P/L today: +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
                 performance_message += f"Starting: {starting_balance:.2f} SOL\n\n"
             elif today_profit_amount < 0:
-                performance_message += f"Today: {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
+                performance_message += f"P/L today: {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
                 performance_message += f"Starting: {starting_balance:.2f} SOL\n\n"
             else:
-                performance_message += "No profit recorded yet today\n"
+                performance_message += "No P/L recorded yet today\n"
                 performance_message += f"Starting: {current_balance:.2f} SOL\n\n"
             
             # Use streak from real-time data (already calculated in performance_data)
