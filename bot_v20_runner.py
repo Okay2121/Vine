@@ -20,35 +20,49 @@ import traceback
 from datetime import datetime, timedelta
 from threading import Thread
 
-# Environment detection and .env loading for AWS
+# Environment detection and .env loading
 def setup_environment():
-    """Setup environment variables based on execution context"""
+    """Setup environment variables based on execution context with enhanced detection"""
     
-    # Check if we're running directly (AWS mode) or imported (Replit mode)
-    is_direct_execution = __name__ == "__main__"
+    # Import environment detector
+    from environment_detector import get_environment_info, is_direct_execution, is_aws_environment
     
-    # Check for .env file existence (AWS indicator)
-    env_file_exists = os.path.exists('.env')
+    # Get comprehensive environment info
+    env_info = get_environment_info()
     
-    # Load .env for AWS deployment
-    if is_direct_execution and env_file_exists:
+    # Configure logging based on environment
+    logging.basicConfig(
+        format=f'%(asctime)s [{env_info["environment_type"].upper()}] %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+    
+    logger = logging.getLogger(__name__)
+    
+    # Load .env file only for AWS/production environments
+    if env_info["environment_type"] == "aws" or env_info["env_file_exists"]:
         try:
             from dotenv import load_dotenv
             load_dotenv()
-            logging.info("✅ AWS Environment: Loaded .env file successfully")
+            logger.info("✅ AWS Environment: Loaded .env file successfully")
         except ImportError:
-            logging.warning("⚠️  python-dotenv not installed, install with: pip install python-dotenv")
+            logger.warning("⚠️  python-dotenv not installed, install with: pip install python-dotenv")
         except Exception as e:
-            logging.error(f"❌ Error loading .env file: {e}")
-    elif is_direct_execution:
-        logging.info("🔍 AWS Environment: No .env file found, using system environment variables")
+            logger.error(f"❌ Error loading .env file: {e}")
+    elif env_info["environment_type"] == "replit":
+        logger.info("🎯 Replit Environment: Using Replit's built-in environment variables")
     else:
-        logging.info("🎯 Replit Environment: Using Replit's built-in environment variables")
+        logger.info("💻 Local Environment: Using system environment variables")
     
-    return is_direct_execution
+    # Log startup mode
+    if env_info["is_direct_execution"]:
+        logger.info("🚀 Direct Execution Mode: Bot started via 'python bot_v20_runner.py'")
+    else:
+        logger.info("📦 Import Mode: Bot imported by another module (main.py)")
+    
+    return env_info
 
 # Setup environment before other imports
-is_aws_execution = setup_environment()
+env_info = setup_environment()
 
 from config import BOT_TOKEN, MIN_DEPOSIT
 
@@ -9854,39 +9868,105 @@ def referral_tips_handler(update, chat_id):
 
 # AWS Entry Point - Direct execution via `python bot_v20_runner.py`
 def main():
-    """Main entry point for AWS deployment"""
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
-    )
+    """Main entry point for AWS deployment with environment-aware startup"""
     
-    logger.info("🚀 Starting Telegram Bot in AWS Mode")
-    logger.info("=" * 50)
-    logger.info("Execution method: Direct Python execution")
-    logger.info("Environment loading: .env file (if present)")
-    logger.info("Startup mode: Manual")
+    # Get logger after environment setup
+    logger = logging.getLogger(__name__)
+    
+    # Prevent duplicate execution if already running via import
+    global _bot_running
+    if _bot_running:
+        logger.warning("🔄 Bot is already running via import mode, skipping direct execution")
+        return
+    
+    logger.info("🚀 Starting Telegram Bot in Direct Execution Mode")
+    logger.info("=" * 60)
+    logger.info(f"Environment Type: {env_info['environment_type'].upper()}")
+    logger.info(f"Execution Method: Direct Python execution")
+    logger.info(f"Environment File: {'✅ Found' if env_info['env_file_exists'] else '❌ Not found'}")
+    logger.info(f"Auto-start Enabled: {'✅ Yes' if env_info['auto_start_enabled'] else '❌ No (manual start)'}")
+    logger.info("=" * 60)
     
     try:
         # Verify critical environment variables
         if not BOT_TOKEN:
-            logger.error("❌ BOT_TOKEN not found in environment variables")
-            logger.error("Please ensure your .env file contains BOT_TOKEN=your_bot_token")
+            logger.error("❌ TELEGRAM_BOT_TOKEN not found in environment variables")
+            if env_info['environment_type'] == 'aws':
+                logger.error("Please ensure your .env file contains:")
+                logger.error("TELEGRAM_BOT_TOKEN=your_bot_token_here")
+                logger.error("DATABASE_URL=your_database_url_here")
+                logger.error("SESSION_SECRET=your_session_secret_here")
+            else:
+                logger.error("Please set TELEGRAM_BOT_TOKEN in your environment")
             sys.exit(1)
         
         logger.info(f"✅ Bot token found (ending in ...{BOT_TOKEN[-5:]})")
         
+        # Check database connectivity
+        try:
+            with app.app_context():
+                from models import User
+                user_count = User.query.count()
+                logger.info(f"✅ Database connected successfully ({user_count} users)")
+        except Exception as e:
+            logger.error(f"❌ Database connection failed: {e}")
+            if env_info['environment_type'] == 'aws':
+                logger.error("Please check your DATABASE_URL in the .env file")
+            sys.exit(1)
+        
+        # Prevent duplicate instance
+        from duplicate_instance_prevention import get_global_instance_manager
+        instance_manager = get_global_instance_manager()
+        if not instance_manager.acquire_lock():
+            logger.warning("🔒 Another bot instance is already running, exiting")
+            sys.exit(1)
+        
+        # Start monitoring systems
+        from utils.deposit_monitor import start_deposit_monitor, is_monitor_running
+        from automated_maintenance import start_maintenance_scheduler
+        
+        if not is_monitor_running():
+            if start_deposit_monitor():
+                logger.info("✅ Deposit monitor started")
+            else:
+                logger.warning("⚠️  Failed to start deposit monitor")
+        
+        try:
+            start_maintenance_scheduler()
+            logger.info("✅ Database maintenance scheduler started")
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to start maintenance scheduler: {e}")
+        
         # Start the bot
         logger.info("🤖 Starting bot polling...")
+        logger.info("Press Ctrl+C to stop the bot")
+        
+        # Set running flag
+        _bot_running = True
+        
         run_polling()
         
     except KeyboardInterrupt:
         logger.info("🛑 Bot stopped by user (Ctrl+C)")
+        _bot_running = False
     except Exception as e:
         logger.error(f"❌ Bot crashed: {e}")
         import traceback
         logger.error(traceback.format_exc())
+        _bot_running = False
         sys.exit(1)
+    finally:
+        # Cleanup
+        try:
+            instance_manager.release_lock()
+        except:
+            pass
 
 # Entry point for AWS execution
 if __name__ == '__main__':
-    main()
+    # Only run if this is direct execution, not import
+    if env_info['is_direct_execution']:
+        main()
+    else:
+        logger = logging.getLogger(__name__)
+        logger.info("📦 Module imported, skipping direct execution")

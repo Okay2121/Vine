@@ -1,94 +1,179 @@
+#!/usr/bin/env python3
 """
-Environment Detection Utility
-=============================
-This module detects whether the bot is running on Replit or AWS/other environments
-to enable conditional auto-start behavior.
+Environment Detection System
+============================
+Detects whether the bot is running on Replit or AWS and configures startup behavior accordingly.
 """
 
 import os
+import sys
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 def is_replit_environment():
     """
-    Detect if we're running on Replit by checking for Replit-specific indicators.
-    Explicit BOT_ENVIRONMENT setting takes priority over automatic detection.
+    Detect if we're running on Replit platform.
     
     Returns:
         bool: True if running on Replit, False otherwise
     """
-    # Check for explicit environment setting first (highest priority)
-    env_setting = os.environ.get('BOT_ENVIRONMENT', '').lower()
-    if env_setting == 'aws':
-        logger.info("Environment forced to AWS via BOT_ENVIRONMENT setting")
-        return False
-    elif env_setting == 'replit':
-        logger.info("Environment forced to Replit via BOT_ENVIRONMENT setting")
-        return True
-    
     # Check for Replit-specific environment variables
     replit_indicators = [
-        'REPLIT_CLUSTER',
-        'REPLIT_DB_URL', 
         'REPL_ID',
-        'REPL_SLUG',
-        'REPLIT_DOMAIN'
+        'REPL_SLUG', 
+        'REPLIT_DB_URL',
+        'REPL_OWNER',
+        'REPLIT_DOMAINS'
     ]
     
-    # Check if any Replit indicator is present
     for indicator in replit_indicators:
         if os.environ.get(indicator):
-            logger.info(f"Detected Replit environment via {indicator}")
             return True
     
+    # Check for Replit-specific paths
+    replit_paths = [
+        '/home/runner',
+        '/opt/virtualenvs/python3'
+    ]
+    
+    for path in replit_paths:
+        if Path(path).exists():
+            return True
+    
+    return False
+
+def is_aws_environment():
+    """
+    Detect if we're running on AWS or similar cloud environment.
+    
+    Returns:
+        bool: True if likely AWS/cloud environment, False otherwise
+    """
     # Check for AWS-specific indicators
     aws_indicators = [
         'AWS_REGION',
-        'AWS_EXECUTION_ENV',
-        'AWS_LAMBDA_FUNCTION_NAME'
+        'AWS_DEFAULT_REGION',
+        'EC2_INSTANCE_ID',
+        'AWS_EXECUTION_ENV'
     ]
     
     for indicator in aws_indicators:
         if os.environ.get(indicator):
-            logger.info(f"Detected AWS environment via {indicator}")
-            return False
+            return True
     
-    # Default to non-Replit (manual start) if we can't determine
-    logger.info("Could not determine environment - defaulting to manual start mode")
+    # Check if .env file exists (AWS deployment pattern)
+    if Path('.env').exists():
+        return True
+    
+    # Check if we're NOT on Replit and have production-like setup
+    if not is_replit_environment():
+        # Look for production indicators
+        production_indicators = [
+            os.environ.get('NODE_ENV') == 'production',
+            os.environ.get('FLASK_ENV') == 'production',
+            os.environ.get('ENVIRONMENT') == 'production',
+            Path('/var/log').exists(),  # Linux system
+            Path('/etc/systemd').exists()  # Systemd (common on AWS Linux)
+        ]
+        
+        if any(production_indicators):
+            return True
+    
     return False
 
-def get_environment_info():
+def is_direct_execution():
     """
-    Get detailed environment information for logging and debugging.
+    Check if the bot is being executed directly (python bot_v20_runner.py).
     
     Returns:
-        dict: Environment information
+        bool: True if direct execution, False if imported
     """
-    return {
-        'is_replit': is_replit_environment(),
-        'environment_type': 'replit' if is_replit_environment() else 'aws/manual',
-        'auto_start_enabled': is_replit_environment(),
-        'detected_indicators': {
-            'replit_cluster': bool(os.environ.get('REPLIT_CLUSTER')),
-            'repl_id': bool(os.environ.get('REPL_ID')),
-            'aws_region': bool(os.environ.get('AWS_REGION')),
-            'bot_environment': os.environ.get('BOT_ENVIRONMENT', 'not_set')
-        }
-    }
+    # Check the main module name in the call stack
+    import inspect
+    
+    for frame_record in inspect.stack():
+        frame = frame_record.frame
+        if frame.f_globals.get('__name__') == '__main__':
+            filename = frame.f_code.co_filename
+            if 'bot_v20_runner.py' in filename:
+                return True
+    
+    return False
 
 def should_auto_start():
     """
-    Determine if the bot should auto-start based on the environment.
+    Determine if the bot should auto-start based on environment.
     
     Returns:
-        bool: True if bot should auto-start, False if manual start required
+        bool: True if auto-start should be enabled, False otherwise
     """
-    auto_start = is_replit_environment()
+    # Auto-start only on Replit when accessed via web interface
+    return is_replit_environment() and not is_direct_execution()
+
+def get_environment_info():
+    """
+    Get comprehensive environment information.
     
-    if auto_start:
-        logger.info("Auto-start enabled for Replit environment")
+    Returns:
+        dict: Environment details
+    """
+    env_type = "unknown"
+    
+    if is_replit_environment():
+        env_type = "replit"
+    elif is_aws_environment():
+        env_type = "aws"
     else:
-        logger.info("Auto-start disabled - manual start required for AWS/production environment")
+        env_type = "local"
     
-    return auto_start
+    return {
+        "environment_type": env_type,
+        "is_replit": is_replit_environment(),
+        "is_aws": is_aws_environment(),
+        "is_direct_execution": is_direct_execution(),
+        "auto_start_enabled": should_auto_start(),
+        "env_file_exists": Path('.env').exists(),
+        "repl_id": os.environ.get('REPL_ID'),
+        "aws_region": os.environ.get('AWS_REGION'),
+        "execution_path": sys.argv[0] if sys.argv else "unknown"
+    }
+
+def setup_logging_for_environment():
+    """Setup appropriate logging configuration based on environment."""
+    env_info = get_environment_info()
+    
+    if env_info["environment_type"] == "replit":
+        # Replit-friendly logging
+        logging.basicConfig(
+            format='%(asctime)s [REPLIT] %(name)s - %(levelname)s - %(message)s',
+            level=logging.INFO
+        )
+        logger.info("🎯 Replit Environment Detected")
+    elif env_info["environment_type"] == "aws":
+        # AWS-friendly logging with more detail
+        logging.basicConfig(
+            format='%(asctime)s [AWS] %(name)s - %(levelname)s - %(message)s',
+            level=logging.INFO
+        )
+        logger.info("☁️  AWS Environment Detected")
+    else:
+        # Local development logging
+        logging.basicConfig(
+            format='%(asctime)s [LOCAL] %(name)s - %(levelname)s - %(message)s',
+            level=logging.DEBUG
+        )
+        logger.info("💻 Local Environment Detected")
+    
+    # Log environment details
+    logger.info(f"Environment Info: {env_info}")
+    
+    return env_info
+
+if __name__ == "__main__":
+    # Test the environment detection
+    info = setup_logging_for_environment()
+    print("Environment Detection Results:")
+    for key, value in info.items():
+        print(f"  {key}: {value}")

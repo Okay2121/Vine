@@ -8,7 +8,7 @@ from flask import request, Response, jsonify
 from utils.deposit_monitor import start_deposit_monitor, stop_deposit_monitor, is_monitor_running
 from automated_maintenance import start_maintenance_scheduler, stop_maintenance_scheduler
 from database_monitoring import DatabaseMonitor
-from environment_detector import should_auto_start, get_environment_info
+from environment_detector import should_auto_start, get_environment_info, is_replit_environment
 from duplicate_instance_prevention import get_global_instance_manager
 
 # Configure logging
@@ -19,8 +19,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables only if not on Replit (Replit handles this automatically)
+if not is_replit_environment():
+    load_dotenv()
+    logger.info("Loaded .env file for non-Replit environment")
+else:
+    logger.info("Replit environment detected - using built-in environment variables")
 
 # Get the bot token from environment variables
 BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')

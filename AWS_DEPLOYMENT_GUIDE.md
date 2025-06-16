@@ -1,248 +1,326 @@
-# AWS Deployment Guide for Solana Memecoin Trading Bot
+# AWS Deployment Guide for Telegram Trading Bot
 
-## Overview
-This bot now supports dual startup modes:
-- **Replit**: Auto-start when remixed (handled by main.py)
-- **AWS**: Manual execution with .env loading via `python bot_v20_runner.py`
+This guide will help you deploy your Telegram trading bot on an AWS EC2 instance with proper environment configuration.
 
-## AWS Deployment Steps
+## Prerequisites
 
-### 1. Server Setup
-```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
+1. AWS account with EC2 access
+2. Basic knowledge of Linux command line
+3. Your Telegram bot token from @BotFather
+4. PostgreSQL database (AWS RDS recommended)
 
-# Install Python 3.11+
-sudo apt install python3.11 python3.11-pip python3.11-venv -y
+## Step 1: Launch AWS EC2 Instance
 
-# Install PostgreSQL client (if needed)
-sudo apt install postgresql-client -y
-```
+1. **Launch Instance**:
+   - Go to AWS EC2 Console
+   - Click "Launch Instance"
+   - Choose Ubuntu Server 22.04 LTS (recommended)
+   - Instance type: t3.medium or higher (for production)
+   - Configure security group to allow:
+     - SSH (port 22) from your IP
+     - HTTP (port 80) - optional
+     - HTTPS (port 443) - optional
 
-### 2. Project Setup
-```bash
-# Clone or upload your project
-cd /opt/
-sudo git clone your-repo-url trading-bot
-cd trading-bot
+2. **Connect to Instance**:
+   ```bash
+   ssh -i your-key.pem ubuntu@your-ec2-ip
+   ```
 
-# Create virtual environment
-python3.11 -m venv venv
-source venv/bin/activate
+## Step 2: System Setup
 
-# Install dependencies
-pip install -r requirements.txt
-```
+1. **Update System**:
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   ```
 
-### 3. Environment Configuration
-```bash
-# Copy the example file
-cp .env.example .env
+2. **Install Python and Dependencies**:
+   ```bash
+   sudo apt install python3 python3-pip python3-venv git postgresql-client -y
+   ```
 
-# Edit with your actual values
-nano .env
-```
+3. **Install Python Development Tools**:
+   ```bash
+   sudo apt install python3-dev libpq-dev build-essential -y
+   ```
 
-Required environment variables in `.env`:
-```bash
-# Telegram Bot Configuration
-TELEGRAM_BOT_TOKEN=your_actual_bot_token
-BOT_TOKEN=your_actual_bot_token
+## Step 3: Deploy Your Bot
 
-# Database Configuration
-DATABASE_URL=postgresql://user:password@host:port/database
+1. **Clone/Upload Your Bot Code**:
+   ```bash
+   # If using git
+   git clone your-repository-url bot-project
+   cd bot-project
+   
+   # Or upload your files using scp
+   # scp -i your-key.pem -r /local/bot/path ubuntu@your-ec2-ip:~/bot-project
+   ```
 
-# Flask Configuration
-SESSION_SECRET=your_random_secret_key
+2. **Create Virtual Environment**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
-# Optional: Force AWS mode
-BOT_ENVIRONMENT=aws
-```
+3. **Install Python Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### 4. Database Setup
-```bash
-# Test database connection
-python -c "from app import app, db; app.app_context().push(); db.create_all(); print('Database connected successfully')"
-```
+## Step 4: Environment Configuration
 
-### 5. Bot Startup Commands
+1. **Create Environment File**:
+   ```bash
+   cp .env.template .env
+   nano .env
+   ```
 
-#### Start Bot (Primary Method)
-```bash
-# Direct execution - loads .env automatically
-python bot_v20_runner.py
-```
+2. **Configure Your .env File**:
+   ```env
+   # Essential Configuration
+   TELEGRAM_BOT_TOKEN=your_actual_bot_token_here
+   DATABASE_URL=postgresql://username:password@your-rds-endpoint:5432/database_name
+   SESSION_SECRET=your_generated_session_secret_here
+   
+   # Production Settings
+   FLASK_ENV=production
+   ENVIRONMENT=production
+   LOG_LEVEL=INFO
+   
+   # AWS Settings (optional but recommended)
+   AWS_REGION=us-east-1
+   AWS_DEFAULT_REGION=us-east-1
+   ```
 
-#### Alternative Methods
-```bash
-# With virtual environment
-source venv/bin/activate && python bot_v20_runner.py
+3. **Generate Session Secret**:
+   ```bash
+   python3 -c "import secrets; print('SESSION_SECRET=' + secrets.token_hex(32))"
+   ```
+   Copy the output to your .env file.
 
-# As background service
-nohup python bot_v20_runner.py > bot.log 2>&1 &
+## Step 5: Database Setup
 
-# With specific environment
-BOT_ENVIRONMENT=aws python bot_v20_runner.py
-```
+### Option A: AWS RDS PostgreSQL
 
-### 6. Systemd Service (Production)
-Create `/etc/systemd/system/trading-bot.service`:
-```ini
-[Unit]
-Description=Solana Memecoin Trading Bot
-After=network.target
+1. **Create RDS Instance**:
+   - Go to AWS RDS Console
+   - Create PostgreSQL database
+   - Note the endpoint, username, and password
 
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/opt/trading-bot
-Environment=PATH=/opt/trading-bot/venv/bin
-ExecStart=/opt/trading-bot/venv/bin/python bot_v20_runner.py
-Restart=always
-RestartSec=10
+2. **Configure Database URL**:
+   ```env
+   DATABASE_URL=postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/database_name
+   ```
 
-[Install]
-WantedBy=multi-user.target
-```
+### Option B: Local PostgreSQL
 
-Start service:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable trading-bot
-sudo systemctl start trading-bot
-sudo systemctl status trading-bot
-```
+1. **Install PostgreSQL**:
+   ```bash
+   sudo apt install postgresql postgresql-contrib -y
+   ```
 
-### 7. Verification
+2. **Setup Database**:
+   ```bash
+   sudo -u postgres createuser --interactive
+   sudo -u postgres createdb your_database_name
+   ```
 
-#### Check Bot Status
-```bash
-# View logs
-tail -f bot.log
+## Step 6: Test Your Bot
 
-# Check if bot is responding
-curl -X GET "https://api.telegram.org/bot$BOT_TOKEN/getMe"
-```
+1. **Test Environment Detection**:
+   ```bash
+   python3 environment_detector.py
+   ```
+   Expected output should show "aws" environment type.
 
-#### Health Monitoring
-If running Flask app alongside:
-```bash
-# Health check
-curl http://localhost:5000/health
+2. **Test Bot Startup**:
+   ```bash
+   python3 bot_v20_runner.py
+   ```
+   
+   You should see logs indicating:
+   - AWS Environment detected
+   - .env file loaded successfully
+   - Database connection successful
+   - Bot starting in polling mode
 
-# Environment info
-curl http://localhost:5000/environment
-```
+3. **Test Bot Functionality**:
+   - Send `/start` to your bot on Telegram
+   - Verify it responds correctly
 
-## Key Features
+## Step 7: Production Deployment
 
-### Environment Detection
-- **Automatic .env loading**: Only on AWS when executed directly
-- **Environment indicators**: Detects AWS vs Replit automatically
-- **Override capability**: Use `BOT_ENVIRONMENT=aws` to force mode
+### Option A: Simple Screen Session
 
-### Startup Modes
-1. **AWS Mode**: `python bot_v20_runner.py`
-   - Loads .env file automatically
-   - Full logging and error reporting
-   - Manual startup control
+1. **Install Screen**:
+   ```bash
+   sudo apt install screen -y
+   ```
 
-2. **Replit Mode**: Auto-start via main.py
-   - Uses Replit's environment variables
-   - Thread-based execution
-   - Remix-friendly
+2. **Start Bot in Screen**:
+   ```bash
+   screen -S telegram-bot
+   source venv/bin/activate
+   python3 bot_v20_runner.py
+   ```
 
-### Logs and Monitoring
-The bot provides detailed startup logging:
-```
-🚀 Starting Telegram Bot in AWS Mode
-==================================================
-Execution method: Direct Python execution
-Environment loading: .env file (if present)
-Startup mode: Manual
-✅ Bot token found (ending in ...abcde)
-🤖 Starting bot polling...
-```
+3. **Detach from Screen**: Press `Ctrl+A` then `D`
+
+4. **Reattach Later**:
+   ```bash
+   screen -r telegram-bot
+   ```
+
+### Option B: Systemd Service (Recommended)
+
+1. **Create Service File**:
+   ```bash
+   sudo nano /etc/systemd/system/telegram-bot.service
+   ```
+
+2. **Service Configuration**:
+   ```ini
+   [Unit]
+   Description=Telegram Trading Bot
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=ubuntu
+   WorkingDirectory=/home/ubuntu/bot-project
+   Environment=PATH=/home/ubuntu/bot-project/venv/bin
+   ExecStart=/home/ubuntu/bot-project/venv/bin/python bot_v20_runner.py
+   Restart=always
+   RestartSec=10
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. **Enable and Start Service**:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable telegram-bot
+   sudo systemctl start telegram-bot
+   ```
+
+4. **Check Service Status**:
+   ```bash
+   sudo systemctl status telegram-bot
+   sudo journalctl -u telegram-bot -f  # View logs
+   ```
+
+## Step 8: Monitoring and Maintenance
+
+### Log Management
+
+1. **View Bot Logs**:
+   ```bash
+   # If using systemd
+   sudo journalctl -u telegram-bot -f
+   
+   # If using screen
+   screen -r telegram-bot
+   ```
+
+2. **Log Rotation** (for systemd):
+   ```bash
+   sudo nano /etc/systemd/journald.conf
+   ```
+   Add:
+   ```ini
+   SystemMaxUse=1G
+   MaxRetentionSec=1week
+   ```
+
+### Database Maintenance
+
+1. **Monitor Database Size**:
+   Access the health endpoint: `http://your-ec2-ip:5000/health`
+
+2. **Manual Cleanup** (if needed):
+   ```bash
+   curl -X POST http://localhost:5000/database/cleanup
+   ```
+
+### Security Updates
+
+1. **Regular Updates**:
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   sudo systemctl restart telegram-bot
+   ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Bot Token Error**
-   ```bash
-   # Verify token
-   echo $TELEGRAM_BOT_TOKEN
-   grep BOT_TOKEN .env
-   ```
+1. **Bot Token Not Found**:
+   - Verify `.env` file exists and contains `TELEGRAM_BOT_TOKEN`
+   - Check file permissions: `chmod 600 .env`
 
-2. **Database Connection**
-   ```bash
-   # Test connection
-   psql $DATABASE_URL -c "SELECT version();"
-   ```
+2. **Database Connection Failed**:
+   - Verify `DATABASE_URL` format
+   - Test connection: `psql $DATABASE_URL`
+   - Check security groups allow database access
 
-3. **Permission Issues**
-   ```bash
-   # Fix permissions
-   sudo chown -R ubuntu:ubuntu /opt/trading-bot
-   chmod +x bot_v20_runner.py
-   ```
+3. **Permission Denied**:
+   - Ensure correct file ownership: `chown -R ubuntu:ubuntu /home/ubuntu/bot-project`
+   - Check service user in systemd configuration
 
-4. **Port Conflicts**
-   ```bash
-   # Check running processes
-   ps aux | grep python
-   netstat -tulpn | grep :5000
-   ```
+4. **Bot Not Responding**:
+   - Check bot logs for errors
+   - Verify bot token is correct
+   - Test with `curl https://api.telegram.org/bot<TOKEN>/getMe`
 
-### Environment Variables Debug
+### Debug Commands
+
 ```bash
-# Check all required variables
-python -c "
-import os
-required = ['TELEGRAM_BOT_TOKEN', 'DATABASE_URL', 'SESSION_SECRET']
-for var in required:
-    print(f'{var}: {\"SET\" if os.getenv(var) else \"MISSING\"}')"
+# Check environment detection
+python3 -c "from environment_detector import get_environment_info; print(get_environment_info())"
+
+# Test database connection
+python3 -c "from app import app; from models import User; app.app_context().push(); print(User.query.count())"
+
+# Check bot token
+python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('Token length:', len(os.environ.get('TELEGRAM_BOT_TOKEN', '')))"
 ```
 
-## Security Notes
+## Environment Comparison
 
-1. **Secure .env file**:
+| Feature | Replit | AWS |
+|---------|--------|-----|
+| Startup Method | Auto-start via web interface | Manual via `python bot_v20_runner.py` |
+| Environment Variables | Built-in secrets manager | `.env` file |
+| .env Loading | Not required | Required |
+| Persistence | Session-based | Permanent |
+| Scaling | Limited | Full control |
+
+## Security Best Practices
+
+1. **Environment File Security**:
    ```bash
    chmod 600 .env
-   chown ubuntu:ubuntu .env
    ```
 
-2. **Firewall configuration**:
+2. **Firewall Configuration**:
    ```bash
-   # Only if running web interface
-   sudo ufw allow 5000/tcp
+   sudo ufw enable
+   sudo ufw allow ssh
+   sudo ufw allow 5000  # Only if needed for web interface
    ```
 
-3. **Regular updates**:
-   ```bash
-   # Update dependencies
-   pip install --upgrade -r requirements.txt
-   ```
-
-## Performance Optimization
-
-### Memory Usage
-- Bot optimized for <100MB usage
-- Database connection pooling enabled
-- Background cleanup running
-
-### CPU Efficiency
-- Long polling reduces API calls by 75%
-- Batch processing for updates
-- Smart duplicate prevention
+3. **Regular Backups**:
+   - Database backups
+   - Configuration file backups
+   - Code repository updates
 
 ## Support
 
-For deployment issues:
-1. Check the logs first: `tail -f bot.log`
-2. Verify environment variables are set correctly
-3. Test database connectivity
-4. Ensure bot token is valid and active
+If you encounter issues:
 
-The bot is now ready for production deployment on AWS with full environment separation from Replit.
+1. Check the logs first
+2. Verify environment configuration
+3. Test individual components
+4. Review this guide's troubleshooting section
+
+Your bot is now configured for AWS deployment with environment-aware startup!
