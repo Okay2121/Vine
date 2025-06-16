@@ -34,7 +34,7 @@ def is_replit_environment():
     
     # Check for Replit-specific paths
     replit_paths = [
-        '/home/runner',
+        os.path.expanduser('~'),
         '/opt/virtualenvs/python3'
     ]
     

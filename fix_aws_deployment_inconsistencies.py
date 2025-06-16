@@ -285,7 +285,7 @@ def detect_deployment_environment():
         os.environ.get('REPL_ID'),
         os.environ.get('REPL_SLUG'),
         os.environ.get('REPLIT_DB_URL'),
-        os.path.exists('/home/runner'),
+        os.path.exists(os.path.expanduser('~')),
     ]
     
     if any(replit_indicators):

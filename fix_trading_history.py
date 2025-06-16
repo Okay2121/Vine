@@ -78,7 +78,7 @@ def fix_trading_history_handler():
             # Try to get stats from yield_data.json file first
             try:
                 # Try multiple possible locations for yield_data.json
-                possible_paths = ['yield_data.json', '/home/runner/workspace/yield_data.json', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yield_data.json')]
+                possible_paths = ['yield_data.json', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'yield_data.json')]
                 
                 yield_data_path = None
                 for path in possible_paths:
