@@ -15,6 +15,8 @@ import requests
 import time
 import json
 import random
+import tempfile
+import traceback
 from datetime import datetime, timedelta
 from threading import Thread
 
@@ -4092,7 +4094,7 @@ def admin_export_deposits_csv_handler(update, chat_id):
             output.close()
             
             # Save the CSV file temporarily
-            temp_file_path = fos.path.join(tempfile.gettempdir(), "{filename}"
+            temp_file_path = os.path.join(tempfile.gettempdir(), filename)
             with open(temp_file_path, "w") as f:
                 f.write(csv_content)
             

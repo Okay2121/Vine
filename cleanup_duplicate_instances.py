@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import tempfile
 """
 Final Cleanup for Duplicate Bot Instances
 ========================================
