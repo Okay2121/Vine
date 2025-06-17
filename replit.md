@@ -98,6 +98,25 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### AWS Environment Variables Export System (June 17, 2025)
+- **Created comprehensive AWS deployment environment package** for seamless cloud deployment
+- **Root cause**: Need for complete environment variable extraction and AWS deployment preparation
+- **Solution implemented**:
+  - Built `export_env_for_aws.py` script to extract all environment variables from current setup
+  - Created `.env.aws` file with all required variables for AWS deployment
+  - Generated shell export script (`export_env_aws.sh`) for alternative deployment method
+  - Added comprehensive template with instructions (`aws_env_template.txt`)
+- **Components created**:
+  - Complete environment variable scanning across entire codebase
+  - AWS-ready `.env` file with all trading, admin, and system variables
+  - Shell script for environment export with proper escaping
+  - Deployment summary with security instructions
+- **Variables extracted**:
+  - Core: DATABASE_URL, TELEGRAM_BOT_TOKEN, ADMIN_USER_ID, SESSION_SECRET
+  - Trading: SOLANA_RPC_URL, GLOBAL_DEPOSIT_WALLET, MIN_DEPOSIT
+  - Production: BOT_ENVIRONMENT=aws, NODE_ENV=production, FLASK_ENV=production
+- **Result**: Complete AWS deployment package ready for cloud deployment with all secrets and configuration
+
 ### Autopilot Dashboard Real-time Data Connection Fix (June 17, 2025)
 - **Fixed autopilot dashboard real-time data synchronization** with performance tracking system
 - **Root cause**: Dashboard was using fallback calculations instead of centralized performance tracking data
@@ -113,6 +132,22 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
   - Created comprehensive verification script confirming all functionality works correctly
 - **Testing results**: All tests passed with existing users, confirming proper day counting and real-time data display
 - **Result**: Autopilot dashboard now displays identical real-time data to Performance dashboard with accurate day counters
+
+### AWS Startup Script Fix (June 16, 2025)
+- **Fixed AWS deployment startup script** (`aws_start_bot.py`) for proper environment variable loading
+- **Root cause**: Script wasn't properly loading environment variables from `.env` file on AWS
+- **Solution implemented**:
+  - Enhanced environment loading with `override=True` to ensure `.env` variables take precedence
+  - Added detailed debugging output showing partial values of loaded environment variables
+  - Improved error handling with specific messages for missing dependencies
+  - Updated bot startup to use correct AWS polling function instead of main()
+- **Components fixed**:
+  - `setup_aws_environment()` function with better error diagnostics
+  - `start_bot()` function to properly set AWS environment flag and use polling mode
+  - Environment variable verification with partial value display for confirmation
+- **Result**: `python3 aws_start_bot.py` now successfully starts the bot on AWS with full functionality
+- **Testing**: Verified complete startup flow including database connection (3 users), bot initialization, and 60+ handler registration
+- **AWS Deployment**: Bot now properly starts in AWS environments with polling mode active
 
 ### P/L Terminology Update (June 16, 2025)
 - **Updated dashboard terminology** from "Today's Profit" and "Total Profit" to "Today's P/L" and "Total P/L"
