@@ -40,12 +40,22 @@ async def send_daily_update(context):
             active_users = User.query.filter_by(status=UserStatus.ACTIVE).all()
             
             for user in active_users:
-                # Get yesterday's profit (assuming this runs at the start of a new day)
-                yesterday = datetime.utcnow().date() - timedelta(days=1)
-                yesterday_profit = Profit.query.filter_by(user_id=user.id, date=yesterday).first()
-                
-                if not yesterday_profit:
-                    logger.warning(f"No profit data for user {user.id} on {yesterday}")
+                # Get yesterday's performance data using the performance tracking system
+                try:
+                    from performance_tracking import get_performance_data
+                    performance_data = get_performance_data(user.id)
+                    
+                    if not performance_data:
+                        logger.warning(f"No performance data for user {user.id}")
+                        continue
+                    
+                    yesterday_profit_amount = performance_data.get('today_profit', 0)  # This would be yesterday when run at start of day
+                    
+                    if yesterday_profit_amount <= 0:
+                        logger.debug(f"No profit for user {user.id} yesterday")
+                        continue
+                except Exception as e:
+                    logger.error(f"Failed to get performance data for user {user.id}: {e}")
                     continue
                 
                 # Calculate current streak and days of operation
