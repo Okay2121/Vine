@@ -6926,10 +6926,12 @@ def trading_history_handler(update, chat_id):
                 elif initial_deposit == 0:
                     initial_deposit = 1.0  # Prevent division by zero for empty accounts
                 
+                # Calculate total profit (current balance - initial deposit)
+                # Admin adjustments are included in current_balance but don't change initial_deposit
                 total_profit_amount = current_balance - initial_deposit
                 total_profit_percentage = (total_profit_amount / initial_deposit) * 100
                 
-                # Calculate today's profit from transactions (including admin adjustments)
+                # Calculate today's profit from transactions (ONLY trading, not admin adjustments)
                 today_date = datetime.now().date()
                 today_start = datetime.combine(today_date, datetime.min.time())
                 today_end = datetime.combine(today_date, datetime.max.time())
@@ -6952,26 +6954,8 @@ def trading_history_handler(update, chat_id):
                     Transaction.status == 'completed'
                 ).scalar() or 0
                 
-                # Get admin credits (positive adjustments)
-                today_admin_credits = db.session.query(func.sum(Transaction.amount)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type == 'admin_credit',
-                    Transaction.timestamp >= today_start,
-                    Transaction.timestamp <= today_end,
-                    Transaction.status == 'completed'
-                ).scalar() or 0
-                
-                # Get admin debits (negative adjustments)
-                today_admin_debits = db.session.query(func.sum(Transaction.amount)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type == 'admin_debit',
-                    Transaction.timestamp >= today_start,
-                    Transaction.timestamp <= today_end,
-                    Transaction.status == 'completed'
-                ).scalar() or 0
-                
-                # Calculate net profit (profits + admin credits - losses - admin debits)
-                net_today_profit = today_trade_profits + today_admin_credits - abs(today_trade_losses) - today_admin_debits
+                # Calculate net profit (ONLY from trading, admin adjustments don't show as daily P/L)
+                net_today_profit = today_trade_profits - abs(today_trade_losses)
                 
                 # Calculate percentage based on starting balance for today, not current balance
                 starting_balance_today = current_balance - net_today_profit
