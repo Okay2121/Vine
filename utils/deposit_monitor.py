@@ -88,10 +88,15 @@ def scan_for_deposits():
                             except Exception as wallet_update_error:
                                 logger.error(f"Failed to update wallet timestamp after retries: {str(wallet_update_error)}")
                             
+                            # Send notification to admin about deposit
+                            try:
+                                notify_admin_of_deposit(user_id, amount, tx_signature)
+                            except Exception as notify_error:
+                                logger.error(f"Failed to send admin notification: {str(notify_error)}")
+                                
                             # Send notification to user (optional)
                             try:
-
-                                pass
+                                notify_user_of_deposit(user.telegram_id, amount)
                             except Exception as notify_error:
                                 logger.error(f"Failed to send notification to user {user.telegram_id}: {str(notify_error)}")
                         else:
@@ -156,6 +161,64 @@ def start_deposit_monitor():
     
     logger.info(f"Deposit monitor started, checking for deposits every {SCAN_INTERVAL} seconds")
     return True
+
+
+def notify_admin_of_deposit(user_id, amount, tx_signature):
+    """Send notification to admin about new deposit."""
+    try:
+        import os
+        from datetime import datetime
+        
+        # Get admin chat ID from environment
+        admin_chat_id = os.environ.get('ADMIN_CHAT_ID')
+        
+        if admin_chat_id:
+            with app.app_context():
+                user = User.query.get(user_id)
+                username = user.telegram_id if user else "Unknown"
+                
+                message = (
+                    f"💰 NEW DEPOSIT DETECTED\n\n"
+                    f"User: @{username}\n"
+                    f"Amount: {amount} SOL\n"
+                    f"TX: {tx_signature[:16]}...\n"
+                    f"Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+                )
+                
+                # Import bot here to avoid circular imports
+                try:
+                    from bot_v20_runner import bot
+                    bot.send_message(admin_chat_id, message)
+                    logger.info(f"Admin notified of deposit: {amount} SOL from user {username}")
+                except Exception as bot_error:
+                    logger.error(f"Failed to send admin notification via bot: {bot_error}")
+        else:
+            logger.warning("ADMIN_CHAT_ID not configured - admin notifications disabled")
+        
+    except Exception as e:
+        logger.error(f"Failed to notify admin of deposit: {e}")
+
+
+def notify_user_of_deposit(telegram_id, amount):
+    """Send confirmation notification to user about their deposit."""
+    try:
+        message = (
+            f"✅ Deposit Confirmed!\n\n"
+            f"Amount: {amount} SOL\n"
+            f"Your trading balance has been updated and the bot will begin trading for you automatically.\n\n"
+            f"Use /dashboard to view your current balance and trading progress."
+        )
+        
+        # Import bot here to avoid circular imports
+        try:
+            from bot_v20_runner import bot
+            bot.send_message(telegram_id, message)
+            logger.info(f"User {telegram_id} notified of successful deposit: {amount} SOL")
+        except Exception as bot_error:
+            logger.error(f"Failed to send user notification via bot: {bot_error}")
+        
+    except Exception as e:
+        logger.error(f"Failed to notify user {telegram_id} of deposit: {e}")
 
 
 def stop_deposit_monitor():

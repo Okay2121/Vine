@@ -335,6 +335,12 @@ def monitor_admin_wallet_transactions():
                         sender_address, amount = extract_transaction_details(tx_data)
                         
                         if sender_address and amount and amount >= MIN_DEPOSIT:
+                            # Enhanced logging for debugging
+                            logger.info(f"Processing transaction {signature}")
+                            logger.info(f"  Sender: {sender_address}")
+                            logger.info(f"  Amount: {amount} SOL")
+                            logger.info(f"  Min deposit: {MIN_DEPOSIT}")
+                            
                             # Find user by sender wallet
                             sender_wallet = SenderWallet.query.filter_by(wallet_address=sender_address).first()
                             if sender_wallet:
@@ -342,6 +348,18 @@ def monitor_admin_wallet_transactions():
                                 detected_deposits.append((sender_wallet.user_id, amount, signature))
                             else:
                                 logger.warning(f"Unmatched deposit: {amount} SOL from unknown sender {sender_address}")
+                                # Log available sender wallets for debugging
+                                wallet_count = SenderWallet.query.count()
+                                logger.info(f"Total registered sender wallets in database: {wallet_count}")
+                                if wallet_count == 0:
+                                    logger.warning("No sender wallets registered - users need to register wallets for deposit matching!")
+                        else:
+                            if not sender_address:
+                                logger.warning(f"No sender address found for transaction {signature}")
+                            elif not amount:
+                                logger.warning(f"No amount found for transaction {signature}")
+                            elif amount < MIN_DEPOSIT:
+                                logger.warning(f"Amount {amount} below minimum {MIN_DEPOSIT} for transaction {signature}")
                 
                 logger.info(f"Detected {len(detected_deposits)} new deposits to admin wallet")
             
