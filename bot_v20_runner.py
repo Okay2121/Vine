@@ -9699,16 +9699,24 @@ def share_referral_handler(update, chat_id):
             user_name = user.first_name if user else "Trader"
             share_message = create_shareable_message(user_name, stats['referral_link'])
             
+            # Send the shareable message first (for easy forwarding)
+            bot.send_message(
+                chat_id,
+                share_message,
+                parse_mode="Markdown"
+            )
+            
+            # Then send instructions
             message = (
                 "📤 *Share Your Referral*\n\n"
-                "Copy the message below and share it anywhere:\n\n"
-                f"```\n{share_message}\n```\n\n"
+                "👆 Forward the message above to share your referral!\n\n"
                 "💡 *Share on:*\n"
                 "• Telegram groups\n"
                 "• WhatsApp\n"
                 "• Twitter/X\n"
                 "• Discord servers\n"
-                "• Any social platform!"
+                "• Any social platform!\n\n"
+                "💰 You'll earn 5% of all their trading profits!"
             )
             
             keyboard = bot.create_inline_keyboard([

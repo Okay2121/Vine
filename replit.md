@@ -219,6 +219,7 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 - **Real-time Stats**: Active referrals, earnings tracking, tier progression
 - **Commission System**: 5% of all referred user profits paid to referrer
 - **Day Counter Fix**: Streak only counts days with SOL balance > 0
+- **Neat Message Sharing**: Fixed referral sharing to display formatted text instead of code blocks
 
 ### Environment-Aware Startup System (June 12, 2025)
 - **Added automatic environment detection** for clean Replit/AWS startup behavior
