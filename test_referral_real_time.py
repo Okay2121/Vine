@@ -16,7 +16,7 @@ def test_referral_system_functionality():
         user_with_refs = db.session.execute(
             db.text("""
                 SELECT u.telegram_id, u.id, rc.code, rc.total_referrals 
-                FROM user u 
+                FROM "user" u 
                 JOIN referral_code rc ON u.id = rc.user_id 
                 WHERE rc.total_referrals > 0 
                 LIMIT 1

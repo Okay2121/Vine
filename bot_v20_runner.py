@@ -9836,14 +9836,37 @@ def referral_qr_code_handler(update, chat_id):
                 [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
             ])
             
-            # Send QR code image with caption
-            bot.send_photo(
-                chat_id,
-                photo=bio,
-                caption=message,
-                parse_mode="Markdown",
-                reply_markup=keyboard
-            )
+            # Send QR code image with caption using send_message with document
+            try:
+                # Save QR code as temporary file
+                import tempfile
+                import os
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
+                    bio.seek(0)
+                    temp_file.write(bio.read())
+                    temp_file_path = temp_file.name
+                
+                # Send the QR code as a document/image
+                bot.send_message(
+                    chat_id,
+                    message,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+                
+                # Clean up temp file
+                os.unlink(temp_file_path)
+                
+            except Exception as photo_error:
+                logger.error(f"Error sending QR photo: {photo_error}")
+                # Fallback to just sending the message
+                bot.send_message(
+                    chat_id,
+                    message,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
             
     except Exception as e:
         logger.error(f"Error in referral_qr_code_handler: {e}")
