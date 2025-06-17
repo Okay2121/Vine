@@ -997,7 +997,7 @@ def copy_referral_handler(update, chat_id):
             global referral_manager
             if 'referral_manager' not in globals() or referral_manager is None:
                 referral_manager = referral_module.ReferralManager(app.app_context)
-                referral_manager.set_bot_username("thrivesolanabot")
+                referral_manager.set_bot_username("ThriveQuantbot")
                 logger.info("Initialized referral manager")
             
             user_id = str(update['callback_query']['from']['id'])
@@ -1042,7 +1042,7 @@ def share_referral_handler(update, chat_id):
             global referral_manager
             if 'referral_manager' not in globals() or referral_manager is None:
                 referral_manager = referral_module.ReferralManager(app.app_context)
-                referral_manager.set_bot_username("thrivesolanabot")
+                referral_manager.set_bot_username("ThriveQuantbot")
                 logger.info("Initialized referral manager")
             
             user_id = str(update['callback_query']['from']['id'])
@@ -1097,7 +1097,7 @@ def referral_stats_handler(update, chat_id):
             global referral_manager
             if 'referral_manager' not in globals() or referral_manager is None:
                 referral_manager = referral_module.ReferralManager(app.app_context)
-                referral_manager.set_bot_username("thrivesolanabot")
+                referral_manager.set_bot_username("ThriveQuantbot")
                 logger.info("Initialized referral manager")
             
             user_id = str(update['callback_query']['from']['id'])
@@ -9055,7 +9055,7 @@ def referral_qr_code_handler(update, chat_id):
             global referral_manager
             if 'referral_manager' not in globals() or referral_manager is None:
                 referral_manager = referral_module.ReferralManager(app.app_context)
-                referral_manager.set_bot_username("thrivesolanabot")
+                referral_manager.set_bot_username("ThriveQuantbot")
                 logger.info("Initialized referral manager")
             
             # Create referral link
@@ -9147,7 +9147,7 @@ def copy_referral_link_handler(update, chat_id):
             global referral_manager
             if 'referral_manager' not in globals() or referral_manager is None:
                 referral_manager = referral_module.ReferralManager(app.app_context)
-                referral_manager.set_bot_username("thrivesolanabot")
+                referral_manager.set_bot_username("ThriveQuantbot")
                 logger.info("Initialized referral manager")
             
             # Create referral link

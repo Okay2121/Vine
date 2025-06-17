@@ -207,7 +207,7 @@ class ReferralManager:
                 # Get real-time referred users using direct query to avoid relationship conflicts
                 from app import db
                 referred_users_raw = db.session.execute(
-                    db.text("SELECT * FROM user WHERE referrer_code_id = :ref_code_id"),
+                    db.text("SELECT telegram_id, username, joined_at, balance, initial_deposit FROM \"user\" WHERE referrer_code_id = :ref_code_id"),
                     {'ref_code_id': referral_code.id}
                 ).fetchall()
                 
