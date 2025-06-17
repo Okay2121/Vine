@@ -6923,13 +6923,24 @@ def trading_history_handler(update, chat_id):
                         initial_deposit = current_balance
                         user.initial_deposit = initial_deposit
                         db.session.commit()
-                elif initial_deposit == 0:
-                    initial_deposit = 1.0  # Prevent division by zero for empty accounts
+                elif initial_deposit <= 0:
+                    # For users with zero initial deposit, set it to current balance to prevent errors
+                    if current_balance > 0:
+                        initial_deposit = current_balance
+                        user.initial_deposit = initial_deposit
+                        db.session.commit()
+                    else:
+                        initial_deposit = 1.0  # Prevent division by zero for empty accounts
                 
                 # Calculate total profit (current balance - initial deposit)
                 # Admin adjustments are included in current_balance but don't change initial_deposit
                 total_profit_amount = current_balance - initial_deposit
-                total_profit_percentage = (total_profit_amount / initial_deposit) * 100
+                
+                # Ensure safe percentage calculation
+                if initial_deposit > 0:
+                    total_profit_percentage = (total_profit_amount / initial_deposit) * 100
+                else:
+                    total_profit_percentage = 0.0
                 
                 # Calculate today's profit from transactions (ONLY trading, not admin adjustments)
                 today_date = datetime.now().date()
