@@ -43,21 +43,25 @@ else:
     
     logger.info(f"Using PostgreSQL database: {db_url[:40]}...")
 
-# Production-optimized database configuration for 500+ users
-from sqlalchemy import NullPool
+# Production-optimized database configuration for 500+ users with proper connection pooling
+from sqlalchemy.pool import QueuePool
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "poolclass": NullPool,  # No persistent connections - creates new ones as needed
-    "pool_pre_ping": True,
-    "pool_recycle": 600,
+    "poolclass": QueuePool,        # Use proper connection pooling
+    "pool_size": 10,              # Base connection pool size
+    "max_overflow": 20,           # Additional connections when needed
+    "pool_pre_ping": True,        # Test connections before use
+    "pool_recycle": 3600,         # Recycle connections every hour
+    "pool_timeout": 30,           # Wait 30s for connection from pool
     "connect_args": {
         "sslmode": "require",
-        "connect_timeout": 30,
-        "application_name": "telegram_bot_production_500_users",
+        "connect_timeout": 10,
+        "application_name": "telegram_bot_optimized_aws",
         "keepalives_idle": 600,
         "keepalives_interval": 60,
-        "keepalives_count": 3
+        "keepalives_count": 3,
+        "target_session_attrs": "read-write"
     } if db_url.startswith("postgresql://") else {}
 }
 # initialize the app with the extension, flask-sqlalchemy >= 3.0.x
