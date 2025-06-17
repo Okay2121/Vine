@@ -383,6 +383,60 @@ def get_recent_trades(user_id, limit=5):
     return recent_trades
 
 
+def get_days_with_balance(user_id):
+    """
+    Calculate the number of days a user has had SOL balance.
+    Only counts consecutive days with balance > 0 from the most recent deposit/balance period.
+    
+    Args:
+        user_id (int): User ID
+        
+    Returns:
+        int: Number of days with SOL balance
+    """
+    user = User.query.get(user_id)
+    if not user or user.balance <= 0:
+        return 0
+    
+    # Find the most recent date when user first got balance
+    from sqlalchemy import func
+    
+    # Check for most recent deposit that brought balance above 0
+    recent_deposit = Transaction.query.filter_by(
+        user_id=user_id,
+        transaction_type='deposit',
+        status='completed'
+    ).order_by(Transaction.timestamp.desc()).first()
+    
+    # Check for most recent admin adjustment that brought balance above 0
+    recent_admin_adjustment = Transaction.query.filter_by(
+        user_id=user_id,
+        transaction_type='admin_adjustment',
+        status='completed'
+    ).filter(Transaction.amount > 0).order_by(Transaction.timestamp.desc()).first()
+    
+    # Use the most recent balance-creating event
+    balance_start_date = None
+    
+    if recent_deposit and recent_admin_adjustment:
+        # Use the more recent one
+        balance_start_date = max(recent_deposit.timestamp.date(), recent_admin_adjustment.timestamp.date())
+    elif recent_deposit:
+        balance_start_date = recent_deposit.timestamp.date()
+    elif recent_admin_adjustment:
+        balance_start_date = recent_admin_adjustment.timestamp.date()
+    else:
+        # Fallback to join date if no transactions found but user has balance
+        balance_start_date = user.joined_at.date() if hasattr(user, 'joined_at') else datetime.utcnow().date()
+    
+    # Calculate days since balance start date
+    if balance_start_date:
+        days_with_balance = (datetime.utcnow().date() - balance_start_date).days + 1
+        return max(0, min(days_with_balance, 365))  # Cap at 365 days
+    
+    return 0
+
+
 def get_performance_data(user_id):
     """
     Get comprehensive performance data for a user

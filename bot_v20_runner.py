@@ -1664,7 +1664,7 @@ def dashboard_command(update, chat_id):
                 
             # Use performance tracking for real-time data synchronization with Performance Dashboard
             try:
-                from performance_tracking import get_performance_data
+                from performance_tracking import get_performance_data, get_days_with_balance
                 performance_data = get_performance_data(user.id)
                 
                 if performance_data:
@@ -1675,9 +1675,12 @@ def dashboard_command(update, chat_id):
                     today_profit_percentage = performance_data['today_percentage']
                     streak = performance_data['streak_days']
                     
+                    # Get days with SOL balance for proper day counter
+                    days_with_balance = get_days_with_balance(user.id)
+                    
                     # Log successful data retrieval for debugging
                     import logging
-                    logging.info(f"Autopilot Dashboard - Real-time data retrieved: streak={streak}, today_profit={today_profit_amount}, total_profit={total_profit_amount}")
+                    logging.info(f"Autopilot Dashboard - Real-time data retrieved: streak={streak}, today_profit={today_profit_amount}, total_profit={total_profit_amount}, days_with_balance={days_with_balance}")
                 else:
                     raise Exception("Performance data not available")
                     
@@ -1861,47 +1864,9 @@ def dashboard_command(update, chat_id):
             # Current amount is actual balance including profits
             current_amount = user.balance
             
-            # Days active calculation - count days since user first had SOL balance
-            # This should count consecutive days of having SOL balance, not just since first deposit
-            from models import Transaction
-            
-            # Start counting from when user first had SOL (either from deposit or admin adjustment)
-            first_balance_date = None
-            
-            # Check for first successful deposit
-            first_deposit = Transaction.query.filter_by(
-                user_id=user.id, 
-                transaction_type='deposit',
-                status='completed'
-            ).order_by(Transaction.timestamp).first()
-            
-            if first_deposit:
-                first_balance_date = first_deposit.timestamp.date()
-            
-            # Also check for admin balance adjustments that might have given initial balance
-            first_admin_adjustment = Transaction.query.filter_by(
-                user_id=user.id,
-                transaction_type='admin_adjustment',
-                status='completed'
-            ).filter(Transaction.amount > 0).order_by(Transaction.timestamp).first()
-            
-            if first_admin_adjustment:
-                admin_date = first_admin_adjustment.timestamp.date()
-                if not first_balance_date or admin_date < first_balance_date:
-                    first_balance_date = admin_date
-            
-            # Calculate days active based on balance status
-            if user.balance > 0 and first_balance_date:
-                # Count days since first had balance, only if currently has balance
-                days_active = (datetime.utcnow().date() - first_balance_date).days + 1
-                # Cap at reasonable maximum
-                days_active = min(days_active, 365)
-            elif user.balance > 0:
-                # Fallback: if no transaction record but user has balance, count from join date
-                days_active = min((datetime.utcnow().date() - user.joined_at.date()).days + 1, 365)
-            else:
-                # User has no SOL, day counter shows 0
-                days_active = 0
+            # Use the centralized days_with_balance function for accurate counting
+            # This only counts days when user has had SOL balance > 0
+            days_active = days_with_balance
             
             # Set current balance - use actual user balance as the primary source
             current_balance = user.balance
@@ -1947,10 +1912,14 @@ def dashboard_command(update, chat_id):
                 
             # Add Autopilot Trader information
             dashboard_message += "• *Mode:* Autopilot Trader (Fully Automated)\n"
-            if days_active > 0:
+            
+            # Show day counter only when user has SOL balance
+            if user.balance > 0 and days_active > 0:
                 dashboard_message += f"• *Day:* {days_active}\n\n"
+            elif user.balance > 0:
+                dashboard_message += "• *Day:* 1\n\n"  # First day with balance
             else:
-                dashboard_message += "• *Day:* Start your streak today!\n\n"
+                dashboard_message += "• *Day:* 0\n\n"  # No SOL balance
             
             dashboard_message += "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
             
