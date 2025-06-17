@@ -9090,13 +9090,7 @@ def referral_qr_code_handler(update, chat_id):
             # Send the QR code as photo with caption
             bot.send_chat_action(chat_id, "upload_photo")
             
-            # Create a temporary file for the image (AWS-compatible)
-            import tempfile
-            temp_dir = tempfile.gettempdir()
-            temp_file = os.path.join(temp_dir, f"qr_code_{user_id}.png")
-            img.save(temp_file)
-            
-            # Send using requests (Python-telegram-bot doesn't have direct binary support in simple version)
+            # Send using requests with the buffer directly (no temporary file needed)
             import requests
             import os
             
@@ -9105,20 +9099,25 @@ def referral_qr_code_handler(update, chat_id):
                 bot.send_message(chat_id, "❌ Error: Bot token not found. Please contact support.")
                 return
                 
-            # Send photo with caption
+            # Send photo with caption using buffer
             url = f"https://api.telegram.org/bot{token}/sendPhoto"
             data = {
                 'chat_id': chat_id,
                 'caption': caption,
                 'parse_mode': 'Markdown',
             }
-            with open(temp_file, 'rb') as photo:
-                files = {'photo': photo}
-                response = requests.post(url, data=data, files=files)
+            
+            # Reset buffer position
+            buffer.seek(0)
+            files = {'photo': ('qr_code.png', buffer, 'image/png')}
+            response = requests.post(url, data=data, files=files)
             
             # Check response
-            if not response.ok:
-                bot.send_message(chat_id, f"❌ Error sending QR code: {response.text}")
+            if response.ok:
+                logger.info(f"QR code sent successfully to user {user_id}")
+            else:
+                logger.error(f"Failed to send QR code: {response.status_code} - {response.text}")
+                bot.send_message(chat_id, f"❌ Error sending QR code. Please try again.")
                 return
             
             # Send navigation button
@@ -9683,241 +9682,7 @@ def admin_view_completed_withdrawals_handler(update, chat_id):
 
 # Duplicate function removed - using the first copy_referral_link_handler implementation above
 
-def share_referral_handler(update, chat_id):
-    """Handle share referral callback"""
-    try:
-        from simple_referral_system import simple_referral_manager
-        
-        with app.app_context():
-            user_id = str(update['callback_query']['from']['id'])
-            user = User.query.filter_by(telegram_id=user_id).first()
-            stats = simple_referral_manager.get_referral_stats(user_id)
-            
-            # Create the complete shareable message without markdown formatting issues
-            complete_message = (
-                "🚀 Join me on THRIVE!\n\n"
-                "I've been using this amazing crypto trading bot that's helping me "
-                "grow my portfolio automatically.\n\n"
-                "💰 What THRIVE does:\n"
-                "• Trades live Solana memecoins 24/7\n"
-                "• Tracks all profits transparently\n"
-                "• Lets you withdraw anytime with proof\n\n"
-                "🎁 Special offer: Use my link and we both get referral bonuses "
-                "when you start trading!\n\n"
-                "👇 Start here:\n"
-                f"{stats['referral_link']}\n\n"
-                "No subscriptions, no empty promises - just real trading results."
-            )
-            
-            # Send the complete message in a code block for easy copying
-            bot.send_message(
-                chat_id,
-                f"```\n{complete_message}\n```",
-                parse_mode="Markdown"
-            )
-            
-            # Add a "COPY CODE" button
-            keyboard = bot.create_inline_keyboard([
-                [{"text": "📋 COPY CODE", "callback_data": "copy_referral_link"}],
-                [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
-            ])
-            
-            # Send instructions with the COPY CODE button
-            instruction_message = (
-                "📤 Share Your Referral\n\n"
-                "Copy the message above and share it anywhere:\n\n"
-                "💡 Share on:\n"
-                "• Telegram groups\n"
-                "• WhatsApp\n"
-                "• Twitter/X\n"
-                "• Discord servers\n"
-                "• Any social platform!\n\n"
-                "💰 You'll earn 5% of all their trading profits!"
-            )
-            
-            bot.send_message(
-                chat_id,
-                instruction_message,
-                reply_markup=keyboard
-            )
-            
-    except Exception as e:
-        logger.error(f"Error in share_referral_handler: {e}")
-        bot.send_message(chat_id, "Error generating share message. Please try again.")
-
-def referral_how_it_works_handler(update, chat_id):
-    """Handle referral how it works callback"""
-    try:
-        message = (
-            "💡 *How Referrals Work*\n\n"
-            
-            "🔗 *Step 1: Share Your Link*\n"
-            "Send your unique referral link to friends interested in crypto trading.\n\n"
-            
-            "👥 *Step 2: They Join*\n"
-            "When someone clicks your link and starts using THRIVE, they become your referral.\n\n"
-            
-            "💰 *Step 3: Earn Forever*\n"
-            "You receive 5% of ALL profits they make - for as long as they trade!\n\n"
-            
-            "📊 *Example:*\n"
-            "• Your friend makes $100 profit\n"
-            "• You automatically get $5\n"
-            "• No limits, no expiration\n\n"
-            
-            "✅ *Benefits:*\n"
-            "• Passive income stream\n"
-            "• Automatic payments\n"
-            "• Track all referrals in real-time\n"
-            "• Help friends discover profitable trading"
-        )
-        
-        keyboard = bot.create_inline_keyboard([
-            [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
-        ])
-        
-        bot.send_message(
-            chat_id,
-            message,
-            parse_mode="Markdown",
-            reply_markup=keyboard
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in referral_how_it_works_handler: {e}")
-        bot.send_message(chat_id, "Error displaying information. Please try again.")
-
-def referral_stats_handler(update, chat_id):
-    """Handle referral stats refresh callback"""
-    try:
-        # Just redirect to the main referral command for fresh stats
-        referral_command(update, chat_id)
-        
-    except Exception as e:
-        logger.error(f"Error in referral_stats_handler: {e}")
-        bot.send_message(chat_id, "Error refreshing stats. Please try again.")
-
-def referral_qr_code_handler(update, chat_id):
-    """Handle QR code generation for referral link"""
-    try:
-        from simple_referral_system import simple_referral_manager
-        import qrcode
-        from io import BytesIO
-        
-        with app.app_context():
-            user_id = str(update['callback_query']['from']['id'])
-            stats = simple_referral_manager.get_referral_stats(user_id)
-            
-            # Generate QR code
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=4,
-            )
-            qr.add_data(stats['referral_link'])
-            qr.make(fit=True)
-            
-            # Create QR code image
-            img = qr.make_image(fill_color="black", back_color="white")
-            
-            # Convert to bytes
-            bio = BytesIO()
-            img.save(bio, 'PNG')
-            bio.seek(0)
-            
-            message = (
-                "📱 *QR Code Generated!*\n\n"
-                "Share this QR code with friends. When they scan it, they'll be taken directly to your referral link!\n\n"
-                f"Link: `{stats['referral_link']}`"
-            )
-            
-            keyboard = bot.create_inline_keyboard([
-                [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
-            ])
-            
-            # Send QR code image with caption using send_message with document
-            try:
-                # Save QR code as temporary file
-                import tempfile
-                import os
-                
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
-                    bio.seek(0)
-                    temp_file.write(bio.read())
-                    temp_file_path = temp_file.name
-                
-                # Send the QR code as a document/image
-                bot.send_message(
-                    chat_id,
-                    message,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard
-                )
-                
-                # Clean up temp file
-                os.unlink(temp_file_path)
-                
-            except Exception as photo_error:
-                logger.error(f"Error sending QR photo: {photo_error}")
-                # Fallback to just sending the message
-                bot.send_message(
-                    chat_id,
-                    message,
-                    parse_mode="Markdown",
-                    reply_markup=keyboard
-                )
-            
-    except Exception as e:
-        logger.error(f"Error in referral_qr_code_handler: {e}")
-        bot.send_message(chat_id, "Error generating QR code. Please try again.")
-
-def referral_tips_handler(update, chat_id):
-    """Handle referral tips callback"""
-    try:
-        message = (
-            "💡 *Referral Success Tips*\n\n"
-            
-            "🎯 *Best Places to Share:*\n"
-            "• Crypto trading groups\n"
-            "• Discord servers\n"
-            "• Twitter/X crypto communities\n"
-            "• Reddit crypto subreddits\n"
-            "• WhatsApp groups\n\n"
-            
-            "📝 *What to Say:*\n"
-            "• Share your actual results\n"
-            "• Mention the passive income opportunity\n"
-            "• Emphasize the 5% forever commission\n"
-            "• Show transparency with live trades\n\n"
-            
-            "⏰ *Best Times to Share:*\n"
-            "• After big market moves\n"
-            "• When you have good profits to show\n"
-            "• During crypto bull runs\n"
-            "• When friends ask about trading\n\n"
-            
-            "🚀 *Pro Tips:*\n"
-            "• Use your QR code for easy scanning\n"
-            "• Share profit screenshots (with permission)\n"
-            "• Be helpful, not pushy\n"
-            "• Focus on long-term wealth building"
-        )
-        
-        keyboard = bot.create_inline_keyboard([
-            [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
-        ])
-        
-        bot.send_message(
-            chat_id,
-            message,
-            parse_mode="Markdown",
-            reply_markup=keyboard
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in referral_tips_handler: {e}")
-        bot.send_message(chat_id, "Error displaying tips. Please try again.")
+# Duplicate handlers removed - using the original implementations above
 
 # AWS Entry Point - Direct execution via `python bot_v20_runner.py`
 def main():
