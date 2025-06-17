@@ -20,7 +20,7 @@ def setup_aws_environment():
     if env_file.exists():
         print("Loading .env file...")
         from dotenv import load_dotenv
-        load_dotenv()
+        load_dotenv(override=True)  # Override existing env vars
         print("Environment variables loaded from .env")
     else:
         print("Warning: .env file not found - using system environment variables")
