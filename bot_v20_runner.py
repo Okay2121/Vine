@@ -6903,7 +6903,29 @@ def trading_history_handler(update, chat_id):
                 from sqlalchemy import func
                 
                 current_balance = user.balance
-                initial_deposit = user.initial_deposit or 1.0  # Prevent division by zero
+                initial_deposit = user.initial_deposit
+                
+                # Fix for initial deposit being 0 - use first deposit transaction
+                if initial_deposit == 0 and current_balance > 0:
+                    # Find the first deposit transaction
+                    first_deposit = Transaction.query.filter_by(
+                        user_id=user.id,
+                        transaction_type='deposit'
+                    ).order_by(Transaction.timestamp.asc()).first()
+                    
+                    if first_deposit:
+                        initial_deposit = first_deposit.amount
+                        # Update the user record for future consistency
+                        user.initial_deposit = initial_deposit
+                        db.session.commit()
+                    else:
+                        # No deposit record found, assume current balance is initial
+                        initial_deposit = current_balance
+                        user.initial_deposit = initial_deposit
+                        db.session.commit()
+                elif initial_deposit == 0:
+                    initial_deposit = 1.0  # Prevent division by zero for empty accounts
+                
                 total_profit_amount = current_balance - initial_deposit
                 total_profit_percentage = (total_profit_amount / initial_deposit) * 100
                 
