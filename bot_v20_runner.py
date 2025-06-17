@@ -9687,28 +9687,46 @@ def share_referral_handler(update, chat_id):
     """Handle share referral callback"""
     try:
         from simple_referral_system import simple_referral_manager
-        from nice_referral_formatter import create_shareable_message
         
         with app.app_context():
             user_id = str(update['callback_query']['from']['id'])
             user = User.query.filter_by(telegram_id=user_id).first()
             stats = simple_referral_manager.get_referral_stats(user_id)
             
-            user_name = user.first_name if user else "Trader"
-            share_message = create_shareable_message(user_name, stats['referral_link'])
+            # Create the complete shareable message without markdown formatting issues
+            complete_message = (
+                "🚀 Join me on THRIVE!\n\n"
+                "I've been using this amazing crypto trading bot that's helping me "
+                "grow my portfolio automatically.\n\n"
+                "💰 What THRIVE does:\n"
+                "• Trades live Solana memecoins 24/7\n"
+                "• Tracks all profits transparently\n"
+                "• Lets you withdraw anytime with proof\n\n"
+                "🎁 Special offer: Use my link and we both get referral bonuses "
+                "when you start trading!\n\n"
+                "👇 Start here:\n"
+                f"{stats['referral_link']}\n\n"
+                "No subscriptions, no empty promises - just real trading results."
+            )
             
-            # Send the shareable message first (for easy forwarding)
+            # Send the complete message in a code block for easy copying
             bot.send_message(
                 chat_id,
-                share_message,
+                f"```\n{complete_message}\n```",
                 parse_mode="Markdown"
             )
             
-            # Then send instructions
-            message = (
-                "📤 *Share Your Referral*\n\n"
-                "👆 Forward the message above to share your referral!\n\n"
-                "💡 *Share on:*\n"
+            # Add a "COPY CODE" button
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "📋 COPY CODE", "callback_data": "copy_referral_link"}],
+                [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
+            ])
+            
+            # Send instructions with the COPY CODE button
+            instruction_message = (
+                "📤 Share Your Referral\n\n"
+                "Copy the message above and share it anywhere:\n\n"
+                "💡 Share on:\n"
                 "• Telegram groups\n"
                 "• WhatsApp\n"
                 "• Twitter/X\n"
@@ -9717,14 +9735,9 @@ def share_referral_handler(update, chat_id):
                 "💰 You'll earn 5% of all their trading profits!"
             )
             
-            keyboard = bot.create_inline_keyboard([
-                [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
-            ])
-            
             bot.send_message(
                 chat_id,
-                message,
-                parse_mode="Markdown",
+                instruction_message,
                 reply_markup=keyboard
             )
             
