@@ -30,7 +30,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
     # Use the production Neon database you provided
-    db_url = "postgresql://postgres:Checker97$@database-1.cxg48muy49z2.eu-north-1.rds.amazonaws.com:5432/Vibe"
+    db_url = "postgresql://neondb_owner:npg_9Hdj1LfbemJW@ep-cold-hall-a2171yga-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
     logger = logging.getLogger(__name__)
     logger.info("Using production Neon database URL")
 else:
