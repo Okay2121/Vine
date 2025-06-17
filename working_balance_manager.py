@@ -56,20 +56,18 @@ def adjust_balance_fixed(telegram_id, amount, reason="Admin balance adjustment")
             # Create transaction record
             transaction_type = 'admin_credit' if amount > 0 else 'admin_debit'
             
-            # Insert transaction using direct SQL too
-            db.session.execute(
-                text("""INSERT INTO "transaction" (user_id, transaction_type, amount, token_name, timestamp, status, notes)
-                     VALUES (:user_id, :transaction_type, :amount, :token_name, :timestamp, :status, :notes)"""),
-                {
-                    "user_id": user.id,
-                    "transaction_type": transaction_type,
-                    "amount": abs(amount),
-                    "token_name": "SOL",
-                    "timestamp": datetime.utcnow(),
-                    "status": "completed",
-                    "notes": reason
-                }
+            # Create transaction record using ORM to avoid sequence conflicts
+            transaction = Transaction(
+                user_id=user.id,
+                transaction_type=transaction_type,
+                amount=abs(amount),
+                token_name="SOL",
+                timestamp=datetime.utcnow(),
+                status="completed",
+                notes=reason
             )
+            db.session.add(transaction)
+            db.session.flush()  # Assign ID without committing
             
             # Commit the changes
             db.session.commit()
