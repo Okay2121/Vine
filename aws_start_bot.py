@@ -1,4 +1,7 @@
 
+"""
+AWS Solana Trading Bot Startup Script
+====================================
 This script ensures proper environment setup and starts the bot on AWS
 """
 
