@@ -6,7 +6,7 @@ from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func
 from app import db, app
-from models import User, Profit, MilestoneTracker, UserStatus
+from models import User, MilestoneTracker, UserStatus
 from config import PROFIT_MILESTONES, STREAK_MILESTONES, INACTIVITY_THRESHOLD
 
 def generate_progress_bar(percentage, length=10):

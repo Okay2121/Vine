@@ -6766,11 +6766,11 @@ def get_user_roi_metrics(user_id):
 
 # Define dashboard button handler functions
 def withdraw_profit_handler(update, chat_id):
-    """Handle the withdraw profit button with real-time processing."""
+    """Handle the withdraw profit button with real-time processing using performance tracking."""
     try:
         with app.app_context():
-            from models import User, Profit
-            from sqlalchemy import func
+            from models import User
+            from performance_tracking import get_performance_data
             
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             
@@ -6778,10 +6778,17 @@ def withdraw_profit_handler(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
             
-            # Calculate profits and available balance
-            total_profit_amount = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id).scalar() or 0
-            total_profit_percentage = (total_profit_amount / user.initial_deposit) * 100 if user.initial_deposit > 0 else 0
-            available_balance = user.balance
+            # Get real-time performance data from the same source as dashboards
+            performance_data = get_performance_data(user.id)
+            
+            if not performance_data:
+                bot.send_message(chat_id, "Error retrieving performance data. Please try again.")
+                return
+            
+            # Extract data from performance tracking system
+            available_balance = performance_data["current_balance"]
+            total_profit_amount = performance_data["total_profit"]
+            total_profit_percentage = performance_data["total_percentage"]
             
             # Check if user has a wallet address
             wallet_address = user.wallet_address or "No wallet address found"
@@ -6798,7 +6805,7 @@ def withdraw_profit_handler(update, chat_id):
                 f"Available Balance: *{available_balance:.2f} SOL*\n"
             )
             
-            # Add Total P/L with proper sign formatting
+            # Add Total P/L with proper sign formatting (same logic as dashboards)
             if total_profit_amount > 0:
                 withdrawal_message += f"Total P/L: *+{total_profit_amount:.2f} SOL* (+{total_profit_percentage:.1f}%)\n\n"
             elif total_profit_amount < 0:
