@@ -298,17 +298,24 @@ def monitor_admin_wallet_transactions():
                     signature = tx_info.get('signature')
                     block_time = tx_info.get('blockTime')
                     
+                    logger.info(f"Processing transaction {signature[:16]}... from {block_time}")
+                    
                     if not signature:
+                        logger.warning("Transaction has no signature, skipping")
                         continue
                     
                     # Skip old transactions
                     if block_time and block_time < int(last_scan_time.timestamp()):
+                        logger.info(f"Skipping old transaction {signature[:16]}... from {block_time}")
                         continue
                     
                     # Check if we already processed this transaction
                     existing_tx = Transaction.query.filter_by(tx_hash=signature).first()
                     if existing_tx:
+                        logger.info(f"Transaction {signature[:16]}... already processed, skipping")
                         continue
+                    
+                    logger.info(f"Fetching detailed data for transaction {signature[:16]}...")
                     
                     # Get detailed transaction data
                     tx_payload = {
