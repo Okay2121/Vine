@@ -204,28 +204,41 @@ class ReferralManager:
                 # Generate the full referral link if bot username is set
                 referral_link = self.generate_referral_link(user_id) if self.bot_username else None
                 
-                # Count active referrals (users who have deposited)
-                active_referrals = 0
-                for ref_user in referral_code.referred_users:
-                    if hasattr(ref_user, 'status') and ref_user.status == UserStatus.ACTIVE:
-                        active_referrals += 1
+                # Get real-time referred users using direct query to avoid relationship conflicts
+                from app import db
+                referred_users_raw = db.session.execute(
+                    db.text("SELECT * FROM user WHERE referrer_code_id = :ref_code_id"),
+                    {'ref_code_id': referral_code.id}
+                ).fetchall()
                 
-                # Format referred users list with relevant info
+                # Count active referrals (users with balance > 0) in real-time
+                active_referrals = 0
                 referred_users = []
-                for ref_user in referral_code.referred_users:
+                total_referrals_count = len(referred_users_raw)
+                
+                for row in referred_users_raw:
+                    is_active = row.balance > 0  # Real-time active check based on balance
+                    if is_active:
+                        active_referrals += 1
+                    
                     referred_users.append({
-                        'id': ref_user.telegram_id,
-                        'username': ref_user.username,
-                        'joined_at': ref_user.joined_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(ref_user, 'joined_at') else 'Unknown',
-                        'is_active': hasattr(ref_user, 'status') and ref_user.status == UserStatus.ACTIVE,
-                        'deposited': hasattr(ref_user, 'initial_deposit') and ref_user.initial_deposit > 0
+                        'id': row.telegram_id,
+                        'username': row.username or 'Anonymous',
+                        'joined_at': row.joined_at.strftime('%Y-%m-%d %H:%M:%S') if row.joined_at else 'Unknown',
+                        'is_active': is_active,
+                        'balance': row.balance,
+                        'deposited': row.initial_deposit and row.initial_deposit > 0
                     })
+                
+                # Update referral code with real-time counts
+                referral_code.total_referrals = total_referrals_count
+                db.session.commit()
                 
                 return {
                     'has_code': True,
                     'code': referral_code.code,
                     'referral_link': referral_link,
-                    'total_referrals': referral_code.total_referrals,
+                    'total_referrals': total_referrals_count,
                     'active_referrals': active_referrals,
                     'total_earnings': referral_code.total_earned if hasattr(referral_code, 'total_earned') else 0.0,
                     'referred_users': referred_users
