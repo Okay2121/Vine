@@ -1,0 +1,54 @@
+# AWS Environment Variables Template
+# Copy these variables to your AWS server's .env file
+# Update the values with your actual credentials
+
+# === CORE REQUIRED VARIABLES ===
+DATABASE_URL=postgresql://postgres:Checker97$@database-1.cxg48muy49z2.eu-north-1.rds.amazonaws.com:5432/Vibe
+TELEGRAM_BOT_TOKEN=7562541416:AAF00_bf3rLDZvp2OlYXNbu7wu7UqgwcTmg
+ADMIN_USER_ID=5488280696
+ADMIN_CHAT_ID=5488280696
+SESSION_SECRET=en70IeK9Z+LLkBHMtlB5X3aoBeTuA6Dxcr3lpf/9+onsMizLaaoIiBsT7l0hgsWj47FYieNWspfYwIuICecmjg==
+
+# === TRADING CONFIGURATION ===
+MIN_DEPOSIT=0.1
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+GLOBAL_DEPOSIT_WALLET=2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD
+
+# === DEPLOYMENT SETTINGS ===
+BOT_ENVIRONMENT=aws
+NODE_ENV=production
+FLASK_ENV=production
+
+# === OPTIONAL VARIABLES ===
+# Support username (default: thrivesupport)
+SUPPORT_USERNAME=thrivesupport
+
+# Daily update hour (default: 9)
+DAILY_UPDATE_HOUR=9
+
+# Webhook settings (optional for webhook mode)
+WEBHOOK_URL=
+WEBHOOK_SECRET=
+WEBHOOK_PORT=5000
+
+# Backup database (optional)
+BACKUP_DATABASE_URL=
+
+# AWS specific (optional)
+AWS_REGION=us-east-1
+
+# === SYSTEM VARIABLES (AWS Auto-Set) ===
+# These are automatically set by AWS, don't modify:
+# AWS_EXECUTION_ENV
+# AWS_LAMBDA_RUNTIME_API
+# PORT
+# LISTEN_FDS
+# LISTEN_PID
+# NOTIFY_SOCKET
+
+# === INSTRUCTIONS ===
+# 1. Create a .env file on your AWS server
+# 2. Copy the variables above to your .env file
+# 3. Update the values with your actual credentials
+# 4. Ensure file permissions: chmod 600 .env
+# 5. Start the bot with: python3 aws_start_bot.py
