@@ -6,7 +6,7 @@ Creates test users and referral codes to verify the system works properly
 """
 
 from app import app, db
-from models import User, ReferralCode, ReferralReward
+from models import User, ReferralCode, ReferralReward, UserStatus
 from datetime import datetime
 import logging
 
@@ -27,7 +27,7 @@ def create_test_referral_data():
                     first_name="Test",
                     last_name="Referrer",
                     balance=100.0,
-                    status="active"
+                    status=UserStatus.ACTIVE
                 )
                 db.session.add(referrer)
                 db.session.flush()  # Get the ID
@@ -51,7 +51,7 @@ def create_test_referral_data():
                         first_name=f"Referred{i+1}",
                         balance=50.0 + (i * 25),  # Different balances
                         referrer_code_id=ref_code.id,
-                        status="active"
+                        status=UserStatus.ACTIVE
                     )
                     db.session.add(referred_user)
                     db.session.flush()
