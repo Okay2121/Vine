@@ -1290,7 +1290,6 @@ def referral_stats_handler(update, chat_id):
             # Create enhanced keyboard with sharing options
             keyboard = bot.create_inline_keyboard([
                 [
-                    {"text": "📤 Share Now", "callback_data": "share_referral"},
                     {"text": "📱 Create QR Code", "callback_data": "referral_qr_code"}
                 ],
                 [
@@ -2195,8 +2194,7 @@ def referral_command(update, chat_id):
                     {"text": "📱 Generate QR", "callback_data": "referral_qr_code"}
                 ],
                 [
-                    {"text": "📊 View Stats", "callback_data": "referral_stats"},
-                    {"text": "📤 Share", "callback_data": "share_referral"}
+                    {"text": "📊 View Stats", "callback_data": "referral_stats"}
                 ],
                 [
                     {"text": "❓ How It Works", "callback_data": "referral_how_it_works"},
@@ -9345,7 +9343,6 @@ def referral_how_it_works_handler(update, chat_id):
             parse_mode="Markdown",
             reply_markup=bot.create_inline_keyboard([
                 [
-                    {"text": "📤 Share My Code", "callback_data": "share_referral"},
                     {"text": "📱 Generate QR", "callback_data": "referral_qr_code"}
                 ],
                 [
@@ -9407,7 +9404,6 @@ def referral_tips_handler(update, chat_id):
             parse_mode="Markdown",
             reply_markup=bot.create_inline_keyboard([
                 [
-                    {"text": "✉️ Share Code Now", "callback_data": "share_referral"},
                     {"text": "📱 Create QR Code", "callback_data": "referral_qr_code"}
                 ],
                 [
