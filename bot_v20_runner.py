@@ -1056,35 +1056,125 @@ def share_referral_handler(update, chat_id):
                 if code:
                     stats['has_code'] = True
             
-            # Create a shareable message with the referral link
-            referral_link = f"https://t.me/thrivesolanabot?start=ref_{user_id}"
+            # Create a shareable message with the referral link - matching the expected format
+            referral_link = f"https://t.me/ThriveQuantbot?start=ref_{user_id}"
             
+            # First message: The shareable content (like in the image)
             share_message = (
-                "🔄 *THRIVE Trading Bot: Double Your SOL in 7 Days*\n\n"
-                "Join me on THRIVE Bot - the automated Solana memecoin trading assistant!\n\n"
-                "✅ Trades live tokens on Solana\n"
-                "✅ Tracks profits with full transparency\n"
-                "✅ Withdraw anytime\n\n"
-                f"Join now: {referral_link}"
+                "🚀 Join me on THRIVE!\n\n"
+                "I've been using this amazing crypto trading bot that's helping me "
+                "grow my portfolio automatically.\n\n"
+                "💰 What THRIVE does:\n"
+                "• Trades live Solana memecoins 24/7\n"
+                "• Tracks all profits transparently\n"
+                "• Lets you withdraw anytime with proof\n\n"
+                "🎁 Special offer: Use my link and we both get referral bonuses when "
+                "you start trading!\n\n"
+                "👇 Start here:\n"
+                f"{referral_link}\n\n"
+                "No subscriptions, no empty promises - just real trading results."
             )
             
-            # Send the shareable message for easy forwarding
+            # Send the shareable message with COPY CODE button
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "📋 COPY CODE", "callback_data": "copy_referral_message"}]
+            ])
+            
             bot.send_message(
                 chat_id,
                 share_message,
-                parse_mode="Markdown"
+                reply_markup=keyboard
             )
             
-            # Send instructions
+            # Second message: Instructions on how to share
+            instructions_message = (
+                "🔗 Share Your Referral\n\n"
+                "Copy the message above and share it anywhere:\n\n"
+                "💡 Share on:\n"
+                "• Telegram groups\n"
+                "• WhatsApp\n"
+                "• Twitter/X\n"
+                "• Discord servers\n"
+                "• Any social platform!\n\n"
+                "💰 You'll earn 5% of all their trading profits!"
+            )
+            
+            # Navigation keyboard
+            nav_keyboard = bot.create_inline_keyboard([
+                [{"text": "📋 COPY CODE", "callback_data": "copy_referral_message"}],
+                [{"text": "🔙 Back to Referrals", "callback_data": "referral"}]
+            ])
+            
             bot.send_message(
                 chat_id,
-                "Forward this message to friends or share the link directly. You'll earn 5% of their profits!"
+                instructions_message,
+                reply_markup=nav_keyboard
             )
+            
     except Exception as e:
         logger.error(f"Error in share_referral_handler: {e}")
         import traceback
         logger.error(traceback.format_exc())
         bot.send_message(chat_id, f"Error sharing referral link: {str(e)}")
+
+def copy_referral_message_handler(update, chat_id):
+    """Handle the copy referral message button press."""
+    try:
+        import referral_module
+        
+        with app.app_context():
+            # Create referral manager if not exists
+            global referral_manager
+            if 'referral_manager' not in globals() or referral_manager is None:
+                referral_manager = referral_module.ReferralManager(app.app_context)
+                referral_manager.set_bot_username("ThriveQuantbot")
+                logger.info("Initialized referral manager")
+            
+            user_id = str(update['callback_query']['from']['id'])
+            
+            # Generate the referral code if needed
+            stats = referral_manager.get_referral_stats(user_id)
+            if not stats['has_code']:
+                code = referral_manager.generate_or_get_referral_code(user_id)
+                if code:
+                    stats['has_code'] = True
+            
+            # Create the exact same shareable message
+            referral_link = f"https://t.me/ThriveQuantbot?start=ref_{user_id}"
+            
+            share_message = (
+                "🚀 Join me on THRIVE!\n\n"
+                "I've been using this amazing crypto trading bot that's helping me "
+                "grow my portfolio automatically.\n\n"
+                "💰 What THRIVE does:\n"
+                "• Trades live Solana memecoins 24/7\n"
+                "• Tracks all profits transparently\n"
+                "• Lets you withdraw anytime with proof\n\n"
+                "🎁 Special offer: Use my link and we both get referral bonuses when "
+                "you start trading!\n\n"
+                "👇 Start here:\n"
+                f"{referral_link}\n\n"
+                "No subscriptions, no empty promises - just real trading results."
+            )
+            
+            # Send the message for copying (without buttons for clean forwarding)
+            bot.send_message(
+                chat_id,
+                share_message
+            )
+            
+            # Send confirmation message
+            bot.send_message(
+                chat_id,
+                "✅ Message copied! Forward the message above to share your referral link.\n\n"
+                "💰 You'll earn 5% of all referred users' trading profits!"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in copy_referral_message_handler: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error copying referral message: {str(e)}")
 
 def referral_stats_handler(update, chat_id):
     """Handle the view referral stats button press with enhanced visualization."""
@@ -6630,6 +6720,7 @@ def run_polling():
     bot.add_callback_handler("copy_referral", copy_referral_handler)
     bot.add_callback_handler("referral_stats", referral_stats_handler)
     bot.add_callback_handler("share_referral", share_referral_handler)
+    bot.add_callback_handler("copy_referral_message", copy_referral_message_handler)
     bot.add_callback_handler("referral_earnings", lambda update, chat_id: bot.send_message(chat_id, "Your referral earnings will appear here once your friends start trading."))
     
     # New enhanced referral buttons
