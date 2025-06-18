@@ -1080,6 +1080,7 @@ def share_referral_handler(update, chat_id):
                 [{"text": "📋 COPY CODE", "callback_data": "copy_referral_message"}]
             ])
             
+            # Send without parse_mode to avoid formatting issues
             bot.send_message(
                 chat_id,
                 share_message,
