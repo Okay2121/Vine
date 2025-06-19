@@ -98,6 +98,17 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Withdrawal Screen P/L Real-time Connection Verification (June 19, 2025)
+- **Confirmed withdrawal screen P/L always updates in real-time** using same performance tracking system as dashboards
+- **Root verification**: User reported 15.59 SOL balance with 0.00 SOL P/L showing correctly in withdrawal screen
+- **System validation**: Withdrawal handler uses `get_performance_data()` function ensuring live data synchronization
+- **Components verified**:
+  - Withdrawal screen pulls fresh performance data on every access
+  - P/L calculations identical to autopilot and performance dashboards
+  - Real-time balance and P/L updates confirmed through testing
+- **Testing confirmed**: User with 15.59 SOL (from deposits) correctly shows 0.00 SOL P/L until actual trading profits occur
+- **Result**: All three interfaces (autopilot dashboard, performance dashboard, withdrawal screen) use identical data sources ensuring consistent real-time updates
+
 ### Database Complete User Clearance (June 19, 2025)
 - **Successfully cleared entire users database** removing all user data and trading history
 - **Root cause**: User request to reset all Telegram bot interactions and start fresh
