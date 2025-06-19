@@ -2878,12 +2878,17 @@ def admin_adjust_balance_handler(update, chat_id):
             active_users = User.query.filter_by(status=UserStatus.ACTIVE).all()
             user_suggestions = []
             
-            # Format user info for display
+            # Format user info for display without special characters
             for user in active_users[:5]:  # Limit to 5 suggestions for UI clarity
-                username_display = f"@{user.username}" if user.username else "No username"
+                if user.username:
+                    # Remove problematic characters from username
+                    clean_username = user.username.replace('_', '').replace('.', '').replace('*', '').replace('[', '').replace(']', '').replace('`', '').replace('(', '').replace(')', '').replace('~', '').replace('>', '').replace('#', '').replace('+', '').replace('=', '').replace('|', '').replace('{', '').replace('}', '').replace('!', '')
+                    username_display = f"@{clean_username}"
+                else:
+                    username_display = "No username"
                 user_suggestions.append({
                     "telegram_id": user.telegram_id,
-                    "display": f"ID: {user.telegram_id} | {username_display} | Balance: {user.balance:.2f} SOL"
+                    "display": f"ID {user.telegram_id} - {username_display} - Balance {user.balance:.0f} SOL"
                 })
         
         # Create a plain text message without Markdown formatting
@@ -3046,18 +3051,23 @@ def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
             admin_adjust_current_balance = user.balance
             
             # Create a safe message without complex Markdown formatting
-            username_display = f"@{user.username}" if user.username else "No username"
+            if user.username:
+                # Remove problematic characters from username
+                clean_username = user.username.replace('_', '').replace('.', '').replace('*', '').replace('[', '').replace(']', '').replace('`', '').replace('(', '').replace(')', '').replace('~', '').replace('>', '').replace('#', '').replace('+', '').replace('=', '').replace('|', '').replace('{', '').replace('}', '').replace('!', '')
+                username_display = f"@{clean_username}"
+            else:
+                username_display = "No username"
             
             # Use plain text to avoid Markdown parsing issues
             message_text = (
                 "USER FOUND\n\n"
                 f"User: {username_display}\n"
                 f"Telegram ID: {user.telegram_id}\n"
-                f"Current Balance: {user.balance:.4f} SOL\n\n"
+                f"Current Balance: {user.balance:.0f} SOL\n\n"
                 "Enter adjustment amount:\n"
-                "• Positive number to add (e.g. 5.5)\n"
-                "• Negative number to remove (e.g. -3.2)\n"
-                "• Type 'cancel' to abort"
+                "Positive number to add example 5\n"
+                "Negative number to remove example -3\n"
+                "Type cancel to abort"
             )
             
             keyboard = bot.create_inline_keyboard([

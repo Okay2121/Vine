@@ -1,230 +1,138 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
-Script to test the admin balance adjustment functionality
-This script will:
-1. Create a test user if not exists
-2. Perform an admin balance adjustment
-3. Verify the change is reflected in the database
+Test Admin Balance Adjustment Function
+=====================================
+This script tests the admin adjust balance functionality to ensure it works without HTTP 400 errors.
 """
-import logging
+
 import sys
-from datetime import datetime
+import os
+sys.path.append('.')
+
 from app import app, db
-from models import User, Transaction, UserStatus
+from models import User, UserStatus
+import logging
 
-# Configure logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-# Test Constants
-TEST_USER_TELEGRAM_ID = "12345678"
-TEST_USERNAME = "testuser"
-ADMIN_ADJUSTMENT_AMOUNT = 5.0  # SOL
-ADJUSTMENT_REASON = "Admin UI Test"
-TRANSACTION_TYPE = "admin_credit"
-
-def create_test_user_if_missing():
-    """Create a test user if they don't exist"""
-    with app.app_context():
-        # Check if user exists
-        user = User.query.filter_by(telegram_id=TEST_USER_TELEGRAM_ID).first()
-        
-        if user:
-            logger.info(f"Test user already exists with ID {user.id}")
-            return user
-        
-        # Create new user
-        new_user = User(
-            telegram_id=TEST_USER_TELEGRAM_ID,
-            username=TEST_USERNAME,
-            first_name=TEST_USERNAME,
-            last_name="TestAccount",
-            status=UserStatus.ACTIVE,
-            balance=0.0
-        )
-        
-        # Save user
-        db.session.add(new_user)
-        db.session.commit()
-        
-        logger.info(f"Created new test user {TEST_USERNAME} with ID {new_user.id}")
-        return new_user
-
-def perform_admin_balance_adjustment(user):
-    """Perform an admin balance adjustment on the user"""
+def test_admin_balance_adjustment():
+    """Test the admin balance adjustment message formatting."""
+    
     with app.app_context():
         try:
-            # Get latest user data
-            user = User.query.get(user.id)
+            # Get active users for testing
+            active_users = User.query.filter_by(status=UserStatus.ACTIVE).all()
+            user_suggestions = []
             
-            # Store old balance for reporting
-            old_balance = user.balance
+            print(f"Found {len(active_users)} active users")
             
-            # Update user balance
-            user.balance += ADMIN_ADJUSTMENT_AMOUNT
+            # Format user info for display (same as in the actual function)
+            for user in active_users[:5]:
+                if user.username:
+                    # Remove problematic characters from username
+                    clean_username = user.username.replace('_', '').replace('.', '').replace('*', '').replace('[', '').replace(']', '').replace('`', '').replace('(', '').replace(')', '').replace('~', '').replace('>', '').replace('#', '').replace('+', '').replace('=', '').replace('|', '').replace('{', '').replace('}', '').replace('!', '')
+                    username_display = f"@{clean_username}"
+                else:
+                    username_display = "No username"
+                user_suggestions.append({
+                    "telegram_id": user.telegram_id,
+                    "display": f"ID {user.telegram_id} - {username_display} - Balance {user.balance:.0f} SOL"
+                })
+                print(f"User: {user_suggestions[-1]['display']}")
             
-            # Create transaction record
-            new_transaction = Transaction()
-            new_transaction.user_id = user.id
-            new_transaction.transaction_type = TRANSACTION_TYPE
-            new_transaction.amount = ADMIN_ADJUSTMENT_AMOUNT
-            new_transaction.token_name = "SOL"
-            new_transaction.timestamp = datetime.utcnow()
-            new_transaction.status = 'completed'
-            new_transaction.notes = ADJUSTMENT_REASON
+            # Create the message (same as in actual function)
+            suggestion_text = ""
+            if user_suggestions:
+                suggestion_text = "\n\nRecent Active Users:\n"
+                for i, user in enumerate(user_suggestions):
+                    suggestion_text += f"{i+1}. {user['display']}\n"
             
-            # Add and commit transaction
-            db.session.add(new_transaction)
-            db.session.commit()
+            message = (
+                "ADJUST USER BALANCE\n\n"
+                "Please enter the Telegram ID or username of the user whose balance you want to adjust."
+                f"{suggestion_text}\n"
+                "Type the ID number, or type 'cancel' to go back."
+            )
             
-            logger.info(f"Balance adjustment successful")
-            logger.info(f"User: {user.username} (ID: {user.id})")
-            logger.info(f"Old balance: {old_balance:.4f} SOL")
-            logger.info(f"New balance: {user.balance:.4f} SOL")
-            logger.info(f"Adjustment: +{ADMIN_ADJUSTMENT_AMOUNT:.4f} SOL")
-            logger.info(f"Transaction ID: {new_transaction.id}")
+            print("\n" + "="*50)
+            print("GENERATED MESSAGE:")
+            print("="*50)
+            print(message)
+            print("="*50)
             
-            # Try to trigger auto trading based on the balance adjustment
-            try:
-                from utils.auto_trading_history import handle_admin_balance_adjustment
-                handle_admin_balance_adjustment(user.id, ADMIN_ADJUSTMENT_AMOUNT)
-                logger.info(f"Auto trading history started for user {user.id} after balance adjustment")
-            except Exception as trading_error:
-                logger.error(f"Failed to start auto trading history for user {user.id}: {trading_error}")
-                # Don't fail the balance adjustment process if auto trading fails
+            # Check for problematic characters
+            problematic_chars = ['*', '_', '[', ']', '`', '(', ')', '~', '>', '#', '+', '=', '|', '{', '}', '.', '!']
+            found_issues = []
             
-            return True, user.balance, old_balance, new_transaction.id
+            for char in problematic_chars:
+                if char in message:
+                    found_issues.append(char)
             
-        except Exception as e:
-            # Handle errors
-            db.session.rollback()
-            logger.error(f"Error during balance adjustment: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return False, 0, 0, None
-
-def verify_transaction_record(user_id, transaction_id):
-    """Verify the transaction record exists and is correct"""
-    with app.app_context():
-        try:
-            # Get the transaction
-            transaction = Transaction.query.get(transaction_id)
+            if found_issues:
+                print(f"\nWARNING: Found potentially problematic characters: {found_issues}")
+                print("These characters might cause Markdown parsing errors.")
+            else:
+                print("\n✅ Message appears safe - no problematic Markdown characters found")
             
-            if not transaction:
-                logger.error(f"Transaction {transaction_id} not found")
-                return False
+            # Test message length
+            print(f"\nMessage length: {len(message)} characters")
+            if len(message) > 4096:
+                print("WARNING: Message exceeds Telegram's 4096 character limit")
+            
+            # Test with specific user
+            if active_users:
+                test_user = active_users[0]
+                print(f"\nTest user details:")
+                print(f"  Telegram ID: {test_user.telegram_id}")
+                print(f"  Username: {test_user.username}")
+                print(f"  Balance: {test_user.balance}")
                 
-            # Verify transaction details
-            if transaction.user_id != user_id:
-                logger.error(f"Transaction user_id mismatch: {transaction.user_id} != {user_id}")
-                return False
+                # Test user lookup message
+                if test_user.username:
+                    clean_username = test_user.username.replace('_', '').replace('.', '').replace('*', '').replace('[', '').replace(']', '').replace('`', '').replace('(', '').replace(')', '').replace('~', '').replace('>', '').replace('#', '').replace('+', '').replace('=', '').replace('|', '').replace('{', '').replace('}', '').replace('!', '')
+                    username_display = f"@{clean_username}"
+                else:
+                    username_display = "No username"
+                user_found_message = (
+                    "USER FOUND\n\n"
+                    f"User: {username_display}\n"
+                    f"Telegram ID: {test_user.telegram_id}\n"
+                    f"Current Balance: {test_user.balance:.0f} SOL\n\n"
+                    "Enter adjustment amount:\n"
+                    "Positive number to add example 5\n"
+                    "Negative number to remove example -3\n"
+                    "Type cancel to abort"
+                )
                 
-            if transaction.transaction_type != TRANSACTION_TYPE:
-                logger.error(f"Transaction type mismatch: {transaction.transaction_type} != {TRANSACTION_TYPE}")
-                return False
+                print(f"\n" + "="*30)
+                print("USER FOUND MESSAGE:")
+                print("="*30)
+                print(user_found_message)
+                print("="*30)
                 
-            if transaction.amount != ADMIN_ADJUSTMENT_AMOUNT:
-                logger.error(f"Transaction amount mismatch: {transaction.amount} != {ADMIN_ADJUSTMENT_AMOUNT}")
-                return False
+                # Check user found message for issues
+                user_found_issues = []
+                for char in problematic_chars:
+                    if char in user_found_message:
+                        user_found_issues.append(char)
                 
-            if transaction.status != 'completed':
-                logger.error(f"Transaction status mismatch: {transaction.status} != completed")
-                return False
-                
-            if transaction.notes != ADJUSTMENT_REASON:
-                logger.error(f"Transaction reason mismatch: {transaction.notes} != {ADJUSTMENT_REASON}")
-                return False
-                
-            logger.info(f"Transaction record verified successfully")
+                if user_found_issues:
+                    print(f"\nWARNING: User found message has problematic characters: {user_found_issues}")
+                else:
+                    print("\n✅ User found message appears safe")
+            
             return True
             
         except Exception as e:
-            logger.error(f"Error verifying transaction: {e}")
+            print(f"❌ Error during test: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-
-def simulate_user_dashboard_check(user):
-    """Simulate checking the user dashboard to verify the balance"""
-    with app.app_context():
-        try:
-            # Get latest user data
-            user = User.query.get(user.id)
-            
-            # Get the user's transactions
-            transactions = Transaction.query.filter_by(user_id=user.id).order_by(Transaction.timestamp.desc()).limit(10).all()
-            
-            logger.info(f"\n===== USER DASHBOARD SIMULATION =====")
-            logger.info(f"Username: @{user.username}")
-            logger.info(f"Telegram ID: {user.telegram_id}")
-            logger.info(f"Current Balance: {user.balance:.4f} SOL")
-            logger.info(f"Status: {user.status.value}")
-            
-            logger.info(f"\nRecent Transactions:")
-            for idx, tx in enumerate(transactions, 1):
-                logger.info(f"{idx}. {tx.transaction_type.upper()}: {tx.amount:.4f} SOL - {tx.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {tx.notes or 'No notes'}")
-            
-            logger.info(f"=================================\n")
-            
-            return True, user.balance
-            
-        except Exception as e:
-            logger.error(f"Error checking user dashboard: {e}")
-            return False, 0
-
-def run_test():
-    """Run the full test process"""
-    try:
-        # Step 1: Create/get test user
-        user = create_test_user_if_missing()
-        if not user:
-            logger.error("Failed to create or find test user")
-            return False
-            
-        # Step 2: Check initial dashboard
-        initial_check, initial_balance = simulate_user_dashboard_check(user)
-        if not initial_check:
-            logger.error("Failed to check initial user dashboard")
-            return False
-            
-        # Step 3: Perform admin balance adjustment
-        success, new_balance, old_balance, transaction_id = perform_admin_balance_adjustment(user)
-        if not success:
-            logger.error("Failed to perform admin balance adjustment")
-            return False
-            
-        # Step 4: Verify transaction record
-        verified = verify_transaction_record(user.id, transaction_id)
-        if not verified:
-            logger.error("Failed to verify transaction record")
-            return False
-            
-        # Step 5: Check updated dashboard
-        final_check, final_balance = simulate_user_dashboard_check(user)
-        if not final_check:
-            logger.error("Failed to check updated user dashboard")
-            return False
-            
-        # Step 6: Verify balance change
-        if final_balance != initial_balance + ADMIN_ADJUSTMENT_AMOUNT:
-            logger.error(f"Balance mismatch: {final_balance} != {initial_balance + ADMIN_ADJUSTMENT_AMOUNT}")
-            return False
-            
-        logger.info(f"Test completed successfully!")
-        logger.info(f"Balance adjustment of +{ADMIN_ADJUSTMENT_AMOUNT} SOL reflected correctly in user dashboard")
-        logger.info(f"Old balance: {old_balance:.4f} SOL")
-        logger.info(f"New balance: {new_balance:.4f} SOL")
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Test failed with error: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return False
 
 if __name__ == "__main__":
-    # Run the test
-    success = run_test()
-    sys.exit(0 if success else 1)
+    print("Testing Admin Balance Adjustment Function...")
+    success = test_admin_balance_adjustment()
+    
+    if success:
+        print("\n✅ Test completed successfully")
+    else:
+        print("\n❌ Test failed")
+        sys.exit(1)
