@@ -1740,236 +1740,56 @@ def deposit_command(update, chat_id):
         bot.send_message(chat_id, f"Error displaying deposit page: {str(e)}")
 
 def dashboard_command(update, chat_id):
-    """Handle the /dashboard command."""
+    """Handle the /dashboard command with real-time performance data."""
     try:
-        # Import datetime at the function level to avoid the UnboundLocalError
         from datetime import datetime, timedelta
         
         with app.app_context():
-            from app import db
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             if not user:
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
                 
-            # Use performance tracking for real-time data synchronization with Performance Dashboard
-            try:
-                from performance_tracking import get_performance_data, get_days_with_balance
-                performance_data = get_performance_data(user.id)
+            # Get real-time performance data (same source as Performance Dashboard)
+            from performance_tracking import get_performance_data, get_days_with_balance
+            performance_data = get_performance_data(user.id)
+            
+            if performance_data:
+                # Extract values from performance data (synchronized with Performance Dashboard)
+                total_profit_amount = performance_data['total_profit']
+                total_profit_percentage = performance_data['total_percentage']
+                today_profit_amount = performance_data['today_profit']
+                today_profit_percentage = performance_data['today_percentage']
+                streak = performance_data['streak_days']
+                current_balance = performance_data['current_balance']
                 
-                if performance_data:
-                    # Extract values from performance data (synchronized with Performance Dashboard)
-                    total_profit_amount = performance_data['total_profit']
-                    total_profit_percentage = performance_data['total_percentage']
-                    today_profit_amount = performance_data['today_profit']
-                    today_profit_percentage = performance_data['today_percentage']
-                    streak = performance_data['streak_days']
-                    
-                    # Get days with SOL balance for proper day counter
-                    days_with_balance = get_days_with_balance(user.id)
-                    
-                    # Log successful data retrieval for debugging
-                    import logging
-                    logging.info(f"Autopilot Dashboard - Real-time data retrieved: streak={streak}, today_profit={today_profit_amount}, total_profit={total_profit_amount}, days_with_balance={days_with_balance}")
-                else:
-                    raise Exception("Performance data not available")
-                    
-            except Exception as e:
-                # Fallback to direct calculation if performance tracking fails
-                from sqlalchemy import func
-                from models import Profit, Transaction
+                # Get days with SOL balance for proper day counter
+                days_with_balance = get_days_with_balance(user.id)
                 
-                # Calculate profits for all users who have made transactions
-                # Get total profits from both Transaction and Profit tables
-                total_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type == 'trade_profit',
-                    Transaction.status == 'completed'
-                ).scalar() or 0
-                
-                total_profit_table = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user.id).scalar() or 0
-                
-                # Use the higher value to account for both tracking methods
-                total_profit_amount = max(total_trade_profits, total_profit_table)
-                
-                # Calculate percentage based on initial deposit or current balance
-                if user.initial_deposit > 0:
-                    total_profit_percentage = (total_profit_amount / user.initial_deposit) * 100
-                elif user.balance > 0:
-                    # If no initial deposit set, use current balance as baseline
-                    total_profit_percentage = (total_profit_amount / max(user.balance, 0.01)) * 100
-                else:
-                    total_profit_percentage = 0
-                
-                # Get today's profits from both sources
-                today = datetime.utcnow().date()
-                today_start = datetime.combine(today, datetime.min.time())
-                today_end = datetime.combine(today, datetime.max.time())
-                
-                today_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type == 'trade_profit',
-                    Transaction.timestamp >= today_start,
-                    Transaction.timestamp <= today_end,
-                    Transaction.status == 'completed'
-                ).scalar() or 0
-                
-                today_profit_table = db.session.query(func.sum(Profit.amount)).filter_by(
-                    user_id=user.id, 
-                    date=today
-                ).scalar() or 0
-                
-                # Get today's losses as well
-                today_trade_losses = db.session.query(func.sum(Transaction.amount)).filter(
-                    Transaction.user_id == user.id,
-                    Transaction.transaction_type == 'trade_loss',
-                    Transaction.timestamp >= today_start,
-                    Transaction.timestamp <= today_end,
-                    Transaction.status == 'completed'
-                ).scalar() or 0
-                
-                # Calculate net profit for today (profits minus losses)
-                net_today_profit = today_trade_profits - abs(today_trade_losses)
-                today_profit_amount = max(net_today_profit, today_profit_table)
-                
-                # Calculate percentage based on starting balance for today, not current balance
-                starting_balance_today = user.balance - today_profit_amount
-                today_profit_percentage = (today_profit_amount / starting_balance_today * 100) if starting_balance_today > 0 else 0
-                
-                # Calculate streak manually with proper P/L logic - count consecutive days with net positive P/L
+                # Log successful data retrieval for debugging
+                import logging
+                logging.info(f"Autopilot Dashboard - Real-time data retrieved: streak={streak}, today_profit={today_profit_amount}, total_profit={total_profit_amount}, days_with_balance={days_with_balance}")
+            else:
+                # Simple fallback if performance tracking completely fails
+                total_profit_amount = 0
+                total_profit_percentage = 0
+                today_profit_amount = 0
+                today_profit_percentage = 0
                 streak = 0
-                current_date = datetime.utcnow().date()
-                
-                # Check up to 30 days back (maximum reasonable streak)
-                consecutive_streak = True
-                for i in range(30):
-                    check_date = current_date - timedelta(days=i)
-                    check_date_start = datetime.combine(check_date, datetime.min.time())
-                    check_date_end = datetime.combine(check_date, datetime.max.time())
-                    
-                    # Get profits for this day
-                    day_trade_profit = db.session.query(func.sum(Transaction.amount)).filter(
-                        Transaction.user_id == user.id,
-                        Transaction.transaction_type == 'trade_profit',
-                        Transaction.timestamp >= check_date_start,
-                        Transaction.timestamp <= check_date_end,
-                        Transaction.status == 'completed'
-                    ).scalar() or 0
-                    
-                    # Get losses for this day
-                    day_trade_loss = db.session.query(func.sum(Transaction.amount)).filter(
-                        Transaction.user_id == user.id,
-                        Transaction.transaction_type == 'trade_loss',
-                        Transaction.timestamp >= check_date_start,
-                        Transaction.timestamp <= check_date_end,
-                        Transaction.status == 'completed'
-                    ).scalar() or 0
-                    
-                    # Also check Profit table
-                    day_profit_table = db.session.query(func.sum(Profit.amount)).filter_by(
-                        user_id=user.id, 
-                        date=check_date
-                    ).scalar() or 0
-                    
-                    # Calculate net P/L for this day (profits minus losses)
-                    net_day_pl = day_trade_profit - abs(day_trade_loss)
-                    
-                    # Use the higher value between calculated net P/L and Profit table
-                    day_pl = max(net_day_pl, day_profit_table)
-                    
-                    # Only count as streak if net P/L is positive
-                    if day_pl > 0 and consecutive_streak:
-                        streak += 1
-                    elif day_pl <= 0:
-                        # Break the streak if net P/L is zero or negative
-                        consecutive_streak = False
-                        if i > 0:  # Don't break on today
-                            break
+                days_with_balance = 0
+                current_balance = user.balance
             
-            # Get ROI metrics - internal implementation since we can't import from utils
-            def get_user_roi_metrics(user_id):
-                """Get ROI metrics for a user - simplified implementation"""
-                with app.app_context():
-                    from models import TradingCycle, CycleStatus
-                    
-                    # Query for the user's active trading cycle
-                    active_cycle = TradingCycle.query.filter_by(
-                        user_id=user_id, 
-                        status=CycleStatus.IN_PROGRESS
-                    ).first()
-                    
-                    # Default metrics if no active cycle
-                    metrics = {
-                        'has_active_cycle': False,
-                        'days_elapsed': 0,
-                        'days_remaining': 7,
-                        'progress_percentage': 0,
-                        'target_balance': 0,
-                        'current_balance': 0,
-                        'is_on_track': True
-                    }
-                    
-                    if active_cycle:
-                        # Calculate days elapsed
-                        days_elapsed = (datetime.utcnow() - active_cycle.start_date).days
-                        days_elapsed = max(0, min(7, days_elapsed))
-                        
-                        # Calculate days remaining
-                        days_remaining = max(0, 7 - days_elapsed)
-                        
-                        # Calculate progress percentage
-                        if active_cycle.target_balance > 0:
-                            progress = (active_cycle.current_balance / active_cycle.target_balance) * 100
-                        else:
-                            progress = 0
-                        
-                        # Update metrics
-                        metrics = {
-                            'has_active_cycle': True,
-                            'days_elapsed': days_elapsed,
-                            'days_remaining': days_remaining,
-                            'progress_percentage': min(100, progress),
-                            'target_balance': active_cycle.target_balance,
-                            'current_balance': active_cycle.current_balance,
-                            'is_on_track': active_cycle.is_on_track() if hasattr(active_cycle, 'is_on_track') else True
-                        }
-                    
-                    return metrics
-                
-            roi_metrics = get_user_roi_metrics(user.id)
-            
-            # Format metrics for display
-            has_active_cycle = roi_metrics['has_active_cycle']
-            days_active = roi_metrics['days_elapsed'] if has_active_cycle else min(7, (datetime.utcnow().date() - user.joined_at.date()).days)
-            days_left = roi_metrics['days_remaining'] if has_active_cycle else max(0, 7 - days_active)
+            # Calculate progress metrics
+            days_active = days_with_balance
+            days_left = max(0, 7 - days_active)
             
             # Calculate next milestone target - 10% of initial deposit or minimum 0.05 SOL
-            milestone_target = max(user.initial_deposit * 0.1, 0.05)
+            milestone_target = max(user.initial_deposit * 0.1, 0.05) if user.initial_deposit > 0 else 0.05
             
             # Calculate progress towards next milestone
             goal_progress = min(100, (total_profit_amount / milestone_target) * 100) if milestone_target > 0 else 0
             progress_blocks = int(min(14, goal_progress / (100/14)))
             progress_bar = f"[{'▓' * progress_blocks}{'░' * (14 - progress_blocks)}]"
-            
-            # Current amount is actual balance including profits
-            current_amount = user.balance
-            
-            # Use the centralized days_with_balance function for accurate counting
-            # This only counts days when user has had SOL balance > 0
-            days_active = days_with_balance
-            
-            # Set current balance - use actual user balance as the primary source
-            current_balance = user.balance
-            
-            # Try to get performance tracking data but don't override calculated values
-            try:
-                from performance_tracking import get_performance_data
-                performance_data = get_performance_data(user.id)
-                
-                if performance_data and performance_data.get('current_balance'):
-                    current_balance = performance_data['current_balance']
-            except ImportError:
-                pass  # Use already calculated values
             
             # Format P/L values with proper sign handling for both positive and negative values
             dashboard_message = (
