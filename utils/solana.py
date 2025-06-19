@@ -556,9 +556,20 @@ def process_auto_deposit(user_id, amount, tx_signature):
             previous_balance = user.balance
             user.balance = previous_balance + amount
             
-            # If this is their first deposit, set initial deposit amount
-            if user.initial_deposit == 0:
+            # Set initial deposit only for the very first deposit transaction
+            # Check if this is truly the first deposit by counting existing deposits
+            existing_deposits = Transaction.query.filter_by(
+                user_id=user.id, 
+                transaction_type="deposit",
+                status="completed"
+            ).count()
+            
+            # Only set initial deposit if this is the very first deposit AND initial_deposit is still 0
+            if existing_deposits == 0 and user.initial_deposit == 0:
                 user.initial_deposit = amount
+                logger.info(f"Set initial deposit to {amount} SOL for user {user_id} (first deposit)")
+            else:
+                logger.info(f"Additional deposit of {amount} SOL for user {user_id} (initial deposit remains {user.initial_deposit} SOL)")
                 
             # Update user status to active if they were in depositing state
             if user.status.value == "DEPOSITING":
