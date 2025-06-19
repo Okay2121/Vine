@@ -494,6 +494,35 @@ def generate_personalized_position_message(user, position, trade_type="buy"):
         return f"Trade update for ${position.token_name}"
 
 
+def get_active_users_for_broadcast():
+    """
+    Get active users for trade broadcasting
+    
+    Returns:
+        list: List of active users for broadcasting trades
+    """
+    try:
+        with app.app_context():
+            # Get users with active or depositing status who have SOL balance
+            active_users = User.query.filter(
+                User.status.in_([UserStatus.active, UserStatus.depositing]),
+                User.balance > 0
+            ).all()
+            
+            # If no active users, include onboarding users with balance for testing
+            if not active_users:
+                active_users = User.query.filter(
+                    User.balance > 0
+                ).all()
+            
+            logger.info(f"Found {len(active_users)} users for trade broadcasting")
+            return active_users
+            
+    except Exception as e:
+        logger.error(f"Error getting active users for broadcast: {e}")
+        return []
+
+
 def test_smart_allocation():
     """Test the smart allocation system with sample data"""
     print("Testing Smart Balance Allocation System")
