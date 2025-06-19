@@ -3047,8 +3047,7 @@ def admin_adjust_balance_reason_handler(update, chat_id, text):
         bot.remove_listener(chat_id)
 
 def admin_confirm_adjustment_handler(update, chat_id):
-    """Fixed balance adjustment handler using working_balance_manager."""
-    import threading
+    """Fixed balance adjustment handler using working_balance_manager - synchronous version."""
     import logging
     
     try:
@@ -3056,21 +3055,26 @@ def admin_confirm_adjustment_handler(update, chat_id):
         global admin_target_user_id, admin_adjust_telegram_id, admin_adjust_current_balance
         global admin_adjustment_amount, admin_adjustment_reason
         
+        logging.info("Admin confirm adjustment handler called")
+        
         # Check if we already have data to process
         if admin_target_user_id is None or admin_adjustment_amount is None:
+            logging.warning("Missing adjustment data in confirm handler")
             bot.send_message(
                 chat_id,
-                "⚠️ No pending balance adjustment found. Please try again.",
+                "No pending balance adjustment found. Please try again.",
                 reply_markup=bot.create_inline_keyboard([
                     [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
                 ])
             )
             return
             
-        # Store values locally
+        # Store values locally before resetting globals
         tg_id = admin_adjust_telegram_id
         amount = admin_adjustment_amount
         reason = admin_adjustment_reason or "Admin adjustment"
+        
+        logging.info(f"Processing adjustment: User {tg_id}, Amount {amount}, Reason {reason}")
         
         # Reset globals immediately to prevent duplicate processing
         admin_target_user_id = None
@@ -3079,82 +3083,61 @@ def admin_confirm_adjustment_handler(update, chat_id):
         admin_adjustment_amount = None
         admin_adjustment_reason = None
         
-        # Send immediate acknowledgment
-        bot.send_message(
-            chat_id, 
-            "✅ Processing your balance adjustment request...",
-            reply_markup=bot.create_inline_keyboard([
+        # Process the adjustment directly (no threading)
+        try:
+            # Use the working balance manager
+            from working_balance_manager import adjust_balance_fixed
+            
+            # Process the adjustment
+            success, message = adjust_balance_fixed(str(tg_id), amount, reason)
+            
+            # Create result message with plain text formatting
+            if success:
+                action = "added" if amount > 0 else "deducted"
+                result_message = (
+                    "BALANCE ADJUSTMENT COMPLETED\n\n"
+                    f"Amount: {abs(amount):.4f} SOL {action}\n\n"
+                    f"Details: {message}"
+                )
+                logging.info(f"Balance adjustment successful for {tg_id}")
+            else:
+                result_message = (
+                    "BALANCE ADJUSTMENT FAILED\n\n"
+                    f"Error: {message}"
+                )
+                logging.error(f"Balance adjustment failed for {tg_id}: {message}")
+            
+            keyboard = bot.create_inline_keyboard([
                 [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
             ])
-        )
+            
+            bot.send_message(
+                chat_id,
+                result_message,
+                reply_markup=keyboard
+            )
+            
+        except Exception as process_error:
+            logging.error(f"Error during balance adjustment processing: {process_error}")
+            error_message = f"Error processing adjustment: {str(process_error)}"
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
+            ])
+            
+            bot.send_message(
+                chat_id,
+                error_message,
+                reply_markup=keyboard
+            )
         
-        # Define background worker function
-        def process_adjustment():
-            try:
-                logging.info("Starting balance adjustment in background thread")
-                logging.info(f"Processing balance adjustment for {tg_id} with amount {amount}")
-                
-                # Use the working balance manager
-                from working_balance_manager import adjust_balance_fixed
-                
-                # Process the adjustment
-                success, message = adjust_balance_fixed(tg_id, amount, reason)
-                
-                # Create result message with plain text formatting
-                if success:
-                    action = "added" if amount > 0 else "deducted"
-                    result_message = (
-                        "BALANCE ADJUSTMENT COMPLETED\n\n"
-                        f"Amount: {abs(amount):.4f} SOL {action}\n\n"
-                        f"{message}"
-                    )
-                else:
-                    result_message = (
-                        "BALANCE ADJUSTMENT FAILED\n\n"
-                        f"{message}"
-                    )
-                
-                keyboard = bot.create_inline_keyboard([
-                    [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
-                ])
-                
-                bot.send_message(
-                    chat_id,
-                    result_message,
-                    reply_markup=keyboard
-                )
-                
-                if success:
-                    logging.info(f"Balance adjustment successful for {tg_id}")
-                else:
-                    logging.error(f"Balance adjustment failed for {tg_id}: {message}")
-                    
-            except Exception as e:
-                logging.error(f"Error in adjustment thread: {e}")
-                try:
-                    error_message = f"Error processing adjustment: {str(e)}"
-                    keyboard = bot.create_inline_keyboard([
-                        [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
-                    ])
-                    
-                    bot.send_message(
-                        chat_id,
-                        error_message,
-                        reply_markup=keyboard
-                    )
-                except:
-                    pass
-        
-        # Start a daemon thread to process the adjustment
-        thread = threading.Thread(target=process_adjustment)
-        thread.daemon = True
-        thread.start()
-        
-        logging.info("Balance adjustment handler completed - thread started")
+        logging.info("Balance adjustment handler completed successfully")
         return
     
     except Exception as e:
         logging.error(f"Error in balance adjustment handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        
         # Reset globals if there's an error
         admin_target_user_id = None
         admin_adjust_telegram_id = None
