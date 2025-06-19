@@ -2691,15 +2691,15 @@ def admin_confirm_initial_deposit_handler(update, chat_id):
 def admin_adjust_balance_handler(update, chat_id):
     """Handle the adjust balance button with full implementation and user panel interaction."""
     try:
-        # Get all active users for autocomplete suggestions
+        # Get ALL users (not just active ones) for autocomplete suggestions
         with app.app_context():
             from models import User, UserStatus
             
-            active_users = User.query.filter_by(status=UserStatus.ACTIVE).all()
+            all_users = User.query.order_by(User.id.desc()).limit(10).all()  # Get latest 10 users
             user_suggestions = []
             
             # Format user info for display without special characters
-            for user in active_users[:5]:  # Limit to 5 suggestions for UI clarity
+            for user in all_users:
                 if user.username:
                     # Remove problematic characters from username
                     clean_username = user.username.replace('_', '').replace('.', '').replace('*', '').replace('[', '').replace(']', '').replace('`', '').replace('(', '').replace(')', '').replace('~', '').replace('>', '').replace('#', '').replace('+', '').replace('=', '').replace('|', '').replace('{', '').replace('}', '').replace('!', '')
@@ -2708,15 +2708,17 @@ def admin_adjust_balance_handler(update, chat_id):
                     username_display = "No username"
                 user_suggestions.append({
                     "telegram_id": user.telegram_id,
-                    "display": f"ID {user.telegram_id} - {username_display} - Balance {user.balance:.0f} SOL"
+                    "display": f"ID {user.telegram_id} - {username_display} - Balance {user.balance:.2f} SOL - Status {user.status.value}"
                 })
         
         # Create a plain text message without Markdown formatting
         suggestion_text = ""
         if user_suggestions:
-            suggestion_text = "\n\nRecent Active Users:\n"
+            suggestion_text = "\n\nRecent Users:\n"
             for i, user in enumerate(user_suggestions):
                 suggestion_text += f"{i+1}. {user['display']}\n"
+        else:
+            suggestion_text = "\n\nNo users found in database."
         
         message = (
             "ADJUST USER BALANCE\n\n"
