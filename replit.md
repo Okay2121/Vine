@@ -98,6 +98,21 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### P/L Calculation Fix - Deposits No Longer Count as Profit (June 19, 2025)
+- **Fixed critical P/L calculation logic** where deposits were incorrectly counted as trading profit/loss
+- **Root cause**: System treated all balance increases (deposits, admin adjustments) as profit instead of baseline
+- **Solution implemented**:
+  - Updated `performance_tracking.py` to exclude deposits from P/L calculations
+  - Enhanced P/L logic to only count actual trading profits/losses (`trade_profit`, `trade_loss` transactions)
+  - Fixed initial deposit tracking to properly set baseline from actual deposits
+  - Added automatic initial deposit correction for users with missing baseline values
+- **Components fixed**:
+  - `get_performance_data()` - Now calculates P/L from trading transactions only
+  - Initial deposit auto-correction for users with 0.00 baseline values
+  - Performance dashboard now shows proper deposit amounts instead of 0.00
+- **Result**: Dashboard correctly displays initial deposit amounts and 0.00 P/L until actual trades are made
+- **Testing**: Verified user with 0.61 SOL from deposits shows 0.00 P/L (0.0%) as expected
+
 ### Admin Balance Adjustment HTTP 400 Fix (June 19, 2025)
 - **Fixed critical admin adjust balance button disconnect** caused by Markdown parsing errors
 - **Root cause**: Special characters in usernames and Markdown formatting causing HTTP 400 "can't parse entities" errors

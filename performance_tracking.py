@@ -516,8 +516,52 @@ def get_performance_data(user_id):
     else:
         today_profit_percentage = 0
     
-    # Calculate total profit
-    profit_amount = user.balance - user.initial_deposit
+    # Calculate total profit - only from actual trading, not deposits or admin adjustments
+    # Get all trading-related profits and losses
+    from sqlalchemy import func
+    
+    # Sum all trade profits
+    total_trade_profits = db.session.query(func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.transaction_type == 'trade_profit',
+        Transaction.status == 'completed'
+    ).scalar() or 0
+    
+    # Sum all trade losses
+    total_trade_losses = db.session.query(func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.transaction_type == 'trade_loss',
+        Transaction.status == 'completed'
+    ).scalar() or 0
+    
+    # Also get from Profit table
+    total_profit_table = db.session.query(func.sum(Profit.amount)).filter_by(user_id=user_id).scalar() or 0
+    
+    # Calculate net trading profit (exclude deposits and admin adjustments)
+    net_trading_profit = total_trade_profits - abs(total_trade_losses)
+    
+    # Use the higher value between calculated and profit table, but ensure it's only trading profit
+    profit_amount = max(net_trading_profit, total_profit_table)
+    
+    # Ensure initial_deposit is properly set from actual deposits
+    if user.initial_deposit <= 0:
+        # Get total deposits to set as initial deposit baseline
+        total_deposits = db.session.query(func.sum(Transaction.amount)).filter(
+            Transaction.user_id == user_id,
+            Transaction.transaction_type.in_(['deposit', 'admin_adjustment']),
+            Transaction.status == 'completed',
+            Transaction.amount > 0
+        ).scalar() or 0
+        
+        if total_deposits > 0:
+            user.initial_deposit = total_deposits
+            db.session.commit()
+        else:
+            # If no deposits found, use current balance minus any profits as baseline
+            user.initial_deposit = max(user.balance - profit_amount, 0)
+            db.session.commit()
+    
+    # Calculate percentage based on actual initial deposit
     profit_percentage = (profit_amount / user.initial_deposit * 100) if user.initial_deposit > 0 else 0
     
     # Get recent trades
