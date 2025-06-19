@@ -2689,52 +2689,22 @@ def admin_confirm_initial_deposit_handler(update, chat_id):
         admin_initial_deposit_amount = None
 
 def admin_adjust_balance_handler(update, chat_id):
-    """Handle the adjust balance button with full implementation and user panel interaction."""
+    """Handle the adjust balance button with completely safe text formatting."""
     try:
-        # Get ALL users (not just active ones) for autocomplete suggestions
-        with app.app_context():
-            from models import User, UserStatus
-            
-            all_users = User.query.order_by(User.id.desc()).limit(10).all()  # Get latest 10 users
-            user_suggestions = []
-            
-            # Format user info for display - completely safe from parsing errors
-            for user in all_users:
-                if user.username:
-                    # Remove ALL potentially problematic characters
-                    import re
-                    clean_username = re.sub(r'[^a-zA-Z0-9]', '', user.username)
-                    username_display = f"User_{clean_username}"
-                else:
-                    username_display = "NoUsername"
-                user_suggestions.append({
-                    "telegram_id": user.telegram_id,
-                    "display": f"ID {user.telegram_id} {username_display} Balance {user.balance:.2f} SOL Status {user.status.value}"
-                })
-        
-        # Create a completely safe plain text message
-        suggestion_text = ""
-        if user_suggestions:
-            suggestion_text = "\n\nRecent Users:\n"
-            for i, user in enumerate(user_suggestions):
-                # Use only safe characters and simple formatting
-                suggestion_text += f"{i+1}. {user['display']}\n"
-        else:
-            suggestion_text = "\n\nNo users found in database."
-        
-        # Build message with completely safe text
-        message_lines = [
-            "ADJUST USER BALANCE",
-            "",
-            "Please enter the Telegram ID or username of the user whose balance you want to adjust.",
-            suggestion_text,
-            "Type the ID number, or type cancel to go back."
-        ]
-        message = "\n".join(message_lines)
+        # Send a simple, safe message without user suggestions to avoid parsing errors
+        message = (
+            "ADJUST USER BALANCE\n\n"
+            "Enter the Telegram ID or username of the user whose balance you want to adjust.\n\n"
+            "Examples:\n"
+            "- 1234567890 for Telegram ID\n"
+            "- @username\n"
+            "- username\n\n"
+            "Type cancel to go back."
+        )
         
         keyboard = bot.create_inline_keyboard([
-            [{"text": "🔄 Refresh User List", "callback_data": "admin_adjust_balance"}],
-            [{"text": "↩️ Back to Admin Panel", "callback_data": "admin_back"}]
+            [{"text": "Refresh", "callback_data": "admin_adjust_balance"}],
+            [{"text": "Back", "callback_data": "admin_back"}]
         ])
         
         bot.send_message(
@@ -2752,12 +2722,9 @@ def admin_adjust_balance_handler(update, chat_id):
         import traceback
         logging.error(traceback.format_exc())
         
-        # Handle the case when bot isn't initialized
+        # Send a simple error message without any special formatting
         try:
-            if 'bot' in globals() and bot is not None:
-                bot.send_message(chat_id, f"Error displaying adjust balance: {str(e)}")
-            else:
-                logging.error("Cannot send error message - bot not initialized")
+            bot.send_message(chat_id, "Error: Cannot display balance adjustment menu")
         except Exception as inner_e:
             logging.error(f"Error sending error message: {inner_e}")
 
