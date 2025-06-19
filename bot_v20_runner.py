@@ -3089,8 +3089,8 @@ def admin_confirm_adjustment_handler(update, chat_id):
                     ])
                 )
                 
-                # Step 3: Send detailed success message (matches your screenshot format)
-                success_message = detailed_message  # This already contains the full details
+                # Step 3: Send detailed success message (plain text format to avoid parsing errors)
+                success_message = detailed_message.replace('(', '').replace(')', '').replace('*', '').replace('_', '').replace('`', '')
                 
                 bot.send_message(
                     chat_id,
