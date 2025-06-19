@@ -98,6 +98,17 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Database Complete User Clearance (June 19, 2025)
+- **Successfully cleared entire users database** removing all user data and trading history
+- **Root cause**: User request to reset all Telegram bot interactions and start fresh
+- **Solution implemented**:
+  - Created `force_clear_database.py` script to handle foreign key constraints properly
+  - Cleared 14 database tables in correct dependency order to avoid constraint violations
+  - Handled PostgreSQL-specific syntax and constraint requirements
+- **Tables cleared**: daily_snapshot, user_metrics, sender_wallet, milestone_tracker, trading_cycle, trading_position, profit, transaction, referral_reward, referral_code, support_ticket, admin_message, broadcast_message, user
+- **Final verification**: 0 users, 0 transactions, 0 profits, 0 trading positions remaining
+- **Result**: Telegram bot now runs with completely clean database - all users will start fresh registration process
+
 ### P/L Calculation Fix - Deposits No Longer Count as Profit (June 19, 2025)
 - **Fixed critical P/L calculation logic** where deposits were incorrectly counted as trading profit/loss
 - **Root cause**: System treated all balance increases (deposits, admin adjustments) as profit instead of baseline
