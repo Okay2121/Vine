@@ -98,6 +98,22 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Admin Balance Adjustment HTTP 400 Fix (June 19, 2025)
+- **Fixed critical admin adjust balance button disconnect** caused by Markdown parsing errors
+- **Root cause**: Special characters in usernames and Markdown formatting causing HTTP 400 "can't parse entities" errors
+- **Solution implemented**:
+  - Removed all Markdown formatting from admin adjust balance messages
+  - Updated user lookup, confirmation, and result messages to use plain text
+  - Enhanced error handling throughout the balance adjustment workflow
+  - Fixed message parsing issues with usernames containing special characters (_, *, [, ], @)
+- **Components fixed**:
+  - `admin_adjust_balance_handler()` - Initial message now uses plain text
+  - `admin_adjust_balance_user_id_handler()` - User found message without Markdown
+  - `admin_adjust_balance_amount_handler()` - Confirmation message in plain text
+  - `admin_confirm_adjustment_handler()` - Result messages without formatting issues
+- **Result**: Admin can now successfully adjust user balances without HTTP 400 errors for all username types
+- **Testing**: Verified complete workflow from user lookup to balance adjustment completion
+
 ### AWS Environment Variables Export System (June 17, 2025)
 - **Created comprehensive AWS deployment environment package** for seamless cloud deployment
 - **Root cause**: Need for complete environment variable extraction and AWS deployment preparation

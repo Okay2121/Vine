@@ -2886,18 +2886,18 @@ def admin_adjust_balance_handler(update, chat_id):
                     "display": f"ID: {user.telegram_id} | {username_display} | Balance: {user.balance:.2f} SOL"
                 })
         
-        # Create a more helpful message with user suggestions
+        # Create a plain text message without Markdown formatting
         suggestion_text = ""
         if user_suggestions:
-            suggestion_text = "\n\n*Recent Active Users:*\n"
+            suggestion_text = "\n\nRecent Active Users:\n"
             for i, user in enumerate(user_suggestions):
                 suggestion_text += f"{i+1}. {user['display']}\n"
         
         message = (
-            "💰 *Adjust User Balance*\n\n"
+            "ADJUST USER BALANCE\n\n"
             "Please enter the Telegram ID or username of the user whose balance you want to adjust."
             f"{suggestion_text}\n"
-            "_Type the ID number, or type 'cancel' to go back._"
+            "Type the ID number, or type 'cancel' to go back."
         )
         
         keyboard = bot.create_inline_keyboard([
@@ -2908,7 +2908,6 @@ def admin_adjust_balance_handler(update, chat_id):
         bot.send_message(
             chat_id,
             message,
-            parse_mode="Markdown",
             reply_markup=keyboard
         )
         
