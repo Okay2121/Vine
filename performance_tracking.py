@@ -543,23 +543,25 @@ def get_performance_data(user_id):
     # Use the higher value between calculated and profit table, but ensure it's only trading profit
     profit_amount = max(net_trading_profit, total_profit_table)
     
-    # Ensure initial_deposit is properly set from actual deposits
-    if user.initial_deposit <= 0:
-        # Get total deposits to set as initial deposit baseline
-        total_deposits = db.session.query(func.sum(Transaction.amount)).filter(
-            Transaction.user_id == user_id,
-            Transaction.transaction_type.in_(['deposit', 'admin_adjustment']),
-            Transaction.status == 'completed',
-            Transaction.amount > 0
-        ).scalar() or 0
-        
-        if total_deposits > 0:
+    # Always ensure initial_deposit reflects total cumulative deposits (including admin credits)
+    total_deposits = db.session.query(func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.transaction_type.in_(['deposit', 'admin_adjustment', 'admin_credit']),
+        Transaction.status == 'completed',
+        Transaction.amount > 0
+    ).scalar() or 0
+    
+    # Update initial_deposit logic
+    if total_deposits > 0:
+        # If we have recorded deposits, use that total
+        if abs(user.initial_deposit - total_deposits) > 0.001:
             user.initial_deposit = total_deposits
             db.session.commit()
-        else:
-            # If no deposits found, use current balance minus any profits as baseline
-            user.initial_deposit = max(user.balance - profit_amount, 0)
-            db.session.commit()
+    elif user.initial_deposit <= 0 and user.balance > 0:
+        # If no recorded deposits but user has balance (admin-added funds)
+        # Set initial_deposit to current balance minus trading profits to establish baseline
+        user.initial_deposit = max(user.balance - profit_amount, user.balance)
+        db.session.commit()
     
     # Calculate percentage based on actual initial deposit
     profit_percentage = (profit_amount / user.initial_deposit * 100) if user.initial_deposit > 0 else 0

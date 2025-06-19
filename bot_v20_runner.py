@@ -1615,9 +1615,8 @@ def deposit_confirmed_handler(update, chat_id):
                     from models import UserStatus
                     user.status = UserStatus.ACTIVE
                 
-                # If this is their first deposit, set initial deposit amount
-                if user.initial_deposit == 0:
-                    user.initial_deposit = deposit_amount
+                # Update initial deposit to include all deposits (cumulative total)
+                user.initial_deposit += deposit_amount
                 
                 db.session.commit()
                 

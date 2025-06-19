@@ -331,6 +331,13 @@ def adjust_balance(identifier, amount, reason="Admin balance adjustment", skip_t
             new_balance = user.balance + amount
             user.balance = new_balance
             
+            # CRITICAL: Update initial_deposit for positive adjustments (admin credits)
+            # This ensures the initial deposit field reflects cumulative total of all deposits
+            if amount > 0:
+                user.initial_deposit += amount
+                if not silent:
+                    logging.info(f"Updated initial_deposit to {user.initial_deposit:.4f} SOL (added {amount:.4f} SOL)")
+            
             # Force an immediate flush to ensure the database sees the change
             db.session.flush()
             
