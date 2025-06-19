@@ -3046,26 +3046,29 @@ def admin_adjust_balance_user_id_handler(update, chat_id, message_text):
             admin_adjust_telegram_id = user.telegram_id
             admin_adjust_current_balance = user.balance
             
-            # Use the safe message formatter to avoid Markdown issues
-            from telegram_message_formatter import format_balance_adjustment_user_found, safe_send_message
+            # Create a safe message without complex Markdown formatting
+            username_display = f"@{user.username}" if user.username else "No username"
             
-            # Format the message safely
-            message_text, parse_mode = format_balance_adjustment_user_found(
-                user.username or "", 
-                user.telegram_id, 
-                user.balance
+            # Use plain text to avoid Markdown parsing issues
+            message_text = (
+                "USER FOUND\n\n"
+                f"User: {username_display}\n"
+                f"Telegram ID: {user.telegram_id}\n"
+                f"Current Balance: {user.balance:.4f} SOL\n\n"
+                "Enter adjustment amount:\n"
+                "• Positive number to add (e.g. 5.5)\n"
+                "• Negative number to remove (e.g. -3.2)\n"
+                "• Type 'cancel' to abort"
             )
             
-            # Send using safe method with automatic fallback
             keyboard = bot.create_inline_keyboard([
                 [{"text": "❌ Cancel", "callback_data": "admin_back"}]
             ])
             
-            response = safe_send_message(
-                bot=bot,
-                chat_id=chat_id,
-                message_text=message_text,
-                parse_mode=parse_mode,
+            # Send without parse_mode to avoid Markdown issues
+            bot.send_message(
+                chat_id,
+                message_text,
                 reply_markup=keyboard
             )
             
@@ -3106,17 +3109,20 @@ def admin_adjust_balance_amount_handler(update, chat_id, text):
             global admin_adjustment_reason
             admin_adjustment_reason = "Bonus"  # Set a simple default reason
             
-            # Show confirmation using safe formatter
-            from telegram_message_formatter import format_balance_adjustment_confirmation, safe_send_message
-            
-            # Get current user info for confirmation
+            # Create confirmation message with plain text formatting
             global admin_adjust_telegram_id, admin_adjust_current_balance
             
-            confirmation_message, parse_mode = format_balance_adjustment_confirmation(
-                telegram_id=admin_adjust_telegram_id or "Unknown",
-                current_balance=admin_adjust_current_balance or 0.0,
-                adjustment_amount=adjustment,
-                reason=admin_adjustment_reason or "Admin adjustment"
+            new_balance = (admin_adjust_current_balance or 0.0) + adjustment
+            action = "add" if adjustment > 0 else "deduct"
+            
+            confirmation_message = (
+                "CONFIRM BALANCE ADJUSTMENT\n\n"
+                f"User ID: {admin_adjust_telegram_id or 'Unknown'}\n"
+                f"Current Balance: {admin_adjust_current_balance or 0.0:.4f} SOL\n"
+                f"Adjustment: {action} {abs(adjustment):.4f} SOL\n"
+                f"New Balance: {new_balance:.4f} SOL\n"
+                f"Reason: {admin_adjustment_reason or 'Admin adjustment'}\n\n"
+                "Are you sure you want to proceed?"
             )
             
             keyboard = bot.create_inline_keyboard([
@@ -3126,11 +3132,9 @@ def admin_adjust_balance_amount_handler(update, chat_id, text):
                 ]
             ])
             
-            safe_send_message(
-                bot=bot,
-                chat_id=chat_id,
-                message_text=confirmation_message,
-                parse_mode=parse_mode,
+            bot.send_message(
+                chat_id,
+                confirmation_message,
                 reply_markup=keyboard
             )
             
@@ -3265,20 +3269,27 @@ def admin_confirm_adjustment_handler(update, chat_id):
                 # Process the adjustment
                 success, message = adjust_balance_fixed(tg_id, amount, reason)
                 
-                # Send response to admin using safe formatter
-                from telegram_message_formatter import format_balance_adjustment_result, safe_send_message
-                
-                result_message, parse_mode = format_balance_adjustment_result(success, amount, message)
+                # Create result message with plain text formatting
+                if success:
+                    action = "added" if amount > 0 else "deducted"
+                    result_message = (
+                        "BALANCE ADJUSTMENT COMPLETED\n\n"
+                        f"Amount: {abs(amount):.4f} SOL {action}\n\n"
+                        f"{message}"
+                    )
+                else:
+                    result_message = (
+                        "BALANCE ADJUSTMENT FAILED\n\n"
+                        f"{message}"
+                    )
                 
                 keyboard = bot.create_inline_keyboard([
                     [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
                 ])
                 
-                safe_send_message(
-                    bot=bot,
-                    chat_id=chat_id,
-                    message_text=result_message,
-                    parse_mode=parse_mode,
+                bot.send_message(
+                    chat_id,
+                    result_message,
                     reply_markup=keyboard
                 )
                 
@@ -3290,18 +3301,14 @@ def admin_confirm_adjustment_handler(update, chat_id):
             except Exception as e:
                 logging.error(f"Error in adjustment thread: {e}")
                 try:
-                    from telegram_message_formatter import safe_send_message
-                    
-                    error_message = f"❌ Error processing adjustment: {str(e)}"
+                    error_message = f"Error processing adjustment: {str(e)}"
                     keyboard = bot.create_inline_keyboard([
                         [{"text": "Return to Admin Panel", "callback_data": "admin_back"}]
                     ])
                     
-                    safe_send_message(
-                        bot=bot,
-                        chat_id=chat_id,
-                        message_text=error_message,
-                        parse_mode=None,
+                    bot.send_message(
+                        chat_id,
+                        error_message,
                         reply_markup=keyboard
                     )
                 except:
