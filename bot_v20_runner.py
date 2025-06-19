@@ -2698,34 +2698,39 @@ def admin_adjust_balance_handler(update, chat_id):
             all_users = User.query.order_by(User.id.desc()).limit(10).all()  # Get latest 10 users
             user_suggestions = []
             
-            # Format user info for display without special characters
+            # Format user info for display - completely safe from parsing errors
             for user in all_users:
                 if user.username:
-                    # Remove problematic characters from username
-                    clean_username = user.username.replace('_', '').replace('.', '').replace('*', '').replace('[', '').replace(']', '').replace('`', '').replace('(', '').replace(')', '').replace('~', '').replace('>', '').replace('#', '').replace('+', '').replace('=', '').replace('|', '').replace('{', '').replace('}', '').replace('!', '')
-                    username_display = f"@{clean_username}"
+                    # Remove ALL potentially problematic characters
+                    import re
+                    clean_username = re.sub(r'[^a-zA-Z0-9]', '', user.username)
+                    username_display = f"User_{clean_username}"
                 else:
-                    username_display = "No username"
+                    username_display = "NoUsername"
                 user_suggestions.append({
                     "telegram_id": user.telegram_id,
-                    "display": f"ID {user.telegram_id} - {username_display} - Balance {user.balance:.2f} SOL - Status {user.status.value}"
+                    "display": f"ID {user.telegram_id} {username_display} Balance {user.balance:.2f} SOL Status {user.status.value}"
                 })
         
-        # Create a plain text message without Markdown formatting
+        # Create a completely safe plain text message
         suggestion_text = ""
         if user_suggestions:
             suggestion_text = "\n\nRecent Users:\n"
             for i, user in enumerate(user_suggestions):
+                # Use only safe characters and simple formatting
                 suggestion_text += f"{i+1}. {user['display']}\n"
         else:
             suggestion_text = "\n\nNo users found in database."
         
-        message = (
-            "ADJUST USER BALANCE\n\n"
-            "Please enter the Telegram ID or username of the user whose balance you want to adjust."
-            f"{suggestion_text}\n"
-            "Type the ID number, or type 'cancel' to go back."
-        )
+        # Build message with completely safe text
+        message_lines = [
+            "ADJUST USER BALANCE",
+            "",
+            "Please enter the Telegram ID or username of the user whose balance you want to adjust.",
+            suggestion_text,
+            "Type the ID number, or type cancel to go back."
+        ]
+        message = "\n".join(message_lines)
         
         keyboard = bot.create_inline_keyboard([
             [{"text": "🔄 Refresh User List", "callback_data": "admin_adjust_balance"}],
