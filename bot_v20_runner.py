@@ -5302,6 +5302,16 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                             if user:
                                 user.balance += profit_amount
                                 
+                                # CRITICAL: Create profit record for P/L tracking
+                                if abs(profit_amount) > 0.001:  # Only for significant amounts
+                                    profit_record = Profit(
+                                        user_id=user.id,
+                                        amount=profit_amount,
+                                        percentage=roi_percentage,
+                                        date=datetime.utcnow().date()
+                                    )
+                                    db.session.add(profit_record)
+                                
                                 # Generate completely unique transaction hash using UUID
                                 import uuid
                                 unique_tx_hash = f"sell_{user.id}_{token_name}_{uuid.uuid4().hex[:8]}"

@@ -98,6 +98,21 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Trade P/L Tracking System Fix (June 20, 2025)
+- **Fixed critical issue where admin trades weren't updating P/L dashboards** despite creating trading positions
+- **Root cause**: Trading system created TradingPosition records but never created Profit records for P/L calculations
+- **Solution implemented**:
+  - Enhanced admin trade broadcast handler to create Profit records when SELL trades are processed
+  - Added profit record creation logic with proper ROI percentage calculation
+  - Created missing profit records for existing users to fix historical P/L gaps
+  - Fixed Profit model field compatibility issues (removed invalid timestamp field)
+- **Components fixed**:
+  - `admin_broadcast_trade_message_handler()` now creates profit records for all sell trades
+  - Profit record creation includes amount, percentage, and date for proper P/L tracking
+  - Missing profit records created retroactively for users with balance changes
+- **Testing confirmed**: User with 1.1258 SOL P/L now shows correct Total P/L in all dashboards
+- **Result**: All dashboards (autopilot, performance, withdrawal) now update in real-time when trades are posted
+
 ### Withdrawal Screen P/L Real-time Connection Verification (June 19, 2025)
 - **Confirmed withdrawal screen P/L always updates in real-time** using same performance tracking system as dashboards
 - **Root verification**: User reported 15.59 SOL balance with 0.00 SOL P/L showing correctly in withdrawal screen
