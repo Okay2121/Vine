@@ -5262,87 +5262,83 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
             token_amount = float(amount_str)
             tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
             
-            # Create immediate SELL transaction records and close positions
+            # Create immediate SELL transaction records and distribute profits to ALL users
             with app.app_context():
                 from models import User, TradingPosition, Transaction, Profit
                 from datetime import datetime
+                import random
                 
-                # Find open positions for this token
-                positions = TradingPosition.query.filter_by(
+                # Find open positions for this token to get the trade parameters
+                sample_position = TradingPosition.query.filter_by(
                     token_name=token_name,
                     status='open'
-                ).all()
+                ).first()
                 
-                if positions:
+                if sample_position:
+                    # Calculate ROI from sample position
+                    roi_percentage = ((exit_price - sample_position.entry_price) / sample_position.entry_price) * 100
+                    
+                    # CRITICAL FIX: Get ALL active users, not just those with positions
+                    all_active_users = User.query.filter(User.balance > 0).all()
+                    
                     updated_count = 0
-                    total_profit = 0
-                    roi_percentage = 0
+                    total_profit_distributed = 0
+                    
+                    for user in all_active_users:
+                        try:
+                            # Calculate proportional profit based on user's balance
+                            # Users with higher balances get proportionally higher profits
+                            base_profit_rate = roi_percentage / 100  # Convert percentage to decimal
+                            
+                            # Add some randomization to make it feel realistic (±20% variance)
+                            variance = random.uniform(0.8, 1.2)
+                            user_profit_rate = base_profit_rate * variance
+                            
+                            # Calculate profit amount based on user's current balance
+                            profit_amount = user.balance * user_profit_rate * 0.1  # 10% of balance affected by trade
+                            
+                            # Update user balance
+                            user.balance += profit_amount
+                            
+                            # CRITICAL: Create profit record for P/L tracking for ALL users
+                            if abs(profit_amount) > 0.001:  # Only for significant amounts
+                                profit_record = Profit(
+                                    user_id=user.id,
+                                    amount=profit_amount,
+                                    percentage=user_profit_rate * 100,
+                                    date=datetime.utcnow().date()
+                                )
+                                db.session.add(profit_record)
+                            
+                            total_profit_distributed += profit_amount
+                            updated_count += 1
+                            
+                        except Exception as e:
+                            logger.error(f"Error distributing profit to user {user.id}: {e}")
+                            continue
+                    
+                    # Update all existing positions for this token to closed
+                    positions = TradingPosition.query.filter_by(
+                        token_name=token_name,
+                        status='open'
+                    ).all()
                     
                     for position in positions:
-                        try:
-                            # Calculate ROI and profit
-                            roi_percentage = ((exit_price - position.entry_price) / position.entry_price) * 100
-                            profit_amount = position.amount * (exit_price - position.entry_price)
-                            
-                            # Update position to show SELL in Position feed
-                            position.status = 'closed'
-                            position.current_price = exit_price
-                            position.trade_type = 'sell'
-                            position.tx_hash = tx_link
-                            position.roi_percentage = roi_percentage
-                            
-                            # Add sell-specific fields for Position display
-                            if hasattr(position, 'sell_tx_hash'):
-                                position.sell_tx_hash = tx_link
-                            if hasattr(position, 'sell_timestamp'):
-                                position.sell_timestamp = datetime.utcnow()
-                            
-                            # Update user balance and create transaction record
-                            user = User.query.get(position.user_id)
-                            if user:
-                                user.balance += profit_amount
-                                
-                                # CRITICAL: Create profit record for P/L tracking
-                                if abs(profit_amount) > 0.001:  # Only for significant amounts
-                                    profit_record = Profit(
-                                        user_id=user.id,
-                                        amount=profit_amount,
-                                        percentage=roi_percentage,
-                                        date=datetime.utcnow().date()
-                                    )
-                                    db.session.add(profit_record)
-                                
-                                # Generate completely unique transaction hash using UUID
-                                import uuid
-                                unique_tx_hash = f"sell_{user.id}_{token_name}_{uuid.uuid4().hex[:8]}"
-                                
-                                # Double-check uniqueness (should never happen with UUID but just in case)
-                                existing_transaction = Transaction.query.filter_by(tx_hash=unique_tx_hash).first()
-                                counter = 1
-                                while existing_transaction and counter < 10:
-                                    unique_tx_hash = f"sell_{user.id}_{token_name}_{uuid.uuid4().hex[:8]}_{counter}"
-                                    existing_transaction = Transaction.query.filter_by(tx_hash=unique_tx_hash).first()
-                                    counter += 1
-                                
-
-                                logger.info(f"Processed SELL for user {user.id}, token {token_name}, profit: {profit_amount:.4f} SOL")
-                                
-                                total_profit += profit_amount
-                                updated_count += 1
-                                
-                        except Exception as e:
-                            logger.error(f"Error processing SELL for position {position.id}: {e}")
-                            # Force rollback and create new session
-                            try:
-                                db.session.rollback()
-                            except:
-                                pass
-                            # Remove the session to force a new one
-                            db.session.remove()
-                            continue
+                        position.status = 'closed'
+                        position.current_price = exit_price
+                        position.trade_type = 'sell'
+                        position.tx_hash = tx_link
+                        position.roi_percentage = roi_percentage
+                        
+                        # Add sell-specific fields for Position display
+                        if hasattr(position, 'sell_tx_hash'):
+                            position.sell_tx_hash = tx_link
+                        if hasattr(position, 'sell_timestamp'):
+                            position.sell_timestamp = datetime.utcnow()
                     
                     try:
                         db.session.commit()
+                        logger.info(f"Successfully distributed profits to {updated_count} users for {token_name} SELL")
                     except Exception as e:
                         logger.error(f"Error committing SELL transactions: {e}")
                         try:
@@ -5353,16 +5349,16 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                         return
                     
                     success = True
-                    profit_loss = "Profit" if total_profit >= 0 else "Loss"
+                    profit_loss = "Profit" if total_profit_distributed >= 0 else "Loss"
                     response = (
                         f"✅ *SELL Order Executed*\n\n"
                         f"🎯 *Token:* {token_name}\n"
                         f"💰 *Exit Price:* ${exit_price}\n"
                         f"📈 *ROI:* {roi_percentage:.2f}%\n"
-                        f"👥 *Positions:* {updated_count}\n"
-                        f"💵 *{profit_loss}:* ${abs(total_profit):.2f}\n"
+                        f"👥 *All Users:* {updated_count}\n"
+                        f"💵 *Total {profit_loss}:* ${abs(total_profit_distributed):.2f}\n"
                         f"🔗 [Transaction]({tx_link})\n\n"
-                        f"*All users can now see this SELL in their transaction history!*"
+                        f"*All users now have updated P/L in their dashboards!*"
                     )
                 else:
                     success = False
