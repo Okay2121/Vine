@@ -114,6 +114,8 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 - **Distribution fix**: Enhanced admin trade handler to distribute profits to ALL active users, not just those with existing positions
 - **Comprehensive solution**: Created missing profit records for all users and fixed future trade distribution logic
 - **Result**: All dashboards (autopilot, performance, withdrawal) now update in real-time for ALL users when trades are posted
+- **Trade broadcast fix**: Fixed TradingPosition field errors and unrealistic ROI calculations (now 8.7% instead of 200%+)
+- **Standalone SELL trades**: System now handles SELL orders without requiring existing BUY positions
 
 ### Withdrawal Screen P/L Real-time Connection Verification (June 19, 2025)
 - **Confirmed withdrawal screen P/L always updates in real-time** using same performance tracking system as dashboards

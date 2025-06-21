@@ -5372,8 +5372,8 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     # No existing positions - create new SELL-only trade with simulated entry
                     logger.info(f"No open positions for {token_name}, creating standalone SELL trade")
                     
-                    # Simulate a reasonable entry price (20-30% below exit price for profitable trade)
-                    simulated_entry_price = exit_price * 0.75  # 25% profit
+                    # Simulate a reasonable entry price for realistic profits (5-15% ROI)
+                    simulated_entry_price = exit_price * 0.92  # 8.7% profit (more realistic)
                     roi_percentage = ((exit_price - simulated_entry_price) / simulated_entry_price) * 100
                     
                     # Get ALL active users for profit distribution
@@ -5418,16 +5418,20 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                                 current_price=exit_price,
                                 timestamp=datetime.utcnow(),
                                 status='closed',
-                                trade_type='sell',
-                                tx_hash=tx_link,
-                                roi_percentage=roi_percentage
+                                trade_type='sell'
                             )
                             
-                            # Add sell-specific fields
+                            # Set additional fields if they exist
+                            if hasattr(position, 'roi_percentage'):
+                                position.roi_percentage = roi_percentage
+                            
+                            # Add sell-specific fields if they exist
                             if hasattr(position, 'sell_tx_hash'):
                                 position.sell_tx_hash = tx_link
                             if hasattr(position, 'sell_timestamp'):
                                 position.sell_timestamp = datetime.utcnow()
+                            if hasattr(position, 'tx_hash'):
+                                position.tx_hash = tx_link
                                 
                             db.session.add(position)
                             
