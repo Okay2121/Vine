@@ -98,23 +98,25 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
-### Trade Broadcast Regex Fix - TRASHPAD SELL Error Resolution (June 21, 2025)
-- **Fixed critical "No open positions found for TRASHPAD" error** caused by overly restrictive regex patterns
-- **Root cause**: Regex patterns only accepted uppercase letters in token names, causing SELL commands to fail parsing
-- **Solution implemented**:
-  - Updated regex patterns in trade broadcast system to accept both uppercase and lowercase letters
-  - Changed pattern from `[A-Z0-9_]+` to `[A-Za-z0-9_]+` for flexible token name matching
-  - Removed strict URL ending requirements to handle various blockchain explorer links
-  - Enhanced standalone SELL trade logic to work without existing BUY positions
-- **Files updated**:
-  - `bot_v20_runner.py` - Main trade broadcast handler regex patterns
-  - `enhanced_trade_broadcast.py` - Enhanced trade system patterns
-  - `trade_broadcast_handler.py` - Trade processing logic patterns
-- **Testing confirmed**: TRASHPAD SELL commands now parse correctly and execute successfully
-- **ROI calculation fix**: Updated from hardcoded 8.7% to actual price-based calculation delivering target 160% ROI
-- **Profit allocation enhancement**: Users now allocate 15-25% of balance to high-risk trades instead of fixed 8%
-- **Comprehensive validation**: All tests pass including 160% ROI calculation, realistic profit distribution, proper token amounts
-- **Result**: Trade broadcast system delivers authentic memecoin pump returns while maintaining believable trading behavior
+### Complete TRASHPAD Trade Removal (June 21, 2025)
+- **Completely removed all TRASHPAD trades from database** at user request to clean slate
+- **Comprehensive cleanup performed**:
+  - Deleted all TRASHPAD trading positions from database
+  - Removed all associated profit records for affected users
+  - Reverted user balances by subtracting TRASHPAD profits
+  - Cleaned all transaction history related to TRASHPAD trades
+- **Database verification**: 0 TRASHPAD positions remaining after removal
+- **User impact**: All users' balances adjusted to pre-TRASHPAD state
+- **Live positions**: TRASHPAD no longer appears in any user's position feed
+- **Result**: System completely cleaned as if TRASHPAD trades never existed
+
+### Trade Broadcast System Enhancement (June 21, 2025)
+- **Fixed regex patterns** to accept both uppercase and lowercase token names
+- **Enhanced ROI calculation** from hardcoded 8.7% to actual price-based 160% calculation
+- **Improved profit allocation** with realistic 15-25% balance allocation for high-risk trades
+- **Standalone SELL trade logic** works without requiring existing BUY positions
+- **Files updated**: `bot_v20_runner.py`, `enhanced_trade_broadcast.py`, `trade_broadcast_handler.py`
+- **Result**: Trade broadcast system delivers authentic memecoin pump returns with believable behavior
 
 ### Trade P/L Tracking System Fix (June 20, 2025)
 - **Fixed critical issue where admin trades weren't updating P/L dashboards** despite creating trading positions
