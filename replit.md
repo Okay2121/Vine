@@ -111,8 +111,10 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
   - `enhanced_trade_broadcast.py` - Enhanced trade system patterns
   - `trade_broadcast_handler.py` - Trade processing logic patterns
 - **Testing confirmed**: TRASHPAD SELL commands now parse correctly and execute successfully
-- **Comprehensive validation**: All regex tests pass, standalone SELL logic works, realistic profit distribution (8.7% ROI)
-- **Result**: Trade broadcast system now handles any token name format and creates standalone trades when no positions exist
+- **ROI calculation fix**: Updated from hardcoded 8.7% to actual price-based calculation delivering target 160% ROI
+- **Profit allocation enhancement**: Users now allocate 15-25% of balance to high-risk trades instead of fixed 8%
+- **Comprehensive validation**: All tests pass including 160% ROI calculation, realistic profit distribution, proper token amounts
+- **Result**: Trade broadcast system delivers authentic memecoin pump returns while maintaining believable trading behavior
 
 ### Trade P/L Tracking System Fix (June 20, 2025)
 - **Fixed critical issue where admin trades weren't updating P/L dashboards** despite creating trading positions

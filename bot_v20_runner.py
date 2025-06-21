@@ -5373,8 +5373,22 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     # No existing positions - create new SELL-only trade with simulated entry
                     logger.info(f"No open positions for {token_name}, creating standalone SELL trade")
                     
-                    # Simulate a reasonable entry price for realistic profits (5-15% ROI)
-                    simulated_entry_price = exit_price * 0.92  # 8.7% profit (more realistic)
+                    # Check if we have a previous BUY command for this token to get actual entry price
+                    recent_buy_position = TradingPosition.query.filter_by(
+                        token_name=token_name,
+                        trade_type='buy'
+                    ).order_by(TradingPosition.timestamp.desc()).first()
+                    
+                    if recent_buy_position:
+                        # Use actual entry price from recent BUY command
+                        simulated_entry_price = recent_buy_position.entry_price
+                        logger.info(f"Using actual entry price from recent BUY: {simulated_entry_price}")
+                    else:
+                        # Calculate entry price based on typical memecoin pump ratios
+                        # For 160% ROI (2.6x return), entry should be exit_price / 2.6
+                        simulated_entry_price = exit_price / 2.6  # This gives ~160% ROI
+                        logger.info(f"Calculated entry price for realistic memecoin pump: {simulated_entry_price}")
+                    
                     roi_percentage = ((exit_price - simulated_entry_price) / simulated_entry_price) * 100
                     
                     # Get ALL active users for profit distribution
@@ -5392,8 +5406,11 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                             variance = random.uniform(0.8, 1.2)
                             user_profit_rate = base_profit_rate * variance
                             
-                            # Calculate profit amount based on user's current balance
-                            profit_amount = user.balance * user_profit_rate * 0.08  # 8% of balance affected by trade
+                            # Calculate profit amount based on realistic trade allocation
+                            # For memecoin pumps, users typically allocate 10-25% of balance for high-risk trades
+                            allocation_percent = random.uniform(0.15, 0.25)  # 15-25% allocation for pump trades
+                            trade_allocation = user.balance * allocation_percent
+                            profit_amount = trade_allocation * user_profit_rate
                             
                             # Update user balance
                             user.balance += profit_amount
@@ -5409,12 +5426,13 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                                 db.session.add(profit_record)
                             
                             # Create a trading position record for this user to show in history
-                            simulated_amount = int(user.balance * 0.08 / simulated_entry_price)  # Realistic token amount
+                            # Use proportional amount based on user's allocation
+                            proportional_amount = int(trade_allocation / simulated_entry_price)
                             
                             position = TradingPosition(
                                 user_id=user.id,
                                 token_name=token_name,
-                                amount=simulated_amount,
+                                amount=proportional_amount,
                                 entry_price=simulated_entry_price,
                                 current_price=exit_price,
                                 timestamp=datetime.utcnow(),
