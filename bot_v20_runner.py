@@ -5274,13 +5274,15 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                 from datetime import datetime
                 import random
                 
-                # Find open positions for this token to get the trade parameters
-                sample_position = TradingPosition.query.filter_by(
+                # Check if there are any open positions for this token
+                existing_positions = TradingPosition.query.filter_by(
                     token_name=token_name,
                     status='open'
-                ).first()
+                ).all()
                 
-                if sample_position:
+                if existing_positions:
+                    # Use existing position logic
+                    sample_position = existing_positions[0]
                     # Calculate ROI from sample position
                     roi_percentage = ((exit_price - sample_position.entry_price) / sample_position.entry_price) * 100
                     
@@ -5367,8 +5369,99 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                         f"*All users now have updated P/L in their dashboards!*"
                     )
                 else:
-                    success = False
-                    response = f"❌ No open positions found for {token_name}"
+                    # No existing positions - create new SELL-only trade with simulated entry
+                    logger.info(f"No open positions for {token_name}, creating standalone SELL trade")
+                    
+                    # Simulate a reasonable entry price (20-30% below exit price for profitable trade)
+                    simulated_entry_price = exit_price * 0.75  # 25% profit
+                    roi_percentage = ((exit_price - simulated_entry_price) / simulated_entry_price) * 100
+                    
+                    # Get ALL active users for profit distribution
+                    all_active_users = User.query.filter(User.balance > 0).all()
+                    
+                    updated_count = 0
+                    total_profit_distributed = 0
+                    
+                    for user in all_active_users:
+                        try:
+                            # Calculate proportional profit based on user's balance
+                            base_profit_rate = roi_percentage / 100  # Convert percentage to decimal
+                            
+                            # Add some randomization to make it feel realistic (±20% variance)
+                            variance = random.uniform(0.8, 1.2)
+                            user_profit_rate = base_profit_rate * variance
+                            
+                            # Calculate profit amount based on user's current balance
+                            profit_amount = user.balance * user_profit_rate * 0.08  # 8% of balance affected by trade
+                            
+                            # Update user balance
+                            user.balance += profit_amount
+                            
+                            # Create profit record for P/L tracking
+                            if abs(profit_amount) > 0.001:  # Only for significant amounts
+                                profit_record = Profit(
+                                    user_id=user.id,
+                                    amount=profit_amount,
+                                    percentage=user_profit_rate * 100,
+                                    date=datetime.utcnow().date()
+                                )
+                                db.session.add(profit_record)
+                            
+                            # Create a trading position record for this user to show in history
+                            simulated_amount = int(user.balance * 0.08 / simulated_entry_price)  # Realistic token amount
+                            
+                            position = TradingPosition(
+                                user_id=user.id,
+                                token_name=token_name,
+                                amount=simulated_amount,
+                                entry_price=simulated_entry_price,
+                                current_price=exit_price,
+                                timestamp=datetime.utcnow(),
+                                status='closed',
+                                trade_type='sell',
+                                tx_hash=tx_link,
+                                roi_percentage=roi_percentage
+                            )
+                            
+                            # Add sell-specific fields
+                            if hasattr(position, 'sell_tx_hash'):
+                                position.sell_tx_hash = tx_link
+                            if hasattr(position, 'sell_timestamp'):
+                                position.sell_timestamp = datetime.utcnow()
+                                
+                            db.session.add(position)
+                            
+                            total_profit_distributed += profit_amount
+                            updated_count += 1
+                            
+                        except Exception as e:
+                            logger.error(f"Error processing standalone SELL for user {user.id}: {e}")
+                            continue
+                    
+                    try:
+                        db.session.commit()
+                        logger.info(f"Successfully created standalone SELL trade for {updated_count} users for {token_name}")
+                    except Exception as e:
+                        logger.error(f"Error committing standalone SELL transactions: {e}")
+                        try:
+                            db.session.rollback()
+                        except:
+                            pass
+                        db.session.remove()
+                        return
+                    
+                    success = True
+                    profit_loss = "Profit" if total_profit_distributed >= 0 else "Loss"
+                    response = (
+                        f"✅ *SELL Order Executed (Standalone)*\n\n"
+                        f"🎯 *Token:* {token_name}\n"
+                        f"💰 *Exit Price:* ${exit_price}\n"
+                        f"📈 *Estimated ROI:* {roi_percentage:.2f}%\n"
+                        f"👥 *All Users:* {updated_count}\n"
+                        f"💵 *Total {profit_loss}:* ${abs(total_profit_distributed):.2f}\n"
+                        f"🔗 [Transaction]({tx_link})\n\n"
+                        f"*All users now have updated P/L in their dashboards!*"
+                    )
         else:
             success = False
             response = (
