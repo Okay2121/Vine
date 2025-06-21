@@ -2233,7 +2233,8 @@ def admin_broadcast_handler(update, chat_id):
                 from models import User, UserStatus
                 
                 total_users = User.query.count()
-                active_users = User.query.filter_by(status=UserStatus.ACTIVE).count()
+                # Fixed: Count users with balance > 0 as active users
+                active_users = User.query.filter(User.balance > 0).count()
                 
                 # Use global variable to show currently selected target
                 global broadcast_target
@@ -4364,9 +4365,14 @@ def admin_broadcast_active(update, chat_id):
         global broadcast_target
         broadcast_target = "active"
         
+        # Get current active user count
+        with app.app_context():
+            from models import User
+            active_count = User.query.filter(User.balance > 0).count()
+        
         message = (
             "📊 *Broadcast Target Selected*\n\n"
-            "You've chosen to send this broadcast to *active users only*.\n\n"
+            f"You've chosen to send this broadcast to *active users only* ({active_count} users).\n\n"
             "Now choose the type of broadcast you want to send:"
         )
         
