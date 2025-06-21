@@ -17,9 +17,9 @@ from models import User, TradingPosition, Transaction, Profit
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Pattern to match trade broadcast format (Buy/Sell $TOKEN PRICE TX_LINK)
-BUY_PATTERN = re.compile(r'^Buy\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
-SELL_PATTERN = re.compile(r'^Sell\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
+# Pattern to match trade broadcast format (Buy/Sell $TOKEN PRICE TX_LINK) - Made flexible for various token names
+BUY_PATTERN = re.compile(r'^Buy\s+\$([A-Za-z0-9_]+)\s+([0-9.]+)\s+(https?://[^\s]+)', re.IGNORECASE)
+SELL_PATTERN = re.compile(r'^Sell\s+\$([A-Za-z0-9_]+)\s+([0-9.]+)\s+(https?://[^\s]+)', re.IGNORECASE)
 
 def extract_trade_details(text):
     """

@@ -5181,8 +5181,9 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         admin_id = str(update.get('message', {}).get('from', {}).get('id', 'admin'))
         
         # Parse the trade message using the correct patterns - Updated format with amount
-        buy_pattern = re.compile(r'^Buy\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
-        sell_pattern = re.compile(r'^Sell\s+\$([A-Z0-9_]+)\s+([0-9.]+)\s+([0-9.]+)\s+(https?://[^\s]+)$', re.IGNORECASE)
+        # Made more flexible to handle various token names and decimal formats
+        buy_pattern = re.compile(r'^Buy\s+\$([A-Za-z0-9_]+)\s+([0-9.]+)\s+([0-9.]+)\s+(https?://[^\s]+)', re.IGNORECASE)
+        sell_pattern = re.compile(r'^Sell\s+\$([A-Za-z0-9_]+)\s+([0-9.]+)\s+([0-9.]+)\s+(https?://[^\s]+)', re.IGNORECASE)
         
         buy_match = buy_pattern.match(text.strip())
         sell_match = sell_pattern.match(text.strip())

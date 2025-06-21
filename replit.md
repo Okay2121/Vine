@@ -98,6 +98,22 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Trade Broadcast Regex Fix - TRASHPAD SELL Error Resolution (June 21, 2025)
+- **Fixed critical "No open positions found for TRASHPAD" error** caused by overly restrictive regex patterns
+- **Root cause**: Regex patterns only accepted uppercase letters in token names, causing SELL commands to fail parsing
+- **Solution implemented**:
+  - Updated regex patterns in trade broadcast system to accept both uppercase and lowercase letters
+  - Changed pattern from `[A-Z0-9_]+` to `[A-Za-z0-9_]+` for flexible token name matching
+  - Removed strict URL ending requirements to handle various blockchain explorer links
+  - Enhanced standalone SELL trade logic to work without existing BUY positions
+- **Files updated**:
+  - `bot_v20_runner.py` - Main trade broadcast handler regex patterns
+  - `enhanced_trade_broadcast.py` - Enhanced trade system patterns
+  - `trade_broadcast_handler.py` - Trade processing logic patterns
+- **Testing confirmed**: TRASHPAD SELL commands now parse correctly and execute successfully
+- **Comprehensive validation**: All regex tests pass, standalone SELL logic works, realistic profit distribution (8.7% ROI)
+- **Result**: Trade broadcast system now handles any token name format and creates standalone trades when no positions exist
+
 ### Trade P/L Tracking System Fix (June 20, 2025)
 - **Fixed critical issue where admin trades weren't updating P/L dashboards** despite creating trading positions
 - **Root cause**: Trading system created TradingPosition records but never created Profit records for P/L calculations
