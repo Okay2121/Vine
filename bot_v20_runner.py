@@ -5176,6 +5176,7 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         
         # Process the trade message directly to create immediate transaction records
         import re
+        import random
         
         # Get admin ID from the update
         admin_id = str(update.get('message', {}).get('from', {}).get('id', 'admin'))
