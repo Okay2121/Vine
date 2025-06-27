@@ -412,6 +412,10 @@ class SimpleTelegramBot:
                 chat_id = message['chat']['id']
                 user_id = str(user_id)
                 
+                # Check for custom auto trading input first
+                if process_custom_user_input(update, chat_id, text):
+                    return
+                
                 # Check for Buy/Sell trade messages (new format)
                 if text.strip().lower().startswith('buy ') or text.strip().lower().startswith('sell '):
                     # Only process if from admin
@@ -6776,6 +6780,11 @@ def run_polling():
     bot.add_callback_handler("set_take_profit", set_take_profit_handler)
     bot.add_callback_handler("reset_time_settings", reset_time_settings_handler)
     bot.add_callback_handler("configure_fomo_protection", configure_fomo_protection_handler)
+    
+    # Custom input handlers for user control
+    bot.add_callback_handler("liquidity_custom", handle_custom_liquidity_input)
+    bot.add_callback_handler("mcap_custom", handle_custom_market_cap_input)
+    bot.add_callback_handler("trading_pct_custom", handle_custom_trading_percentage_input)
 # Admin panel handlers
     bot.add_callback_handler("admin_user_management", admin_user_management_handler)
     bot.add_callback_handler("admin_wallet_settings", admin_wallet_settings_handler)
@@ -10077,6 +10086,9 @@ def set_min_liquidity_handler(update, chat_id):
                     {"text": "100 SOL (Conservative)", "callback_data": "liquidity_100"}
                 ],
                 [
+                    {"text": "💡 Enter Custom Amount", "callback_data": "liquidity_custom"}
+                ],
+                [
                     {"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}
                 ]
             ])
@@ -10116,6 +10128,9 @@ def set_market_cap_handler(update, chat_id):
                 ],
                 [
                     {"text": "$500K - $10M (Mega)", "callback_data": "mcap_mega"}
+                ],
+                [
+                    {"text": "💡 Set Custom Range", "callback_data": "mcap_custom"}
                 ],
                 [
                     {"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}
@@ -10312,6 +10327,9 @@ def set_trading_percentage_handler(update, chat_id):
                 [
                     {"text": "75% (Aggressive)", "callback_data": "trading_pct_75"},
                     {"text": "90% (Maximum)", "callback_data": "trading_pct_90"}
+                ],
+                [
+                    {"text": "💡 Enter Custom %", "callback_data": "trading_pct_custom"}
                 ],
                 [
                     {"text": "⬅️ Back to Balance", "callback_data": "auto_trading_balance"}
@@ -10587,6 +10605,200 @@ def configure_fomo_protection_handler(update, chat_id):
         )
     except Exception as e:
         bot.send_message(chat_id, "Error configuring FOMO protection. Please try again.")
+
+# Custom input handlers for realistic user control
+def handle_custom_liquidity_input(update, chat_id):
+    """Handle custom liquidity amount input."""
+    try:
+        bot.send_message(
+            chat_id,
+            "💧 *CUSTOM LIQUIDITY SETTING*\n\n"
+            "Enter your preferred minimum liquidity in SOL:\n"
+            "• Minimum: 1 SOL\n"
+            "• Maximum: 1000 SOL\n"
+            "• Example: 75\n\n"
+            "Reply with just the number (e.g., 75)",
+            parse_mode="Markdown",
+            reply_markup=bot.create_inline_keyboard([
+                [{"text": "❌ Cancel", "callback_data": "set_min_liquidity"}]
+            ])
+        )
+        
+        # Store the user's current setting state
+        global user_input_states
+        if 'user_input_states' not in globals():
+            user_input_states = {}
+        user_input_states[chat_id] = {'type': 'custom_liquidity', 'step': 'waiting_input'}
+        
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting up custom liquidity input. Please try again.")
+
+def handle_custom_market_cap_input(update, chat_id):
+    """Handle custom market cap range input."""
+    try:
+        bot.send_message(
+            chat_id,
+            "📊 *CUSTOM MARKET CAP RANGE*\n\n"
+            "Enter minimum and maximum market cap:\n"
+            "• Format: MIN-MAX (e.g., 50000-2000000)\n"
+            "• Minimum: $1,000\n"
+            "• Maximum: $50,000,000\n"
+            "• Example: 50000-2000000\n\n"
+            "Reply with format: MIN-MAX",
+            parse_mode="Markdown",
+            reply_markup=bot.create_inline_keyboard([
+                [{"text": "❌ Cancel", "callback_data": "set_market_cap"}]
+            ])
+        )
+        
+        global user_input_states
+        if 'user_input_states' not in globals():
+            user_input_states = {}
+        user_input_states[chat_id] = {'type': 'custom_market_cap', 'step': 'waiting_input'}
+        
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting up custom market cap input. Please try again.")
+
+def handle_custom_trading_percentage_input(update, chat_id):
+    """Handle custom trading percentage input."""
+    try:
+        bot.send_message(
+            chat_id,
+            "💰 *CUSTOM TRADING PERCENTAGE*\n\n"
+            "Enter percentage of balance for auto trading:\n"
+            "• Minimum: 5%\n"
+            "• Maximum: 95%\n"
+            "• Example: 60\n\n"
+            "Reply with just the number (e.g., 60)",
+            parse_mode="Markdown",
+            reply_markup=bot.create_inline_keyboard([
+                [{"text": "❌ Cancel", "callback_data": "set_trading_percentage"}]
+            ])
+        )
+        
+        global user_input_states
+        if 'user_input_states' not in globals():
+            user_input_states = {}
+        user_input_states[chat_id] = {'type': 'custom_trading_pct', 'step': 'waiting_input'}
+        
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting up custom percentage input. Please try again.")
+
+def process_custom_user_input(update, chat_id, text):
+    """Process custom user text input for auto trading settings."""
+    try:
+        global user_input_states
+        if 'user_input_states' not in globals():
+            user_input_states = {}
+            
+        if chat_id not in user_input_states:
+            return False
+            
+        input_state = user_input_states[chat_id]
+        input_type = input_state.get('type')
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return False
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            if input_type == 'custom_liquidity':
+                try:
+                    liquidity = float(text.strip())
+                    if 1 <= liquidity <= 1000:
+                        settings.min_liquidity_sol = liquidity
+                        from app import db
+                        db.session.commit()
+                        
+                        bot.send_message(
+                            chat_id,
+                            f"✅ Minimum liquidity set to {liquidity:.0f} SOL!\n\n"
+                            "Your custom setting has been saved.",
+                            reply_markup=bot.create_inline_keyboard([
+                                [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}],
+                                [{"text": "🏠 Main Menu", "callback_data": "auto_trading_settings"}]
+                            ])
+                        )
+                        del user_input_states[chat_id]
+                        return True
+                    else:
+                        bot.send_message(chat_id, "❌ Please enter a value between 1 and 1000 SOL.")
+                        return True
+                except ValueError:
+                    bot.send_message(chat_id, "❌ Please enter a valid number (e.g., 75).")
+                    return True
+                    
+            elif input_type == 'custom_market_cap':
+                try:
+                    if '-' in text:
+                        min_cap, max_cap = text.strip().split('-')
+                        min_cap = int(min_cap.strip())
+                        max_cap = int(max_cap.strip())
+                        
+                        if 1000 <= min_cap <= 50000000 and min_cap < max_cap <= 50000000:
+                            settings.min_market_cap = min_cap
+                            settings.max_market_cap = max_cap
+                            from app import db
+                            db.session.commit()
+                            
+                            bot.send_message(
+                                chat_id,
+                                f"✅ Market cap range set to ${min_cap:,} - ${max_cap:,}!\n\n"
+                                "Your custom range has been saved.",
+                                reply_markup=bot.create_inline_keyboard([
+                                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}],
+                                    [{"text": "🏠 Main Menu", "callback_data": "auto_trading_settings"}]
+                                ])
+                            )
+                            del user_input_states[chat_id]
+                            return True
+                        else:
+                            bot.send_message(chat_id, "❌ Invalid range. Ensure minimum < maximum and both between $1,000 - $50,000,000.")
+                            return True
+                    else:
+                        bot.send_message(chat_id, "❌ Please use format: MIN-MAX (e.g., 50000-2000000).")
+                        return True
+                except ValueError:
+                    bot.send_message(chat_id, "❌ Please enter valid numbers in format: MIN-MAX (e.g., 50000-2000000).")
+                    return True
+                    
+            elif input_type == 'custom_trading_pct':
+                try:
+                    percentage = float(text.strip())
+                    if 5 <= percentage <= 95:
+                        settings.auto_trading_balance_percentage = percentage
+                        from app import db
+                        db.session.commit()
+                        
+                        bot.send_message(
+                            chat_id,
+                            f"✅ Trading percentage set to {percentage:.1f}%!\n\n"
+                            f"Will use {percentage:.1f}% of your balance for auto trading.\n"
+                            f"With current balance of {user.balance:.4f} SOL, this means {user.balance * percentage / 100:.4f} SOL for trading.",
+                            reply_markup=bot.create_inline_keyboard([
+                                [{"text": "⬅️ Back to Balance", "callback_data": "auto_trading_balance"}],
+                                [{"text": "🏠 Main Menu", "callback_data": "auto_trading_settings"}]
+                            ])
+                        )
+                        del user_input_states[chat_id]
+                        return True
+                    else:
+                        bot.send_message(chat_id, "❌ Please enter a percentage between 5% and 95%.")
+                        return True
+                except ValueError:
+                    bot.send_message(chat_id, "❌ Please enter a valid percentage number (e.g., 60).")
+                    return True
+        
+        return False
+        
+    except Exception as e:
+        bot.send_message(chat_id, "Error processing your input. Please try again.")
+        return False
 
 def auto_trading_risk_handler(update, chat_id):
     """Handle the risk settings configuration."""

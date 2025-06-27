@@ -98,6 +98,18 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Enhanced Auto Trading System with Custom User Input (June 27, 2025)
+- **Added comprehensive custom input functionality** giving users complete control over trading parameters
+- **Real user input system**: Users can now enter custom values for liquidity (1-1000 SOL), market cap ranges ($1K-$50M), and trading percentages (5-95%)
+- **Text input processing**: Integrated custom value processing into main message handler with validation and error handling
+- **Enhanced user experience**: Added "Enter Custom Amount/Range/%" buttons to all auto trading settings menus
+- **Real-time feedback**: Custom inputs provide immediate confirmation with calculated impact on user's balance
+- **Comprehensive validation**: All custom inputs include range validation, format checking, and helpful error messages
+- **Database integration**: Custom values are immediately saved to user's AutoTradingSettings with proper persistence
+- **Professional interface**: Added detailed instructions, examples, and cancel options for all custom input flows
+- **Files enhanced**: `bot_v20_runner.py` with custom input handlers, text processing integration, and comprehensive callback registration
+- **Result**: Users now have genuine control and can input any values within realistic ranges, eliminating the "no room for input" limitation
+
 ### Comprehensive User-Controlled Auto Trading System (June 27, 2025)
 - **Enhanced auto trading to be completely user-controlled** with real database storage and personalized settings
 - **Database-backed configuration**: Added AutoTradingSettings model with comprehensive user preferences and validation
