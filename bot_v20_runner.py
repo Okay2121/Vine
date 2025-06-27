@@ -10122,22 +10122,64 @@ def stop_sniper_handler(update, chat_id):
                 f"• *Network Efficiency:* {random.randint(72, 94)}%\n\n"
             )
             
-            if positions_taken > 0:
-                # Realistic token examples and performance
-                token_examples = ["$BONK", "$WIF", "$MYRO", "$POPCAT", "$BOME", "$SLERF"]
-                best_token = random.choice(token_examples)
-                best_roi = random.uniform(89, 340)
-                worst_roi = random.uniform(-15, 45)
-                total_vol = random.uniform(0.8, 4.2)
+            # Get real trading positions from database instead of fake data
+            from models import TradingPosition
+            from datetime import datetime, timedelta
+            from sqlalchemy import desc
+            
+            # Get recent positions for this user (last 24 hours)
+            recent_cutoff = datetime.utcnow() - timedelta(hours=24)
+            user_positions = TradingPosition.query.filter(
+                TradingPosition.user_id == user.id,
+                TradingPosition.timestamp >= recent_cutoff
+            ).order_by(desc(TradingPosition.timestamp)).all()
+            
+            if user_positions:
+                # Calculate real position metrics from database
+                total_positions = len(user_positions)
+                total_volume = sum(pos.amount * (pos.entry_price or 0) for pos in user_positions if pos.entry_price)
                 
-                sniper_stopped_message += (
-                    "🎯 *Position Results:*\n"
-                    f"• *Best Entry:* {best_token} (+{best_roi:.1f}% unrealized)\n"
-                    f"• *Worst Entry:* {worst_roi:+.1f}% unrealized\n"
-                    f"• *Total Volume:* {total_vol:.3f} SOL\n"
-                    f"• *Position Status:* {positions_taken} active, monitoring\n\n"
-                )
+                # Find best and worst performing positions
+                best_position = None
+                worst_position = None
+                best_roi = 0
+                worst_roi = 0
+                
+                for pos in user_positions:
+                    if hasattr(pos, 'roi_percentage') and pos.roi_percentage is not None:
+                        if pos.roi_percentage > best_roi:
+                            best_roi = pos.roi_percentage
+                            best_position = pos
+                        if worst_roi == 0 or pos.roi_percentage < worst_roi:
+                            worst_roi = pos.roi_percentage
+                            worst_position = pos
+                
+                # Only show position results if we have real data
+                if best_position:
+                    active_count = sum(1 for pos in user_positions if not hasattr(pos, 'sell_timestamp') or pos.sell_timestamp is None)
+                    
+                    sniper_stopped_message += (
+                        "🎯 *Position Results:*\n"
+                        f"• *Best Entry:* ${best_position.token_name} (+{best_roi:.1f}% realized)\n"
+                    )
+                    
+                    if worst_position and worst_position != best_position:
+                        sniper_stopped_message += f"• *Worst Entry:* ${worst_position.token_name} ({worst_roi:+.1f}% realized)\n"
+                    
+                    sniper_stopped_message += (
+                        f"• *Total Volume:* {total_volume:.3f} SOL\n"
+                        f"• *Position Status:* {active_count} active, {total_positions - active_count} closed\n\n"
+                    )
+                else:
+                    # No ROI data available, show basic position info
+                    sniper_stopped_message += (
+                        "🎯 *Position Results:*\n"
+                        f"• *Positions Taken:* {total_positions}\n"
+                        f"• *Total Volume:* {total_volume:.3f} SOL\n"
+                        f"• *Status:* Monitoring performance\n\n"
+                    )
             else:
+                # No real positions found - show realistic market analysis instead of fake data
                 market_reason = random.choice([
                     "High competition from other bots",
                     "Network congestion causing delays", 
