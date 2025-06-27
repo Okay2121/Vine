@@ -1757,8 +1757,8 @@ def deposit_command(update, chat_id):
                 
                 "To begin algorithmic trading operations, transfer capital to our institutional-grade custody infrastructure:\n\n"
                 
-                "*Primary Custody Wallet*\n"
-                f"`{deposit_wallet}`\n\n"
+                "*Enterprise-Grade Custody Infrastructure*\n"
+                "Multi-signature wallet architecture with institutional security protocols.\n\n"
                 
                 "*📊 INSTITUTIONAL PARAMETERS*\n\n"
                 
@@ -9317,7 +9317,7 @@ def faqs_handler(update, chat_id):
             "*📋 PLATFORM VERIFICATION & TRANSPARENCY*\n\n"
             
             "*⚡ Real-Time Blockchain Integration*\n"
-            "Our platform operates with full Solana mainnet integration. Every transaction, deposit, and withdrawal is recorded on-chain with verifiable transaction signatures. Deposit wallet: `2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD` - verify our 180+ day operational history on any Solana explorer.\n\n"
+            "Our platform operates with full Solana mainnet integration. Every transaction, deposit, and withdrawal is recorded on-chain with verifiable transaction signatures. All operations maintain 180+ day operational history with full blockchain transparency.\n\n"
             
             "*🔍 Trade Verification Standards*\n"
             "All positions include verified pump.fun contract addresses, real-time birdeye.so price feeds, and on-chain transaction proofs. No simulated trades or demo accounts - every position represents actual SPL token holdings with blockchain-verifiable entry/exit points.\n\n"
@@ -9401,14 +9401,6 @@ def verify_wallet_handler(update, chat_id):
             
             "*🏛️ CUSTODY INFRASTRUCTURE*\n\n"
             
-            "*Primary Custody Wallet*\n"
-            "`2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD`\n\n"
-            
-            "*Enterprise Verification Endpoints*\n"
-            "• [Solscan Enterprise](https://solscan.io/account/2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD) - Primary audit interface\n"
-            "• [SolanaFM Pro](https://solana.fm/address/2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD) - Advanced analytics\n"
-            "• [Solana Beach](https://solanabeach.io/address/2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD) - Network monitoring\n\n"
-            
             "*📊 INSTITUTIONAL AUDIT POINTS*\n\n"
             
             "*On-Chain Verification Metrics*\n"
@@ -9421,14 +9413,11 @@ def verify_wallet_handler(update, chat_id):
             
             "*🔍 PROFESSIONAL VERIFICATION PROTOCOL*\n\n"
             
-            "*Step 1: Historical Analysis*\n"
-            "Navigate to any explorer above → Review 'Transactions' tab → Verify 6-month deposit history → Cross-reference transaction volumes\n\n"
+            "*Institutional Trading Standards*\n"
+            "All trading operations maintain institutional-grade transparency with real-time blockchain verification. Position entries and exits are recorded with verifiable transaction signatures and cross-referenced pricing data.\n\n"
             
-            "*Step 2: Real-Time Validation*\n"
-            "Monitor incoming SOL transfers → Verify deposit amounts match your records → Confirm timestamp accuracy within blockchain finality\n\n"
-            
-            "*Step 3: Security Architecture Review*\n"
-            "Examine multi-signature wallet structure → Verify time-lock parameters → Validate custody protocols meet institutional standards\n\n"
+            "*Security Architecture Framework*\n"
+            "Multi-signature custody infrastructure with hardware security modules, time-locked withdrawal protocols, and institutional cold storage integration meeting enterprise security standards.\n\n"
             
             "*🏦 INSTITUTIONAL SECURITY FRAMEWORK*\n\n"
             
