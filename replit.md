@@ -98,15 +98,16 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
-### Telegram Channel Conditional Display Implementation (June 27, 2025)
+### Advanced Button Removal & Telegram Channel Conditional Display (June 27, 2025)
+- **Removed "Advanced" button** from auto trading settings interface for simplified user experience
 - **Implemented conditional telegram channel display** based on signal source activation status
 - **Enhanced signal sources interface** to only show telegram channel information when at least one signal source is enabled
 - **Added comprehensive toggle functionality** for all signal sources (Pump.fun, Whale movements, Social sentiment, DEX volume spikes)
 - **Smart keyboard management** with conditional telegram channel management buttons appearing only when signals are active
 - **User experience improvement** with clear guidance messages when no signals are enabled vs when channels are available
 - **Complete toggle handler implementation** with proper database persistence and user feedback
-- **Files enhanced**: `bot_v20_runner.py` with conditional display logic and complete toggle handler suite
-- **Result**: Users must enable at least one signal source before they can access telegram channel management features
+- **Files enhanced**: `bot_v20_runner.py` with conditional display logic, complete toggle handler suite, and streamlined interface
+- **Result**: Users must enable at least one signal source before they can access telegram channel management features, with cleaner interface layout
 
 ### Complete Admin Interface Removal & Realistic Trading Bot Transformation (June 27, 2025)
 - **Completely eliminated all admin functionality from user interface** to create 100% authentic trading bot experience

@@ -9866,8 +9866,7 @@ def auto_trading_settings_handler(update, chat_id):
                     {"text": "🛡️ Anti-FOMO", "callback_data": "auto_trading_anti_fomo"}
                 ],
                 [
-                    {"text": "📈 Performance", "callback_data": "auto_trading_performance"},
-                    {"text": "🔧 Advanced", "callback_data": "auto_trading_advanced"}
+                    {"text": "📈 Performance", "callback_data": "auto_trading_performance"}
                 ],
                 [
                     {"text": "⏸️ Pause Auto Trading" if settings.is_enabled else "▶️ Start Auto Trading", 
