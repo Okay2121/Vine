@@ -98,6 +98,16 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Auto Trading Page Database Connection Fix (June 27, 2025)
+- **Fixed critical Auto Trading page disconnection** caused by missing database columns in AutoTradingSettings table
+- **Identified root cause**: Database schema was missing several "auto" columns defined in the model but not present in actual table
+- **Added missing columns**: Successfully added position_size_auto, stop_loss_auto, take_profit_auto, daily_trades_auto, and max_positions_auto to database
+- **Restored full functionality**: Auto Trading settings page now properly queries and displays user configuration without SQLAlchemy errors
+- **Verified working**: Confirmed that all AutoTradingSettings queries execute successfully and users can access their trading preferences
+- **Database consistency**: Ensured database schema matches model definitions for seamless operation
+- **Files enhanced**: Fixed database schema inconsistencies preventing Auto Trading page access
+- **Result**: Auto Trading page is now fully connected and operational for all users
+
 ### Advanced Button Removal & Telegram Channel Conditional Display (June 27, 2025)
 - **Removed "Advanced" button** from auto trading settings interface for simplified user experience
 - **Implemented conditional telegram channel display** based on signal source activation status
