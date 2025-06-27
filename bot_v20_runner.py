@@ -118,6 +118,8 @@ class SimpleTelegramBot:
         self.api_url = f"https://api.telegram.org/bot{self.token}"
         self.running = False
         self._processed_messages = set()  # Cache for processed message IDs
+        self._processed_callbacks = set()  # Cache for processed callback query IDs
+        self._recent_callbacks = {}  # Track recent callbacks for duplicate prevention
         self.offset = 0
         self.handlers = {}
         self.user_states = {}  # Track conversation states for each user
@@ -654,26 +656,9 @@ class SimpleTelegramBot:
                 data = update['callback_query']['data']
                 user_id = update['callback_query']['from']['id']
                 
-                # Create a unique callback identifier to prevent duplicates
-                callback_key = f"{user_id}_{data}_{int(time.time())}"
-                
-                # Check if this exact callback was recently processed (within 2 seconds)
-                current_time = time.time()
-                recent_callbacks = getattr(self, '_recent_callbacks', {})
-                
-                # Clean old callbacks (older than 5 seconds)
-                recent_callbacks = {k: v for k, v in recent_callbacks.items() if current_time - v < 5}
-                
-                # Check for duplicate callback
-                duplicate_found = False
-                for existing_key, timestamp in recent_callbacks.items():
-                    existing_user, existing_data, _ = existing_key.split('_', 2)
-                    if existing_user == str(user_id) and existing_data == data and current_time - timestamp < 2:
-                        duplicate_found = True
-                        logger.debug(f"Blocking duplicate callback: {data} from user {user_id}")
-                        break
-                
-                if duplicate_found:
+                # Check if this exact callback query ID was already processed
+                if query_id in self._processed_callbacks:
+                    logger.debug(f"Skipping duplicate callback query ID: {query_id}")
                     # Still answer the callback to prevent loading state
                     requests.post(
                         f"{self.api_url}/answerCallbackQuery",
@@ -681,9 +666,15 @@ class SimpleTelegramBot:
                     )
                     return
                 
-                # Record this callback
-                recent_callbacks[callback_key] = current_time
-                self._recent_callbacks = recent_callbacks
+                # Add to processed callbacks immediately
+                self._processed_callbacks.add(query_id)
+                
+                # Keep only recent callback IDs to prevent memory issues
+                if len(self._processed_callbacks) > 1000:
+                    # Remove oldest half
+                    oldest_callbacks = sorted(self._processed_callbacks)[:500]
+                    for old_id in oldest_callbacks:
+                        self._processed_callbacks.discard(old_id)
                 
                 # Answer the callback query to stop the loading indicator
                 requests.post(
