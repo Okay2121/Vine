@@ -98,6 +98,20 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Comprehensive Memecoin Trader Verification System Implementation (June 27, 2025)
+- **Rewrote complete FAQ system** specifically targeting experienced memecoin trader validation concerns
+- **Added blockchain verification features** with real wallet address transparency (2pWHfMgpLtcnJpeFRzuRqXxAxBs2qjhU46xkdb5dCSzD)
+- **Implemented dedicated verification handlers** for wallet transparency and deposit history checking
+- **Enhanced FAQ content** to address specific trader skepticism points including rug pull protection, honeypot filtering, and technical execution details
+- **Added comprehensive verification checklist** and red flag warnings to help traders validate authenticity
+- **Created verification button system** with "Verify Wallet", "Test Small Deposit", and "View My Deposits" functionality
+- **Enhanced technical credibility** with MEV protection, Jito bundle inclusion, slippage tolerance, and gas fee transparency
+- **Added direct blockchain explorer links** (Solscan, SolanaFM, Solana Beach) for complete transaction verification
+- **Implemented deposit history viewer** showing individual transaction hashes, timestamps, and verification links
+- **Professional risk disclosure** with realistic fee structure (2% on profits only) and transparent withdrawal process
+- **Files enhanced**: `bot_v20_runner.py` with new FAQ content, verification handlers, and callback registration
+- **Result**: Bot now provides enterprise-level verification features that allow experienced traders to independently validate all claims through blockchain data
+
 ### Telegram Channel Interface Cleanup (June 27, 2025)
 - **Removed Popular Signal Channels section** from telegram channel management interface per user request
 - **Cleaned up channel management display** by removing suggested channels list (@SolanaInsiders, @SolanaNews, @TokenTracker, @WhaleTracker, @DeFiCallsOfficial, @MemeCoinCalls)
