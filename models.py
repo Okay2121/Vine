@@ -40,6 +40,9 @@ class User(db.Model):
     referrer_code_id = db.Column(db.Integer, db.ForeignKey('referral_code.id'), nullable=True)
     referral_bonus = db.Column(db.Float, default=0.0)  # Accumulated bonus from referrals
     
+    # Sniper system
+    sniper_active = db.Column(db.Boolean, default=False)  # Track if sniper mode is active
+    
     # Bot will track transactions and profit for each user
     transactions = db.relationship('Transaction', backref='user', lazy=True)
     profits = db.relationship('Profit', backref='user', lazy=True)

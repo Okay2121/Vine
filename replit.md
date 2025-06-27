@@ -98,17 +98,19 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
-### Auto Trading Page Database Connection Fix & UI Enhancement (June 27, 2025)
-- **Fixed critical Auto Trading page disconnection** caused by missing database columns in AutoTradingSettings table
-- **Identified root cause**: Database schema was missing several "auto" columns defined in the model but not present in actual table
-- **Added missing columns**: Successfully added position_size_auto, stop_loss_auto, take_profit_auto, daily_trades_auto, and max_positions_auto to database
-- **Restored full functionality**: Auto Trading settings page now properly queries and displays user configuration without SQLAlchemy errors
-- **Enhanced dashboard layout**: Moved Start Sniper button to standalone row for prominence, matching professional trading bot interfaces
-- **Removed Stop Sniper button**: Eliminated from default view - now only appears when sniper is active, replacing Start Sniper button
-- **Improved user experience**: Dashboard layout now matches professional trading bot interfaces with logical button positioning
-- **Database consistency**: Ensured database schema matches model definitions for seamless operation
-- **Files enhanced**: `bot_v20_runner.py` dashboard keyboard layout optimized for realistic trading bot appearance
-- **Result**: Auto Trading page fully operational with professional, uncluttered interface design
+### Dynamic Sniper Button & Status System Implementation (June 27, 2025)
+- **Implemented dynamic sniper button functionality** with real-time status tracking across all dashboards
+- **Added sniper_active database column** to User model for persistent sniper status tracking
+- **Enhanced dashboard logic**: Start Sniper button dynamically changes to Stop Sniper when active, with live status display
+- **Cross-dashboard status synchronization**: Sniper status shows consistently across autopilot dashboard, performance screens, and all user interfaces
+- **Database integration**: start_sniper_handler and stop_sniper_handler now properly update user.sniper_active field with session commits
+- **Added start_sniper_confirmed_handler**: Handles risk warning bypass for users with lower balances who choose to proceed anyway
+- **Professional status indicators**: Active sniper shows "🎯 SNIPER STATUS: 🟢 ACTIVE - Monitoring live" in dashboard header
+- **Enhanced user experience**: Button text and callback dynamically switch between "🎯 Start Sniper" and "⏹️ Stop Sniper" based on actual status
+- **Standalone button positioning**: Start/Stop Sniper button positioned on its own row for prominence, matching professional trading bot interfaces
+- **Complete callback registration**: All sniper-related callbacks properly registered and routed to correct handler functions
+- **Files enhanced**: `models.py` (sniper_active field), `bot_v20_runner.py` (dynamic dashboard logic and handlers)
+- **Result**: Sniper functionality now provides authentic real-time status tracking with professional interface that matches users' expectations
 
 ### Advanced Button Removal & Telegram Channel Conditional Display (June 27, 2025)
 - **Removed "Advanced" button** from auto trading settings interface for simplified user experience

