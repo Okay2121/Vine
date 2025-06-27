@@ -6752,6 +6752,9 @@ def run_polling():
     bot.add_callback_handler("auto_trading_anti_fomo", auto_trading_anti_fomo_handler)
     bot.add_callback_handler("auto_trading_performance", auto_trading_performance_handler)
     
+    # Register additional handlers that are defined later in the file
+    bot.add_callback_handler("configure_risk_filters", lambda update, chat_id: configure_risk_filters_handler(update, chat_id))
+    
     # Position size setting handlers
     bot.add_callback_handler("set_position_size", set_position_size_handler)
     bot.add_callback_handler("set_pos_size_8", lambda u, c: set_pos_size_quick_handler(u, c, 8.0))
@@ -11231,6 +11234,79 @@ def auto_trading_signals_handler(update, chat_id):
             bot.send_message(chat_id, signals_message, parse_mode="Markdown", reply_markup=keyboard)
     except Exception as e:
         bot.send_message(chat_id, f"Error loading signal settings: {str(e)}")
+
+def configure_risk_filters_handler(update, chat_id):
+    """Handle risk filters configuration from the signals page."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            risk_filters_message = (
+                "🛡️ *RISK FILTERS CONFIGURATION*\n\n"
+                "These filters protect you from high-risk tokens and market conditions.\n\n"
+                
+                "💧 *Liquidity Requirements:*\n"
+                f"• *Min Liquidity:* {settings.min_liquidity_sol:.0f} SOL\n"
+                f"• *Min Market Cap:* ${settings.min_market_cap:,}\n"
+                f"• *Max Market Cap:* ${settings.max_market_cap:,}\n"
+                f"• *Min 24h Volume:* ${settings.min_volume_24h:,}\n\n"
+                
+                "⚖️ *Position Risk Controls:*\n"
+                f"• *Position Size:* {settings.position_size_percentage:.1f}% per trade\n"
+                f"• *Stop Loss:* {settings.stop_loss_percentage:.1f}%\n"
+                f"• *Take Profit:* {settings.take_profit_percentage:.1f}%\n"
+                f"• *Max Daily Trades:* {settings.max_daily_trades}\n"
+                f"• *Max Positions:* {settings.max_simultaneous_positions}\n\n"
+                
+                "🎯 *Quality Filters:*\n"
+                f"• *Admin Signals:* {'✅ Enabled' if settings.admin_signals_enabled else '❌ Disabled'}\n"
+                f"• *Pump.fun Launches:* {'✅ Enabled' if settings.pump_fun_launches else '❌ Disabled'}\n"
+                f"• *Whale Movements:* {'✅ Enabled' if settings.whale_movements else '❌ Disabled'}\n"
+                f"• *Social Sentiment:* {'✅ Enabled' if settings.social_sentiment else '❌ Disabled'}"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": f"💧 Liquidity ({settings.min_liquidity_sol:.0f} SOL)", "callback_data": "set_min_liquidity"},
+                    {"text": f"📊 Market Cap", "callback_data": "set_market_cap"}
+                ],
+                [
+                    {"text": f"📈 Volume (${settings.min_volume_24h:,})", "callback_data": "set_min_volume"},
+                    {"text": f"🎯 Position Size ({settings.position_size_percentage:.1f}%)", "callback_data": "set_position_size"}
+                ],
+                [
+                    {"text": f"🛑 Stop Loss ({settings.stop_loss_percentage:.1f}%)", "callback_data": "set_stop_loss"},
+                    {"text": f"💰 Take Profit ({settings.take_profit_percentage:.1f}%)", "callback_data": "set_take_profit"}
+                ],
+                [
+                    {"text": "🔒 Conservative Preset", "callback_data": "preset_conservative"},
+                    {"text": "🔥 Aggressive Preset", "callback_data": "preset_aggressive"}
+                ],
+                [
+                    {"text": "📡 Back to Signals", "callback_data": "auto_trading_signals"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, risk_filters_message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in configure_risk_filters_handler: {e}")
+        bot.send_message(chat_id, f"Error loading risk filter settings: {str(e)}")
+
+# Register the configure_risk_filters_handler after it's defined
+def register_configure_risk_filters_handler():
+    """Register the configure risk filters handler after it's defined"""
+    if '_bot_instance' in globals() and _bot_instance:
+        _bot_instance.add_callback_handler("configure_risk_filters", configure_risk_filters_handler)
 
 def auto_trading_stats_handler(update, chat_id):
     """Handle auto trading performance statistics."""
