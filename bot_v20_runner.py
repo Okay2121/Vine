@@ -652,6 +652,38 @@ class SimpleTelegramBot:
                 query_id = update['callback_query']['id']
                 chat_id = update['callback_query']['message']['chat']['id']
                 data = update['callback_query']['data']
+                user_id = update['callback_query']['from']['id']
+                
+                # Create a unique callback identifier to prevent duplicates
+                callback_key = f"{user_id}_{data}_{int(time.time())}"
+                
+                # Check if this exact callback was recently processed (within 2 seconds)
+                current_time = time.time()
+                recent_callbacks = getattr(self, '_recent_callbacks', {})
+                
+                # Clean old callbacks (older than 5 seconds)
+                recent_callbacks = {k: v for k, v in recent_callbacks.items() if current_time - v < 5}
+                
+                # Check for duplicate callback
+                duplicate_found = False
+                for existing_key, timestamp in recent_callbacks.items():
+                    existing_user, existing_data, _ = existing_key.split('_', 2)
+                    if existing_user == str(user_id) and existing_data == data and current_time - timestamp < 2:
+                        duplicate_found = True
+                        logger.debug(f"Blocking duplicate callback: {data} from user {user_id}")
+                        break
+                
+                if duplicate_found:
+                    # Still answer the callback to prevent loading state
+                    requests.post(
+                        f"{self.api_url}/answerCallbackQuery",
+                        json={'callback_query_id': query_id}
+                    )
+                    return
+                
+                # Record this callback
+                recent_callbacks[callback_key] = current_time
+                self._recent_callbacks = recent_callbacks
                 
                 # Answer the callback query to stop the loading indicator
                 requests.post(
