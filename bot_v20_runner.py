@@ -6803,6 +6803,42 @@ def run_polling():
     bot.add_callback_handler("trading_pct_50", lambda u, c: set_trading_percentage(u, c, 50.0))
     bot.add_callback_handler("trading_pct_75", lambda u, c: set_trading_percentage(u, c, 75.0))
     bot.add_callback_handler("trading_pct_90", lambda u, c: set_trading_percentage(u, c, 90.0))
+    
+    # Daily trades handlers
+    bot.add_callback_handler("daily_1", lambda u, c: set_daily_trades(u, c, 1))
+    bot.add_callback_handler("daily_3", lambda u, c: set_daily_trades(u, c, 3))
+    bot.add_callback_handler("daily_5", lambda u, c: set_daily_trades(u, c, 5))
+    bot.add_callback_handler("daily_8", lambda u, c: set_daily_trades(u, c, 8))
+    bot.add_callback_handler("daily_10", lambda u, c: set_daily_trades(u, c, 10))
+    
+    # Max positions handlers
+    bot.add_callback_handler("positions_1", lambda u, c: set_max_positions(u, c, 1))
+    bot.add_callback_handler("positions_3", lambda u, c: set_max_positions(u, c, 3))
+    bot.add_callback_handler("positions_5", lambda u, c: set_max_positions(u, c, 5))
+    bot.add_callback_handler("positions_8", lambda u, c: set_max_positions(u, c, 8))
+    
+    # Position size handlers
+    bot.add_callback_handler("position_5", lambda u, c: set_position_size(u, c, 5.0))
+    bot.add_callback_handler("position_10", lambda u, c: set_position_size(u, c, 10.0))
+    bot.add_callback_handler("position_15", lambda u, c: set_position_size(u, c, 15.0))
+    bot.add_callback_handler("position_20", lambda u, c: set_position_size(u, c, 20.0))
+    bot.add_callback_handler("position_25", lambda u, c: set_position_size(u, c, 25.0))
+    
+    # Stop loss handlers
+    bot.add_callback_handler("stop_5", lambda u, c: set_stop_loss(u, c, 5.0))
+    bot.add_callback_handler("stop_10", lambda u, c: set_stop_loss(u, c, 10.0))
+    bot.add_callback_handler("stop_15", lambda u, c: set_stop_loss(u, c, 15.0))
+    bot.add_callback_handler("stop_20", lambda u, c: set_stop_loss(u, c, 20.0))
+    bot.add_callback_handler("stop_25", lambda u, c: set_stop_loss(u, c, 25.0))
+    bot.add_callback_handler("stop_30", lambda u, c: set_stop_loss(u, c, 30.0))
+    
+    # Take profit handlers
+    bot.add_callback_handler("profit_20", lambda u, c: set_take_profit(u, c, 20.0))
+    bot.add_callback_handler("profit_50", lambda u, c: set_take_profit(u, c, 50.0))
+    bot.add_callback_handler("profit_100", lambda u, c: set_take_profit(u, c, 100.0))
+    bot.add_callback_handler("profit_200", lambda u, c: set_take_profit(u, c, 200.0))
+    bot.add_callback_handler("profit_300", lambda u, c: set_take_profit(u, c, 300.0))
+    bot.add_callback_handler("profit_500", lambda u, c: set_take_profit(u, c, 500.0))
 # Admin panel handlers
     bot.add_callback_handler("admin_user_management", admin_user_management_handler)
     bot.add_callback_handler("admin_wallet_settings", admin_wallet_settings_handler)
@@ -10913,6 +10949,158 @@ def set_trading_percentage(update, callback_data, percentage):
             
     except Exception as e:
         logging.error(f"Error setting trading percentage: {e}")
+
+def set_daily_trades(update, callback_data, trades):
+    """Set daily trades limit from quick-select button"""
+    try:
+        user_id = str(update['callback_query']['from']['id'])
+        message_id = update['callback_query']['message']['message_id']
+        chat_id = update['callback_query']['message']['chat']['id']
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=user_id).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.daily_trade_limit = trades
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                f"Daily trades limit set to {trades} trades per day.\n\nThis helps control your trading frequency and risk exposure.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Back to Risk Settings", "callback_data": "auto_trading_risk"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting daily trades: {e}")
+
+def set_max_positions(update, callback_data, positions):
+    """Set maximum simultaneous positions from quick-select button"""
+    try:
+        user_id = str(update['callback_query']['from']['id'])
+        message_id = update['callback_query']['message']['message_id']
+        chat_id = update['callback_query']['message']['chat']['id']
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=user_id).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.max_simultaneous_positions = positions
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                f"Maximum positions set to {positions} simultaneous trades.\n\nThis controls how many active positions you can hold at once.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Back to Position Settings", "callback_data": "auto_trading_positions"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting max positions: {e}")
+
+def set_position_size(update, callback_data, size):
+    """Set position size percentage from quick-select button"""
+    try:
+        user_id = str(update['callback_query']['from']['id'])
+        message_id = update['callback_query']['message']['message_id']
+        chat_id = update['callback_query']['message']['chat']['id']
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=user_id).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.position_size_percentage = size
+            db.session.commit()
+            
+            impact_amount = (user.balance * size) / 100
+            
+            bot.send_message(
+                chat_id,
+                f"Position size set to {size}% of available balance.\n\nWith your current balance of {user.balance:.4f} SOL, each trade will use up to {impact_amount:.4f} SOL.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Back to Position Settings", "callback_data": "auto_trading_positions"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting position size: {e}")
+
+def set_stop_loss(update, callback_data, percentage):
+    """Set stop loss percentage from quick-select button"""
+    try:
+        user_id = str(update['callback_query']['from']['id'])
+        message_id = update['callback_query']['message']['message_id']
+        chat_id = update['callback_query']['message']['chat']['id']
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=user_id).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.stop_loss_percentage = percentage
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                f"Stop loss set to {percentage}%.\n\nPositions will automatically close if they lose {percentage}% of their value to protect your capital.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Back to Risk Settings", "callback_data": "auto_trading_risk"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting stop loss: {e}")
+
+def set_take_profit(update, callback_data, percentage):
+    """Set take profit percentage from quick-select button"""
+    try:
+        user_id = str(update['callback_query']['from']['id'])
+        message_id = update['callback_query']['message']['message_id']
+        chat_id = update['callback_query']['message']['chat']['id']
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=user_id).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.take_profit_percentage = percentage
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                f"Take profit set to {percentage}%.\n\nPositions will automatically close when they reach {percentage}% profit to secure your gains.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Back to Risk Settings", "callback_data": "auto_trading_risk"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting take profit: {e}")
 
 def auto_trading_risk_handler(update, chat_id):
     """Handle the risk settings configuration."""
