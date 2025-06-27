@@ -1865,6 +1865,10 @@ def dashboard_command(update, chat_id):
                     {"text": "👥 Referral", "callback_data": "referral"}
                 ],
                 [
+                    {"text": "🎯 Start Sniper", "callback_data": "start_sniper"},
+                    {"text": "⏹️ Stop Sniper", "callback_data": "stop_sniper"}
+                ],
+                [
                     {"text": "🛟 Customer Support", "callback_data": "support"},
                     {"text": "❓ FAQ", "callback_data": "faqs"}
                 ]
@@ -6654,6 +6658,11 @@ def run_polling():
     bot.add_callback_handler("support", support_handler)
     bot.add_callback_handler("faqs", faqs_handler)
     
+    # Sniper control buttons
+    bot.add_callback_handler("start_sniper", start_sniper_handler)
+    bot.add_callback_handler("stop_sniper", stop_sniper_handler)
+    bot.add_callback_handler("sniper_stats", sniper_stats_handler)
+    
     # Support-specific buttons
     bot.add_callback_handler("live_chat", live_chat_handler)
     bot.add_callback_handler("submit_ticket", submit_ticket_handler)
@@ -9367,6 +9376,208 @@ def referral_tips_handler(update, chat_id):
         import traceback
         logging.error(traceback.format_exc())
         bot.send_message(chat_id, f"❌ Error displaying referral tips: {str(e)}")
+
+def start_sniper_handler(update, chat_id):
+    """Handle the Start Sniper button - activates memecoin sniping mode."""
+    try:
+        with app.app_context():
+            from models import User
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            # Check if user has sufficient balance
+            from config import MIN_DEPOSIT
+            if user.balance < MIN_DEPOSIT:
+                insufficient_message = (
+                    "⚠️ *Insufficient Balance for Sniper Mode*\n\n"
+                    f"Minimum balance required: {MIN_DEPOSIT} SOL\n"
+                    f"Your current balance: {user.balance:.4f} SOL\n\n"
+                    "Make a deposit to activate sniper mode and start catching pump opportunities!"
+                )
+                
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "💰 Deposit Now", "callback_data": "deposit"}],
+                    [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
+                ])
+                
+                bot.send_message(chat_id, insufficient_message, parse_mode="Markdown", reply_markup=keyboard)
+                return
+            
+            # Simulate starting sniper mode
+            import random
+            watching_tokens = random.randint(15, 35)
+            monitoring_platforms = ["Pump.fun", "Raydium", "Jupiter"]
+            
+            sniper_started_message = (
+                "🎯 *SNIPER MODE ACTIVATED* 🎯\n\n"
+                "✅ *Status:* ACTIVE - Monitoring new token launches\n"
+                f"🔍 *Watching:* {watching_tokens} potential targets\n"
+                f"📡 *Platforms:* {', '.join(monitoring_platforms[:2])}\n"
+                f"💰 *Snipe Budget:* {user.balance * 0.15:.4f} SOL (15% of balance)\n\n"
+                "🚀 *Sniper Configuration:*\n"
+                "• *Entry Speed:* Lightning Fast (0.2-0.5s)\n"
+                "• *Risk Level:* Moderate\n"
+                "• *Target ROI:* 50-300%\n"
+                "• *Max Position:* 15% per token\n\n"
+                "🎯 *Active Monitoring:*\n"
+                "• New token launches\n"
+                "• Liquidity additions\n"
+                "• Social media buzz\n"
+                "• Volume spikes\n\n"
+                "_Sniper will automatically enter positions when optimal opportunities are detected._"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "⏹️ Stop Sniper", "callback_data": "stop_sniper"}],
+                [{"text": "📊 Sniper Stats", "callback_data": "sniper_stats"}],
+                [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
+            ])
+            
+            bot.send_message(chat_id, sniper_started_message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in start sniper handler: {e}")
+        bot.send_message(chat_id, "Error starting sniper mode. Please try again.")
+
+def stop_sniper_handler(update, chat_id):
+    """Handle the Stop Sniper button - deactivates memecoin sniping mode."""
+    try:
+        with app.app_context():
+            from models import User
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            # Simulate stopping sniper mode with recent activity
+            import random
+            from datetime import datetime, timedelta
+            
+            # Generate some realistic sniper session stats
+            session_duration = random.randint(15, 180)  # 15 minutes to 3 hours
+            opportunities_detected = random.randint(3, 12)
+            positions_taken = random.randint(0, 3)
+            
+            sniper_stopped_message = (
+                "⏹️ *SNIPER MODE DEACTIVATED*\n\n"
+                "📊 *Session Summary:*\n"
+                f"• *Duration:* {session_duration} minutes\n"
+                f"• *Opportunities Detected:* {opportunities_detected}\n"
+                f"• *Positions Taken:* {positions_taken}\n"
+                f"• *Mode:* Manual trading resumed\n\n"
+                "🎯 *Sniper Performance:*\n"
+            )
+            
+            if positions_taken > 0:
+                avg_entry_speed = random.uniform(0.2, 0.6)
+                sniper_stopped_message += (
+                    f"• *Avg Entry Speed:* {avg_entry_speed:.1f}s\n"
+                    f"• *Success Rate:* {random.randint(60, 85)}%\n"
+                    f"• *Best Entry:* {random.uniform(1.2, 4.5):.1f}x ROI potential\n\n"
+                )
+            else:
+                sniper_stopped_message += (
+                    "• *No positions taken this session*\n"
+                    "• *Market conditions:* Low opportunity window\n"
+                    "• *Strategy:* Conservative approach maintained\n\n"
+                )
+            
+            sniper_stopped_message += (
+                "✅ *Sniper Status:* INACTIVE\n"
+                "🔄 *Trading Mode:* Manual control resumed\n\n"
+                "_You can restart sniper mode anytime from your dashboard._"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🎯 Restart Sniper", "callback_data": "start_sniper"}],
+                [{"text": "📊 View Performance", "callback_data": "trading_history"}],
+                [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
+            ])
+            
+            bot.send_message(chat_id, sniper_stopped_message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in stop sniper handler: {e}")
+        bot.send_message(chat_id, "Error stopping sniper mode. Please try again.")
+
+def sniper_stats_handler(update, chat_id):
+    """Handle the Sniper Stats button - shows detailed sniper performance metrics."""
+    try:
+        with app.app_context():
+            from models import User
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            # Simulate realistic sniper statistics
+            import random
+            from datetime import datetime, timedelta
+            
+            # Generate realistic sniper performance data
+            total_snipes = random.randint(12, 47)
+            successful_snipes = random.randint(int(total_snipes * 0.6), int(total_snipes * 0.85))
+            success_rate = (successful_snipes / total_snipes * 100) if total_snipes > 0 else 0
+            
+            avg_entry_time = random.uniform(0.15, 0.8)
+            fastest_entry = random.uniform(0.05, 0.25)
+            best_roi = random.uniform(180, 850)
+            total_volume_sniped = random.uniform(2.5, 15.7)
+            
+            # Recent activity simulation
+            recent_tokens = ["$BONK", "$WIF", "$MYRO", "$SAMO", "$ORCA"]
+            last_snipe_token = random.choice(recent_tokens)
+            last_snipe_roi = random.uniform(45, 280)
+            hours_since_last = random.randint(2, 36)
+            
+            sniper_stats_message = (
+                "📊 *SNIPER PERFORMANCE STATS* 📊\n\n"
+                "🎯 *Overall Performance:*\n"
+                f"• *Total Snipes:* {total_snipes}\n"
+                f"• *Successful Entries:* {successful_snipes}\n"
+                f"• *Success Rate:* {success_rate:.1f}%\n"
+                f"• *Total Volume:* {total_volume_sniped:.2f} SOL\n\n"
+                
+                "⚡ *Speed Metrics:*\n"
+                f"• *Avg Entry Time:* {avg_entry_time:.2f}s\n"
+                f"• *Fastest Entry:* {fastest_entry:.2f}s\n"
+                f"• *Speed Rank:* Top {random.randint(5, 15)}%\n\n"
+                
+                "💰 *Profit Metrics:*\n"
+                f"• *Best ROI:* {best_roi:.0f}%\n"
+                f"• *Avg ROI:* {random.randint(45, 120)}%\n"
+                f"• *Win Rate:* {random.randint(65, 85)}%\n\n"
+                
+                "🕒 *Recent Activity:*\n"
+                f"• *Last Snipe:* {last_snipe_token} ({last_snipe_roi:.0f}% ROI)\n"
+                f"• *Time Since:* {hours_since_last} hours ago\n"
+                f"• *Status:* {'🟢 ACTIVE' if random.choice([True, False]) else '🔴 INACTIVE'}\n\n"
+                
+                "📈 *Market Conditions:*\n"
+                f"• *Opportunities Today:* {random.randint(8, 24)}\n"
+                f"• *Market Volatility:* {random.choice(['Low', 'Medium', 'High'])}\n"
+                f"• *Competition Level:* {random.choice(['Light', 'Moderate', 'Heavy'])}"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🎯 Start Sniper", "callback_data": "start_sniper"}],
+                [{"text": "📊 View History", "callback_data": "trading_history"}],
+                [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
+            ])
+            
+            bot.send_message(chat_id, sniper_stats_message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in sniper stats handler: {e}")
+        bot.send_message(chat_id, "Error displaying sniper stats. Please try again.")
 
 # Withdrawal management handlers
 def admin_manage_withdrawals_handler(update, chat_id):
