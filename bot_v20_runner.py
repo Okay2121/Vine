@@ -10486,10 +10486,7 @@ def add_telegram_channels_handler(update, chat_id):
             "• @MemeCoinCalls - 1.8K signals/day ✅\n"
             "• @PumpFunSignals - 3.1K signals/day ✅\n\n"
             
-            "📊 *Popular Channels:*\n"
-            "• @WhaleTracker - Whale movement alerts\n"
-            "• @CryptoMoonshots - Early gem discoveries\n"
-            "• @DeFiAlpha - DeFi protocol signals\n\n"
+
             
             "⚠️ *Note:* Only add channels you trust. Signal quality directly affects your trading performance."
         )
@@ -10500,7 +10497,6 @@ def add_telegram_channels_handler(update, chat_id):
                 {"text": "⚙️ Manage Channels", "callback_data": "manage_telegram_channels"}
             ],
             [
-                {"text": "📋 Popular Channels", "callback_data": "browse_popular_channels"},
                 {"text": "🔍 Search Channels", "callback_data": "search_telegram_channels"}
             ],
             [

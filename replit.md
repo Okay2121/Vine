@@ -98,15 +98,16 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
-### Enhanced Telegram Channel Conditional Display (June 27, 2025)
-- **Improved quality filter page telegram channel display** to make it more realistic and professional
+### Telegram Channel Interface Cleanup (June 27, 2025)
+- **Removed Popular Signal Channels section** from telegram channel management interface per user request
+- **Cleaned up channel management display** by removing suggested channels list (@SolanaInsiders, @SolanaNews, @TokenTracker, @WhaleTracker, @DeFiCallsOfficial, @MemeCoinCalls)
+- **Simplified interface buttons** by removing "Popular Channels" button while keeping core functionality
+- **Streamlined user experience** with focus on user's own channel connections rather than suggestions
 - **Enhanced signal source requirements** with better messaging when no sources are enabled
 - **More authentic performance metrics** with realistic signal frequency (18-32 calls/day) and response times (280-420ms)
 - **Professional warning system** that clearly explains users must enable primary signal sources before accessing telegram channel management
-- **Conditional interface logic** ensures telegram channels only display when at least one signal source is active
-- **Authentic trading bot behavior** matching how professional systems require signal infrastructure before channel integration
-- **Files enhanced**: `bot_v20_runner.py` with improved conditional display logic and realistic performance metrics
-- **Result**: Signal sources page now provides completely authentic professional trading bot experience with proper prerequisites
+- **Files enhanced**: `bot_v20_runner.py` with removed popular channels section and improved conditional display logic
+- **Result**: Cleaner, more focused telegram channel management without suggested channels list
 
 ### Comprehensive 2% Profit Fee Caution Implementation (June 27, 2025)
 - **Added authentic 2% profit fee warnings** across all major dashboard interfaces displaying profit information
