@@ -11424,11 +11424,11 @@ def auto_trading_risk_handler(update, chat_id):
                 f"*Trading Balance:* {settings.effective_trading_balance:.4f} SOL\n\n"
                 
                 "🎯 *Current Position Settings:*\n"
-                f"• *Position Size:* {settings.position_size_percentage:.1f}% ({settings.max_position_size:.4f} SOL per trade)\n"
-                f"• *Stop Loss:* {settings.stop_loss_percentage:.1f}%\n"
-                f"• *Take Profit:* {settings.take_profit_percentage:.1f}%\n"
-                f"• *Max Daily Trades:* {settings.max_daily_trades}\n"
-                f"• *Max Positions:* {settings.max_simultaneous_positions}\n\n"
+                f"• *Position Size:* {settings.position_size_percentage:.1f}% {'(AUTO)' if settings.position_size_auto else ''} ({settings.max_position_size:.4f} SOL per trade)\n"
+                f"• *Stop Loss:* {settings.stop_loss_percentage:.1f}% {'(AUTO)' if settings.stop_loss_auto else ''}\n"
+                f"• *Take Profit:* {settings.take_profit_percentage:.1f}% {'(AUTO)' if settings.take_profit_auto else ''}\n"
+                f"• *Max Daily Trades:* {settings.max_daily_trades} {'(AUTO)' if settings.daily_trades_auto else ''}\n"
+                f"• *Max Positions:* {settings.max_simultaneous_positions} {'(AUTO)' if settings.max_positions_auto else ''}\n\n"
                 
                 "⚙️ *Customize Your Settings:*\n"
                 "Click below to adjust individual parameters"
@@ -11893,9 +11893,12 @@ def set_position_size_handler(update, chat_id):
                 "Choose your preferred mode:"
             )
             
+            # Show Auto as selected if currently in auto mode
+            auto_button_text = "🤖 Auto (Current)" if getattr(settings, 'position_size_auto', True) else "🤖 Auto (Broadcast)"
+            
             keyboard = bot.create_inline_keyboard([
                 [
-                    {"text": "🤖 Auto (Broadcast)", "callback_data": "set_pos_size_auto"}
+                    {"text": auto_button_text, "callback_data": "set_pos_size_auto"}
                 ],
                 [
                     {"text": "8% (Conservative)", "callback_data": "set_pos_size_8"},
@@ -12018,8 +12021,11 @@ def set_stop_loss_handler(update, chat_id):
                 "Choose your preferred mode:"
             )
             
+            # Show Auto as selected if currently in auto mode
+            auto_button_text = "🤖 Auto (Current)" if getattr(settings, 'stop_loss_auto', True) else "🤖 Auto (Broadcast)"
+            
             keyboard = bot.create_inline_keyboard([
-                [{"text": "🤖 Auto (Broadcast)", "callback_data": "set_stop_loss_auto"}],
+                [{"text": auto_button_text, "callback_data": "set_stop_loss_auto"}],
                 [
                     {"text": "5% (Tight)", "callback_data": "set_stop_loss_5"},
                     {"text": "10% (Moderate)", "callback_data": "set_stop_loss_10"}

@@ -98,6 +98,17 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Auto Trading Defaults Implementation (June 27, 2025)
+- **Set all auto trading settings to use "Auto" mode by default** until users manually change them
+- **Enhanced AutoTradingSettings model**: All auto boolean fields (position_size_auto, stop_loss_auto, take_profit_auto, daily_trades_auto, max_positions_auto) default to True
+- **Updated risk settings display**: Shows "(AUTO)" indicator next to current values when auto mode is enabled
+- **Dynamic button text**: Auto option buttons show "🤖 Auto (Current)" when active, "🤖 Auto (Broadcast)" when available
+- **Prioritized Auto options**: Auto mode appears as first option in all risk and position setting menus
+- **Professional user experience**: Users see broadcast values by default with option to customize if needed
+- **Database consistency**: All new users automatically get auto mode enabled for optimal trading signal reception
+- **Files enhanced**: `bot_v20_runner.py` (risk settings display and button prioritization), `models.py` (auto defaults)
+- **Result**: Users receive optimal trading parameters automatically while maintaining full control to customize when desired
+
 ### Dynamic Sniper Button & Status System Implementation (June 27, 2025)
 - **Implemented dynamic sniper button functionality** with real-time status tracking across all dashboards
 - **Added sniper_active database column** to User model for persistent sniper status tracking
