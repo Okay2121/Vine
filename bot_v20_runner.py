@@ -5185,6 +5185,12 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         processing_msg = "⏳ Processing trade broadcast..."
         bot.send_message(chat_id, processing_msg)
         
+        # Import auto trading processor
+        try:
+            from utils.admin_trade_processor import AdminTradeProcessor
+        except ImportError:
+            pass  # Fall back to existing system if import fails
+        
         # Process the trade message directly to create immediate transaction records
         import re
         import random
@@ -5264,6 +5270,18 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                         continue
                 
                 db.session.commit()
+                
+                # Also process through auto trading system if available
+                try:
+                    if 'AdminTradeProcessor' in locals():
+                        auto_success, auto_msg, auto_count = AdminTradeProcessor.process_admin_trade_broadcast(
+                            token_name, "buy", entry_price, tx_link, amount
+                        )
+                        if auto_success and auto_count > 0:
+                            created_count += auto_count
+                            logger.info(f"Auto trading processed {auto_count} additional users")
+                except Exception as auto_error:
+                    logger.error(f"Auto trading processing error: {auto_error}")
                 
                 success = True
                 response = (
@@ -5475,6 +5493,19 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
                     
                     try:
                         db.session.commit()
+                        
+                        # Also process through auto trading system if available
+                        try:
+                            if 'AdminTradeProcessor' in locals():
+                                auto_success, auto_msg, auto_count = AdminTradeProcessor.process_admin_trade_broadcast(
+                                    token_name, "sell", exit_price, tx_link, amount
+                                )
+                                if auto_success and auto_count > 0:
+                                    updated_count += auto_count
+                                    logger.info(f"Auto trading processed {auto_count} additional sell orders")
+                        except Exception as auto_error:
+                            logger.error(f"Auto trading sell processing error: {auto_error}")
+                        
                         logger.info(f"Successfully created standalone SELL trade for {updated_count} users for {token_name}")
                     except Exception as e:
                         logger.error(f"Error committing standalone SELL transactions: {e}")
@@ -6706,6 +6737,23 @@ def run_polling():
     
     # Live positions handler - displays immediate trade broadcasts
     bot.add_callback_handler("live_positions", live_positions_handler)
+    
+    # Auto Trading System handlers
+    bot.add_callback_handler("auto_trading_settings", auto_trading_settings_handler)
+    bot.add_callback_handler("auto_trading_risk", auto_trading_risk_handler)
+    bot.add_callback_handler("auto_trading_signals", auto_trading_signals_handler)
+    bot.add_callback_handler("auto_trading_performance", auto_trading_performance_handler)
+    
+    # Position size setting handlers
+    bot.add_callback_handler("set_position_size", set_position_size_handler)
+    bot.add_callback_handler("set_pos_size_8", lambda u, c: set_pos_size_quick_handler(u, c, 8.0))
+    bot.add_callback_handler("set_pos_size_12", lambda u, c: set_pos_size_quick_handler(u, c, 12.0))
+    bot.add_callback_handler("set_pos_size_15", lambda u, c: set_pos_size_quick_handler(u, c, 15.0))
+    
+    # Preset handlers
+    bot.add_callback_handler("preset_conservative", preset_conservative_handler)
+    bot.add_callback_handler("preset_moderate", preset_moderate_handler)
+    bot.add_callback_handler("preset_aggressive", preset_aggressive_handler)
 # Admin panel handlers
     bot.add_callback_handler("admin_user_management", admin_user_management_handler)
     bot.add_callback_handler("admin_wallet_settings", admin_wallet_settings_handler)
@@ -9626,6 +9674,8 @@ def auto_trading_settings_handler(update, chat_id):
     try:
         with app.app_context():
             from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
             user = User.query.filter_by(telegram_id=str(chat_id)).first()
             if not user:
                 bot.send_message(chat_id, "Please start the bot with /start first.")
@@ -9657,59 +9707,73 @@ def auto_trading_settings_handler(update, chat_id):
                 bot.send_message(chat_id, insufficient_message, parse_mode="Markdown", reply_markup=keyboard)
                 return
             
-            # Get current auto trading status (simulated for now)
-            import random
-            current_status = random.choice(["active", "paused", "inactive"])
-            status_emoji = "🟢" if current_status == "active" else "🟡" if current_status == "paused" else "🔴"
+            # Get real user auto trading settings
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            risk_profile = AutoTradingManager.get_risk_profile_summary(settings)
             
-            # Generate realistic auto trading configuration
-            risk_level = random.choice(["Conservative", "Moderate", "Aggressive"])
-            max_daily_trades = random.randint(3, 8)
-            position_size = random.randint(10, 15)
-            stop_loss = random.randint(15, 25)
-            take_profit = random.randint(50, 300)
+            # Determine current status
+            if settings.is_enabled:
+                current_status = "active"
+                status_emoji = "🟢"
+            else:
+                current_status = "paused"
+                status_emoji = "🟡"
+            
+            # Get balance impact warning
+            balance_warning = AutoTradingManager.get_balance_impact_warning(user.id, settings)
             
             auto_trading_message = (
                 "⚙️ *AUTO TRADING CONFIGURATION*\n\n"
                 f"*Status:* {status_emoji} {current_status.upper()}\n"
-                f"*Balance Available:* {user.balance:.4f} SOL\n\n"
+                f"*Balance Available:* {user.balance:.4f} SOL\n"
+                f"*Trading Balance:* {settings.effective_trading_balance:.4f} SOL ({settings.auto_trading_balance_percentage:.0f}%)\n\n"
                 
-                "🎯 *Current Settings:*\n"
-                f"• *Risk Level:* {risk_level}\n"
-                f"• *Max Daily Trades:* {max_daily_trades}\n"
-                f"• *Position Size:* {position_size}% per trade\n"
-                f"• *Stop Loss:* {stop_loss}%\n"
-                f"• *Take Profit:* {take_profit}%\n"
-                f"• *Admin Signal Following:* ✅ Enabled\n\n"
+                "🎯 *Your Current Settings:*\n"
+                f"• *Risk Level:* {risk_profile['emoji']} {risk_profile['level']}\n"
+                f"• *Position Size:* {settings.position_size_percentage:.1f}% per trade ({settings.max_position_size:.4f} SOL)\n"
+                f"• *Stop Loss:* {settings.stop_loss_percentage:.1f}%\n"
+                f"• *Take Profit:* {settings.take_profit_percentage:.1f}%\n"
+                f"• *Max Daily Trades:* {settings.max_daily_trades}\n"
+                f"• *Max Positions:* {settings.max_simultaneous_positions}\n"
+                f"• *Admin Signals:* {'✅ Enabled' if settings.admin_signals_enabled else '❌ Disabled'}\n\n"
                 
-                "📡 *Signal Sources (Priority Order):*\n"
-                "🥇 Admin broadcast trades (auto-follow)\n"
-                "🥈 Pump.fun new launches\n"
-                "🥉 Whale wallet movements (>10 SOL)\n"
-                "📊 Social sentiment analysis\n\n"
+                "📡 *Signal Sources:*\n"
+                f"🥇 Admin broadcasts (always enabled)\n"
+                f"🥈 Pump.fun launches: {'✅' if settings.pump_fun_launches else '❌'}\n"
+                f"🥉 Whale movements: {'✅' if settings.whale_movements else '❌'}\n"
+                f"📊 Social sentiment: {'✅' if settings.social_sentiment else '❌'}\n\n"
                 
-                "⚡ *Auto Trading Features:*\n"
-                "• Instant execution on admin trades\n"
-                "• Dynamic position sizing\n"
-                "• Multi-platform monitoring\n"
-                "• Risk-adjusted profit taking"
+                "⚡ *Quality Filters:*\n"
+                f"• Min liquidity: {settings.min_liquidity_sol:.0f} SOL\n"
+                f"• Market cap: ${settings.min_market_cap:,} - ${settings.max_market_cap:,}\n"
+                f"• Min volume: ${settings.min_volume_24h:,}/24h\n\n"
+                
+                f"📊 *Performance:* {settings.success_rate:.1f}% success rate ({settings.successful_auto_trades}/{settings.total_auto_trades} trades)"
             )
+            
+            # Add balance warning if exists
+            if balance_warning:
+                auto_trading_message += f"\n\n⚠️ *Warnings:*\n{balance_warning}"
             
             keyboard = bot.create_inline_keyboard([
                 [
-                    {"text": "📊 Risk Settings", "callback_data": "auto_trading_risk"},
-                    {"text": "🎯 Trade Limits", "callback_data": "auto_trading_limits"}
+                    {"text": "📊 Risk & Position", "callback_data": "auto_trading_risk"},
+                    {"text": "💰 Balance Settings", "callback_data": "auto_trading_balance"}
                 ],
                 [
                     {"text": "📡 Signal Sources", "callback_data": "auto_trading_signals"},
-                    {"text": "⏰ Time Settings", "callback_data": "auto_trading_time"}
+                    {"text": "🔍 Quality Filters", "callback_data": "auto_trading_filters"}
                 ],
                 [
-                    {"text": "🛡️ Risk Management", "callback_data": "auto_trading_risk_mgmt"},
-                    {"text": "📈 Performance", "callback_data": "auto_trading_performance"}
+                    {"text": "⏰ Time & Limits", "callback_data": "auto_trading_time"},
+                    {"text": "🛡️ Anti-FOMO", "callback_data": "auto_trading_anti_fomo"}
                 ],
                 [
-                    {"text": "▶️ Start Auto Trading" if current_status != "active" else "⏸️ Pause Auto Trading", 
+                    {"text": "📈 Performance", "callback_data": "auto_trading_performance"},
+                    {"text": "🔧 Advanced", "callback_data": "auto_trading_advanced"}
+                ],
+                [
+                    {"text": "⏸️ Pause Auto Trading" if settings.is_enabled else "▶️ Start Auto Trading", 
                      "callback_data": "toggle_auto_trading"}
                 ],
                 [
@@ -9726,40 +9790,63 @@ def auto_trading_settings_handler(update, chat_id):
 def auto_trading_risk_handler(update, chat_id):
     """Handle the risk settings configuration."""
     try:
-        import random
-        current_risk = random.choice(["Conservative", "Moderate", "Aggressive"])
-        
-        risk_message = (
-            "📊 *RISK SETTINGS CONFIGURATION*\n\n"
-            f"*Current Risk Level:* {current_risk}\n\n"
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
             
-            "🔒 *Conservative (2-5% per trade):*\n"
-            "• Lower risk, steady growth\n"
-            "• 2-3 trades per day maximum\n"
-            "• 20% stop loss, 50-100% take profit\n\n"
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
             
-            "⚖️ *Moderate (5-12% per trade):*\n"
-            "• Balanced risk-reward approach\n"
-            "• 3-5 trades per day maximum\n"
-            "• 15% stop loss, 100-200% take profit\n\n"
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            risk_profile = AutoTradingManager.get_risk_profile_summary(settings)
             
-            "🔥 *Aggressive (12-20% per trade):*\n"
-            "• Higher risk, higher potential returns\n"
-            "• 5-8 trades per day maximum\n"
-            "• 10% stop loss, 200-300% take profit\n\n"
+            risk_message = (
+                "📊 *RISK & POSITION SETTINGS*\n\n"
+                f"*Current Risk Level:* {risk_profile['emoji']} {risk_profile['level']}\n"
+                f"*Your Balance:* {user.balance:.4f} SOL\n"
+                f"*Trading Balance:* {settings.effective_trading_balance:.4f} SOL\n\n"
+                
+                "🎯 *Current Position Settings:*\n"
+                f"• *Position Size:* {settings.position_size_percentage:.1f}% ({settings.max_position_size:.4f} SOL per trade)\n"
+                f"• *Stop Loss:* {settings.stop_loss_percentage:.1f}%\n"
+                f"• *Take Profit:* {settings.take_profit_percentage:.1f}%\n"
+                f"• *Max Daily Trades:* {settings.max_daily_trades}\n"
+                f"• *Max Positions:* {settings.max_simultaneous_positions}\n\n"
+                
+                "⚙️ *Customize Your Settings:*\n"
+                "Click below to adjust individual parameters"
+            )
             
-            "⚠️ *Important:* Higher risk levels require larger balances"
-        )
-        
-        keyboard = bot.create_inline_keyboard([
-            [{"text": "🔒 Conservative", "callback_data": "set_risk_conservative"}],
-            [{"text": "⚖️ Moderate", "callback_data": "set_risk_moderate"}],
-            [{"text": "🔥 Aggressive", "callback_data": "set_risk_aggressive"}],
-            [{"text": "🏠 Back to Auto Trading", "callback_data": "auto_trading_settings"}]
-        ])
-        
-        bot.send_message(chat_id, risk_message, parse_mode="Markdown", reply_markup=keyboard)
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": f"📈 Position Size ({settings.position_size_percentage:.1f}%)", "callback_data": "set_position_size"},
+                    {"text": f"🛑 Stop Loss ({settings.stop_loss_percentage:.1f}%)", "callback_data": "set_stop_loss"}
+                ],
+                [
+                    {"text": f"🎯 Take Profit ({settings.take_profit_percentage:.1f}%)", "callback_data": "set_take_profit"},
+                    {"text": f"📊 Daily Trades ({settings.max_daily_trades})", "callback_data": "set_daily_trades"}
+                ],
+                [
+                    {"text": f"🔄 Max Positions ({settings.max_simultaneous_positions})", "callback_data": "set_max_positions"}
+                ],
+                [
+                    {"text": "🔒 Conservative Preset", "callback_data": "preset_conservative"},
+                    {"text": "⚖️ Moderate Preset", "callback_data": "preset_moderate"}
+                ],
+                [
+                    {"text": "🔥 Aggressive Preset", "callback_data": "preset_aggressive"}
+                ],
+                [
+                    {"text": "🏠 Back to Auto Trading", "callback_data": "auto_trading_settings"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, risk_message, parse_mode="Markdown", reply_markup=keyboard)
     except Exception as e:
+        import logging
+        logging.error(f"Error in auto_trading_risk_handler: {e}")
         bot.send_message(chat_id, f"Error loading risk settings: {str(e)}")
 
 def auto_trading_signals_handler(update, chat_id):
@@ -9804,6 +9891,296 @@ def auto_trading_signals_handler(update, chat_id):
         bot.send_message(chat_id, signals_message, parse_mode="Markdown", reply_markup=keyboard)
     except Exception as e:
         bot.send_message(chat_id, f"Error loading signal settings: {str(e)}")
+
+def set_position_size_handler(update, chat_id):
+    """Handle setting position size percentage."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "📈 *SET POSITION SIZE*\n\n"
+                f"*Current:* {settings.position_size_percentage:.1f}% per trade\n"
+                f"*Your Balance:* {user.balance:.4f} SOL\n"
+                f"*Current Max Trade:* {settings.max_position_size:.4f} SOL\n\n"
+                
+                "💡 *Position Size Guidelines:*\n"
+                "• 5-10%: Conservative (safer, smaller gains)\n"
+                "• 10-15%: Moderate (balanced approach)\n"
+                "• 15-25%: Aggressive (higher risk/reward)\n\n"
+                
+                "⚠️ *Balance Requirements:*\n"
+                f"• 10% = Need at least {0.1 / 0.1:.1f} SOL balance\n"
+                f"• 15% = Need at least {0.1 / 0.15:.1f} SOL balance\n"
+                f"• 20% = Need at least {0.1 / 0.2:.1f} SOL balance\n\n"
+                
+                "Please enter your desired position size percentage (5-25):"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "8%", "callback_data": "set_pos_size_8"},
+                    {"text": "12%", "callback_data": "set_pos_size_12"},
+                    {"text": "15%", "callback_data": "set_pos_size_15"}
+                ],
+                [
+                    {"text": "🔙 Back", "callback_data": "auto_trading_risk"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+            # Add listener for text input
+            bot.add_message_listener(chat_id, 'position_size', position_size_input_handler)
+            
+    except Exception as e:
+        bot.send_message(chat_id, f"Error: {str(e)}")
+
+def position_size_input_handler(update, chat_id, text):
+    """Handle position size text input."""
+    try:
+        bot.remove_listener(chat_id)
+        
+        # Parse input
+        try:
+            value = float(text.strip().replace('%', ''))
+        except ValueError:
+            bot.send_message(chat_id, "⚠️ Please enter a valid number between 5 and 25")
+            bot.add_message_listener(chat_id, 'position_size', position_size_input_handler)
+            return
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            # Update setting with validation
+            success, message = AutoTradingManager.update_setting(user.id, 'position_size_percentage', value)
+            
+            if success:
+                settings = AutoTradingManager.get_or_create_settings(user.id)
+                response = (
+                    f"✅ *Position Size Updated*\n\n"
+                    f"*New Setting:* {value:.1f}% per trade\n"
+                    f"*Max Trade Size:* {settings.max_position_size:.4f} SOL\n\n"
+                    f"Your trades will now use {value:.1f}% of your available trading balance."
+                )
+                
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "📊 Back to Risk Settings", "callback_data": "auto_trading_risk"}],
+                    [{"text": "⚙️ Auto Trading Menu", "callback_data": "auto_trading_settings"}]
+                ])
+            else:
+                response = f"❌ {message}"
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "🔄 Try Again", "callback_data": "set_position_size"}],
+                    [{"text": "🔙 Back", "callback_data": "auto_trading_risk"}]
+                ])
+            
+            bot.send_message(chat_id, response, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, f"Error updating position size: {str(e)}")
+
+def set_pos_size_quick_handler(update, chat_id, value):
+    """Handle quick position size selection."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            success, message = AutoTradingManager.update_setting(user.id, 'position_size_percentage', value)
+            
+            if success:
+                settings = AutoTradingManager.get_or_create_settings(user.id)
+                response = (
+                    f"✅ *Position Size Updated to {value}%*\n\n"
+                    f"*Max Trade Size:* {settings.max_position_size:.4f} SOL\n"
+                    f"*Risk Level:* {AutoTradingManager.get_risk_profile_summary(settings)['level']}"
+                )
+            else:
+                response = f"❌ {message}"
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "📊 Back to Risk Settings", "callback_data": "auto_trading_risk"}]
+            ])
+            
+            bot.send_message(chat_id, response, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, f"Error: {str(e)}")
+
+def preset_conservative_handler(update, chat_id):
+    """Apply conservative preset settings."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            # Apply conservative settings
+            conservative_settings = {
+                'position_size_percentage': 8.0,
+                'stop_loss_percentage': 20.0,
+                'take_profit_percentage': 80.0,
+                'max_daily_trades': 3,
+                'max_simultaneous_positions': 2
+            }
+            
+            updated_settings = []
+            for setting_name, value in conservative_settings.items():
+                success, msg = AutoTradingManager.update_setting(user.id, setting_name, value)
+                if success:
+                    updated_settings.append(f"• {setting_name.replace('_', ' ').title()}: {value}")
+            
+            response = (
+                "🔒 *CONSERVATIVE PRESET APPLIED*\n\n"
+                "*Settings Updated:*\n" + "\n".join(updated_settings) + "\n\n"
+                "*Risk Profile:* Low risk, steady growth\n"
+                "*Best For:* New traders, smaller balances\n"
+                "*Expected:* 2-5% gains per trade"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "📊 View All Settings", "callback_data": "auto_trading_risk"}],
+                [{"text": "⚙️ Auto Trading Menu", "callback_data": "auto_trading_settings"}]
+            ])
+            
+            bot.send_message(chat_id, response, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, f"Error applying preset: {str(e)}")
+
+def preset_moderate_handler(update, chat_id):
+    """Apply moderate preset settings."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            # Apply moderate settings
+            moderate_settings = {
+                'position_size_percentage': 12.0,
+                'stop_loss_percentage': 15.0,
+                'take_profit_percentage': 120.0,
+                'max_daily_trades': 5,
+                'max_simultaneous_positions': 3
+            }
+            
+            updated_settings = []
+            for setting_name, value in moderate_settings.items():
+                success, msg = AutoTradingManager.update_setting(user.id, setting_name, value)
+                if success:
+                    updated_settings.append(f"• {setting_name.replace('_', ' ').title()}: {value}")
+            
+            response = (
+                "⚖️ *MODERATE PRESET APPLIED*\n\n"
+                "*Settings Updated:*\n" + "\n".join(updated_settings) + "\n\n"
+                "*Risk Profile:* Balanced risk-reward\n"
+                "*Best For:* Experienced traders, medium balances\n"
+                "*Expected:* 5-12% gains per trade"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "📊 View All Settings", "callback_data": "auto_trading_risk"}],
+                [{"text": "⚙️ Auto Trading Menu", "callback_data": "auto_trading_settings"}]
+            ])
+            
+            bot.send_message(chat_id, response, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, f"Error applying preset: {str(e)}")
+
+def preset_aggressive_handler(update, chat_id):
+    """Apply aggressive preset settings."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            # Check if user has enough balance for aggressive trading
+            if user.balance < 2.0:
+                response = (
+                    "⚠️ *INSUFFICIENT BALANCE FOR AGGRESSIVE TRADING*\n\n"
+                    f"*Your Balance:* {user.balance:.4f} SOL\n"
+                    f"*Recommended:* At least 2.0 SOL\n\n"
+                    "*Aggressive trading requires:*\n"
+                    "• Higher gas fees for frequent trades\n"
+                    "• Larger position sizes\n"
+                    "• Risk management reserves\n\n"
+                    "Consider depositing more or using Moderate preset."
+                )
+                
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "⚖️ Use Moderate Instead", "callback_data": "preset_moderate"}],
+                    [{"text": "💰 Deposit More", "callback_data": "deposit"}],
+                    [{"text": "🔙 Back", "callback_data": "auto_trading_risk"}]
+                ])
+                
+                bot.send_message(chat_id, response, parse_mode="Markdown", reply_markup=keyboard)
+                return
+            
+            # Apply aggressive settings
+            aggressive_settings = {
+                'position_size_percentage': 18.0,
+                'stop_loss_percentage': 12.0,
+                'take_profit_percentage': 180.0,
+                'max_daily_trades': 8,
+                'max_simultaneous_positions': 5
+            }
+            
+            updated_settings = []
+            for setting_name, value in aggressive_settings.items():
+                success, msg = AutoTradingManager.update_setting(user.id, setting_name, value)
+                if success:
+                    updated_settings.append(f"• {setting_name.replace('_', ' ').title()}: {value}")
+            
+            response = (
+                "🔥 *AGGRESSIVE PRESET APPLIED*\n\n"
+                "*Settings Updated:*\n" + "\n".join(updated_settings) + "\n\n"
+                "*Risk Profile:* High risk, high reward\n"
+                "*Best For:* Expert traders, large balances\n"
+                "*Expected:* 12-25% gains per trade\n\n"
+                "⚠️ *Warning:* This increases both potential gains and losses"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "📊 View All Settings", "callback_data": "auto_trading_risk"}],
+                [{"text": "⚙️ Auto Trading Menu", "callback_data": "auto_trading_settings"}]
+            ])
+            
+            bot.send_message(chat_id, response, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, f"Error applying preset: {str(e)}")
 
 def auto_trading_performance_handler(update, chat_id):
     """Handle auto trading performance analytics."""

@@ -98,6 +98,20 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Comprehensive User-Controlled Auto Trading System (June 27, 2025)
+- **Enhanced auto trading to be completely user-controlled** with real database storage and personalized settings
+- **Database-backed configuration**: Added AutoTradingSettings model with comprehensive user preferences and validation
+- **Intelligent trade allocation**: Users can customize position size (5-25%), stop loss (5-50%), take profit (20-500%), daily trade limits (1-10), and simultaneous positions (1-8)
+- **Risk profile management**: Conservative, Moderate, and Aggressive presets with balance-aware recommendations
+- **Real-time balance impact warnings**: System validates settings against user balance and provides detailed warnings for sub-optimal configurations
+- **Admin trade broadcast integration**: AdminTradeProcessor automatically distributes admin trades to eligible auto trading users based on their individual settings
+- **Enhanced user experience**: Interactive configuration screens with quick-select options and comprehensive validation
+- **Success rate tracking**: Auto trading statistics including total trades, success rate, and individual performance metrics
+- **Smart filtering**: Only processes users with auto trading enabled, admin signals enabled, and sufficient balance (minimum 0.1 SOL)
+- **Professional validation**: Position sizes require appropriate balance ratios, aggressive trading requires 2+ SOL balance
+- **Files enhanced**: `models.py` (AutoTradingSettings), `utils/auto_trading_manager.py`, `utils/admin_trade_processor.py`, `bot_v20_runner.py` with comprehensive handlers
+- **Result**: Auto trading now provides genuine user control over trading parameters while maintaining admin trade broadcast functionality
+
 ### Enhanced Realistic Sniper Mode Implementation (June 27, 2025)
 - **Upgraded sniper functionality with professional-grade realism** to eliminate user doubts and enhance authenticity
 - **Advanced technical details**: Added real Solana trading parameters including gas prices, MEV protection, Jito bundles, and network congestion metrics

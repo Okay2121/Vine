@@ -330,3 +330,120 @@ class DailySnapshot(db.Model):
     
     def __repr__(self):
         return f'<DailySnapshot {self.date} - User {self.user_id}>'
+
+
+class AutoTradingSettings(db.Model):
+    """User auto trading configuration and preferences"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    
+    # Auto Trading Status
+    is_enabled = db.Column(db.Boolean, default=True)
+    admin_signals_enabled = db.Column(db.Boolean, default=True)  # Always follow admin broadcasts
+    
+    # Risk Management Settings
+    position_size_percentage = db.Column(db.Float, default=10.0)  # % of balance per trade (5-25%)
+    stop_loss_percentage = db.Column(db.Float, default=15.0)  # Stop loss % (5-50%)
+    take_profit_percentage = db.Column(db.Float, default=100.0)  # Take profit % (20-500%)
+    max_daily_trades = db.Column(db.Integer, default=5)  # Maximum trades per day (1-10)
+    max_simultaneous_positions = db.Column(db.Integer, default=3)  # Max open positions (1-8)
+    
+    # Balance Allocation
+    auto_trading_balance_percentage = db.Column(db.Float, default=50.0)  # % of total balance to use (20-80%)
+    reserve_balance_sol = db.Column(db.Float, default=0.1)  # SOL to keep as reserve
+    
+    # Signal Sources (Secondary - Admin signals are always enabled)
+    pump_fun_launches = db.Column(db.Boolean, default=True)
+    whale_movements = db.Column(db.Boolean, default=True) 
+    social_sentiment = db.Column(db.Boolean, default=False)
+    dex_volume_spikes = db.Column(db.Boolean, default=False)
+    
+    # Quality Filters
+    min_liquidity_sol = db.Column(db.Float, default=50.0)  # Minimum liquidity required
+    min_market_cap = db.Column(db.Integer, default=10000)  # Minimum market cap in USD
+    max_market_cap = db.Column(db.Integer, default=5000000)  # Maximum market cap in USD
+    min_volume_24h = db.Column(db.Integer, default=30000)  # Minimum 24h volume in USD
+    min_social_mentions = db.Column(db.Integer, default=100)  # Minimum social mentions per hour
+    
+    # Timing Controls
+    trading_hours_enabled = db.Column(db.Boolean, default=False)  # Enable time restrictions
+    trading_start_hour = db.Column(db.Integer, default=0)  # UTC hour to start trading (0-23)
+    trading_end_hour = db.Column(db.Integer, default=23)  # UTC hour to stop trading (0-23)
+    weekend_trading = db.Column(db.Boolean, default=True)  # Trade on weekends
+    pause_during_high_volatility = db.Column(db.Boolean, default=False)
+    
+    # Anti-FOMO Controls
+    min_time_between_trades_minutes = db.Column(db.Integer, default=10)  # Minimum time between trades
+    fomo_cooldown_minutes = db.Column(db.Integer, default=30)  # Cooldown after failed trades
+    enable_anti_rug_protection = db.Column(db.Boolean, default=True)
+    
+    # Advanced Settings
+    enable_portfolio_rebalancing = db.Column(db.Boolean, default=False)
+    enable_dynamic_position_sizing = db.Column(db.Boolean, default=True)
+    enable_trailing_stop_loss = db.Column(db.Boolean, default=False)
+    trailing_stop_distance_percentage = db.Column(db.Float, default=5.0)
+    
+    # Performance Tracking
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_trade_at = db.Column(db.DateTime, nullable=True)
+    total_auto_trades = db.Column(db.Integer, default=0)
+    successful_auto_trades = db.Column(db.Integer, default=0)
+    
+    # Relationship to user  
+    user = db.relationship('User', backref='auto_trading_settings')
+    
+    def __repr__(self):
+        return f'<AutoTradingSettings User {self.user_id} - Enabled: {self.is_enabled}>'
+    
+    @property
+    def success_rate(self):
+        """Calculate auto trading success rate"""
+        if self.total_auto_trades == 0:
+            return 0
+        return (self.successful_auto_trades / self.total_auto_trades) * 100
+    
+    @property
+    def effective_trading_balance(self):
+        """Calculate effective trading balance based on settings"""
+        if not self.user:
+            return 0
+        available_balance = max(0, self.user.balance - self.reserve_balance_sol)
+        return available_balance * (self.auto_trading_balance_percentage / 100)
+    
+    @property
+    def max_position_size(self):
+        """Calculate maximum position size in SOL"""
+        return self.effective_trading_balance * (self.position_size_percentage / 100)
+    
+    def get_default_settings(self):
+        """Get recommended default settings based on user balance"""
+        if not self.user:
+            return {}
+            
+        balance = self.user.balance
+        
+        if balance < 1.0:  # Small balance - Conservative
+            return {
+                'position_size_percentage': 8.0,
+                'stop_loss_percentage': 20.0,
+                'take_profit_percentage': 80.0,
+                'max_daily_trades': 3,
+                'max_simultaneous_positions': 2
+            }
+        elif balance < 5.0:  # Medium balance - Moderate  
+            return {
+                'position_size_percentage': 12.0,
+                'stop_loss_percentage': 15.0,
+                'take_profit_percentage': 120.0,
+                'max_daily_trades': 5,
+                'max_simultaneous_positions': 3
+            }
+        else:  # Large balance - Aggressive
+            return {
+                'position_size_percentage': 15.0,
+                'stop_loss_percentage': 12.0,
+                'take_profit_percentage': 150.0,
+                'max_daily_trades': 8,
+                'max_simultaneous_positions': 5
+            }
