@@ -1907,10 +1907,6 @@ def dashboard_command(update, chat_id):
                     {"text": "👥 Referral", "callback_data": "referral"}
                 ],
                 [
-                    {"text": "🎯 Start Sniper", "callback_data": "start_sniper"},
-                    {"text": "⏹️ Stop Sniper", "callback_data": "stop_sniper"}
-                ],
-                [
                     {"text": "⚙️ Auto Trading", "callback_data": "auto_trading_settings"},
                     {"text": "📈 Sniper Stats", "callback_data": "sniper_stats"}
                 ],
@@ -1919,6 +1915,7 @@ def dashboard_command(update, chat_id):
                     {"text": "🛟 Customer Support", "callback_data": "support"}
                 ],
                 [
+                    {"text": "🎯 Start Sniper", "callback_data": "start_sniper"},
                     {"text": "❓ FAQ", "callback_data": "faqs"}
                 ]
             ])

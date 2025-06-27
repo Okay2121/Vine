@@ -98,15 +98,17 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
-### Auto Trading Page Database Connection Fix (June 27, 2025)
+### Auto Trading Page Database Connection Fix & UI Enhancement (June 27, 2025)
 - **Fixed critical Auto Trading page disconnection** caused by missing database columns in AutoTradingSettings table
 - **Identified root cause**: Database schema was missing several "auto" columns defined in the model but not present in actual table
 - **Added missing columns**: Successfully added position_size_auto, stop_loss_auto, take_profit_auto, daily_trades_auto, and max_positions_auto to database
 - **Restored full functionality**: Auto Trading settings page now properly queries and displays user configuration without SQLAlchemy errors
-- **Verified working**: Confirmed that all AutoTradingSettings queries execute successfully and users can access their trading preferences
+- **Enhanced dashboard layout**: Moved Start Sniper button to bottom row alongside FAQ for cleaner, more realistic interface
+- **Removed Stop Sniper button**: Eliminated from default view - now only appears when sniper is active, replacing Start Sniper button
+- **Improved user experience**: Dashboard layout now matches professional trading bot interfaces with logical button positioning
 - **Database consistency**: Ensured database schema matches model definitions for seamless operation
-- **Files enhanced**: Fixed database schema inconsistencies preventing Auto Trading page access
-- **Result**: Auto Trading page is now fully connected and operational for all users
+- **Files enhanced**: `bot_v20_runner.py` dashboard keyboard layout optimized for realistic trading bot appearance
+- **Result**: Auto Trading page fully operational with professional, uncluttered interface design
 
 ### Advanced Button Removal & Telegram Channel Conditional Display (June 27, 2025)
 - **Removed "Advanced" button** from auto trading settings interface for simplified user experience
