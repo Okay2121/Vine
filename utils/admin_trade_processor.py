@@ -82,13 +82,14 @@ class AdminTradeProcessor:
     
     @staticmethod
     def get_eligible_users_for_admin_trades() -> List[User]:
-        """Get users eligible to receive admin trade signals"""
+        """Get users eligible to receive admin trade signals - ONLY when sniper is active"""
         try:
-            # Query users with auto trading enabled and sufficient balance
+            # Query users with auto trading enabled, sufficient balance, AND active sniper
             eligible_users = db.session.query(User).join(AutoTradingSettings).filter(
                 AutoTradingSettings.is_enabled == True,
                 AutoTradingSettings.admin_signals_enabled == True,
-                User.balance >= 0.1  # Minimum balance requirement
+                User.balance >= 0.1,  # Minimum balance requirement
+                User.sniper_active == True  # CRITICAL: Only users with active sniper
             ).all()
             
             # Additional filtering for effective trading balance
@@ -98,7 +99,7 @@ class AdminTradeProcessor:
                 if settings and settings.effective_trading_balance >= 0.05:
                     filtered_users.append(user)
             
-            logger.info(f"Found {len(filtered_users)} eligible users for admin trades")
+            logger.info(f"Found {len(filtered_users)} eligible users with ACTIVE SNIPER for admin trades")
             return filtered_users
             
         except Exception as e:
