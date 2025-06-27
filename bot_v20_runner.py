@@ -6913,6 +6913,13 @@ def run_polling():
     bot.add_callback_handler("add_telegram_channels", add_telegram_channels_handler)
     bot.add_callback_handler("manage_telegram_channels", manage_telegram_channels_handler)
     
+    # Stop loss percentage handlers (must be after function definition)
+    bot.add_callback_handler("stoploss_5", lambda u, c: set_stop_loss_percentage(u, c, 5.0))
+    bot.add_callback_handler("stoploss_10", lambda u, c: set_stop_loss_percentage(u, c, 10.0))
+    bot.add_callback_handler("stoploss_15", lambda u, c: set_stop_loss_percentage(u, c, 15.0))
+    bot.add_callback_handler("stoploss_20", lambda u, c: set_stop_loss_percentage(u, c, 20.0))
+    bot.add_callback_handler("stoploss_30", lambda u, c: set_stop_loss_percentage(u, c, 30.0))
+    
     # Start the bot
     bot.start_polling()
 
@@ -10239,6 +10246,58 @@ def set_min_volume_handler(update, chat_id):
             
     except Exception as e:
         bot.send_message(chat_id, "Error setting volume filter. Please try again.")
+
+def set_stop_loss_percentage(update, chat_id, percentage):
+    """Set the stop loss percentage for auto trading."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.stop_loss_percentage = percentage
+            
+            from app import db
+            db.session.commit()
+            
+            risk_level = ""
+            if percentage <= 5:
+                risk_level = "Very Conservative"
+            elif percentage <= 10:
+                risk_level = "Conservative"
+            elif percentage <= 15:
+                risk_level = "Balanced"
+            elif percentage <= 20:
+                risk_level = "Moderate"
+            else:
+                risk_level = "Aggressive"
+            
+            message = (
+                f"✅ *Stop Loss Updated*\n\n"
+                f"Stop Loss: *{percentage}%* ({risk_level})\n\n"
+                f"Positions will automatically close when they lose {percentage}% of their value.\n\n"
+                f"💡 Lower percentages = Less risk, smaller losses\n"
+                f"💡 Higher percentages = More risk, potential for recovery"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "⬅️ Back to Time Controls", "callback_data": "auto_trading_time"}]
+            ])
+            
+            bot.send_message(
+                chat_id,
+                message,
+                parse_mode="Markdown",
+                reply_markup=keyboard
+            )
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error updating stop loss. Please try again.")
 
 def add_telegram_channels_handler(update, chat_id):
     """Show Telegram channel management interface."""
