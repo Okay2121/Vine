@@ -6785,6 +6785,24 @@ def run_polling():
     bot.add_callback_handler("liquidity_custom", handle_custom_liquidity_input)
     bot.add_callback_handler("mcap_custom", handle_custom_market_cap_input)
     bot.add_callback_handler("trading_pct_custom", handle_custom_trading_percentage_input)
+    
+    # Quick-select option handlers for predefined values
+    bot.add_callback_handler("liquidity_5", lambda u, c: set_liquidity_value(u, c, 5))
+    bot.add_callback_handler("liquidity_10", lambda u, c: set_liquidity_value(u, c, 10))
+    bot.add_callback_handler("liquidity_25", lambda u, c: set_liquidity_value(u, c, 25))
+    bot.add_callback_handler("liquidity_50", lambda u, c: set_liquidity_value(u, c, 50))
+    bot.add_callback_handler("liquidity_100", lambda u, c: set_liquidity_value(u, c, 100))
+    
+    bot.add_callback_handler("mcap_micro", lambda u, c: set_market_cap_range(u, c, 1000, 100000))
+    bot.add_callback_handler("mcap_small", lambda u, c: set_market_cap_range(u, c, 10000, 500000))
+    bot.add_callback_handler("mcap_medium", lambda u, c: set_market_cap_range(u, c, 50000, 1000000))
+    bot.add_callback_handler("mcap_large", lambda u, c: set_market_cap_range(u, c, 100000, 5000000))
+    bot.add_callback_handler("mcap_mega", lambda u, c: set_market_cap_range(u, c, 500000, 10000000))
+    
+    bot.add_callback_handler("trading_pct_25", lambda u, c: set_trading_percentage(u, c, 25.0))
+    bot.add_callback_handler("trading_pct_50", lambda u, c: set_trading_percentage(u, c, 50.0))
+    bot.add_callback_handler("trading_pct_75", lambda u, c: set_trading_percentage(u, c, 75.0))
+    bot.add_callback_handler("trading_pct_90", lambda u, c: set_trading_percentage(u, c, 90.0))
 # Admin panel handlers
     bot.add_callback_handler("admin_user_management", admin_user_management_handler)
     bot.add_callback_handler("admin_wallet_settings", admin_wallet_settings_handler)
@@ -10799,6 +10817,102 @@ def process_custom_user_input(update, chat_id, text):
     except Exception as e:
         bot.send_message(chat_id, "Error processing your input. Please try again.")
         return False
+
+def set_liquidity_value(update, callback_data, value):
+    """Set liquidity value from quick-select button"""
+    try:
+        user_id = str(update['callback_query']['from']['id'])
+        message_id = update['callback_query']['message']['message_id']
+        chat_id = update['callback_query']['message']['chat']['id']
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=user_id).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.min_liquidity_sol = value
+            db.session.commit()
+            
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=f"✅ Minimum liquidity set to {value} SOL!\n\nTokens will be filtered to only those with at least {value} SOL in liquidity pools.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting liquidity value: {e}")
+
+def set_market_cap_range(update, callback_data, min_cap, max_cap):
+    """Set market cap range from quick-select button"""
+    try:
+        user_id = str(update['callback_query']['from']['id'])
+        message_id = update['callback_query']['message']['message_id']
+        chat_id = update['callback_query']['message']['chat']['id']
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=user_id).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.min_market_cap = min_cap
+            settings.max_market_cap = max_cap
+            db.session.commit()
+            
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=f"✅ Market cap range set to ${min_cap:,} - ${max_cap:,}!\n\nWill target tokens within this market capitalization range.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting market cap range: {e}")
+
+def set_trading_percentage(update, callback_data, percentage):
+    """Set trading percentage from quick-select button"""
+    try:
+        user_id = str(update['callback_query']['from']['id'])
+        message_id = update['callback_query']['message']['message_id']
+        chat_id = update['callback_query']['message']['chat']['id']
+        
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=user_id).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.auto_trading_balance_percentage = percentage
+            db.session.commit()
+            
+            impact_amount = (user.balance * percentage) / 100
+            
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=f"✅ Trading percentage set to {percentage}%!\n\nWith your current balance of {user.balance:.4f} SOL, each trade will use up to {impact_amount:.4f} SOL.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Balance", "callback_data": "auto_trading_balance"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting trading percentage: {e}")
 
 def auto_trading_risk_handler(update, chat_id):
     """Handle the risk settings configuration."""
