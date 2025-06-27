@@ -528,3 +528,9 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+### Platform Positioning (June 27, 2025)
+- **MEV Bot Classification**: Platform should be positioned as a professional MEV/arbitrage bot rather than basic trading bot
+- **Target Audience**: Experienced memecoin traders who understand MEV, front-running protection, and institutional-grade execution
+- **Trust Requirements**: Users expect MEV-level sophistication including Jito bundle verification, sub-100ms execution, private mempool access, and whale wallet tracking
+- **Technical Expectations**: Advanced features like arbitrage detection, sandwich attack protection, gas optimization, and professional risk management algorithms
