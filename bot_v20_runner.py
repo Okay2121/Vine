@@ -6791,8 +6791,44 @@ def run_polling():
     
     # Position size setting handlers
     bot.add_callback_handler("set_position_size", set_position_size_handler)
-    bot.add_callback_handler("set_pos_size_8", lambda u, c: set_pos_size_quick_handler(u, c, 8.0))
-    bot.add_callback_handler("set_pos_size_12", lambda u, c: set_pos_size_quick_handler(u, c, 12.0))
+    bot.add_callback_handler("set_pos_size_auto", set_pos_size_auto_handler)
+    bot.add_callback_handler("set_pos_size_8", lambda update, chat_id: set_pos_size_value_handler(update, chat_id, 8))
+    bot.add_callback_handler("set_pos_size_12", lambda update, chat_id: set_pos_size_value_handler(update, chat_id, 12))
+    bot.add_callback_handler("set_pos_size_15", lambda update, chat_id: set_pos_size_value_handler(update, chat_id, 15))
+    bot.add_callback_handler("set_pos_size_20", lambda update, chat_id: set_pos_size_value_handler(update, chat_id, 20))
+    bot.add_callback_handler("set_pos_size_custom", set_pos_size_custom_handler)
+    
+    # Stop Loss setting handlers with Auto option
+    bot.add_callback_handler("set_stop_loss", set_stop_loss_handler)
+    bot.add_callback_handler("set_stop_loss_auto", set_stop_loss_auto_handler)
+    bot.add_callback_handler("set_stop_loss_5", lambda update, chat_id: set_stop_loss_value_handler(update, chat_id, 5))
+    bot.add_callback_handler("set_stop_loss_10", lambda update, chat_id: set_stop_loss_value_handler(update, chat_id, 10))
+    bot.add_callback_handler("set_stop_loss_15", lambda update, chat_id: set_stop_loss_value_handler(update, chat_id, 15))
+    bot.add_callback_handler("set_stop_loss_20", lambda update, chat_id: set_stop_loss_value_handler(update, chat_id, 20))
+    
+    # Take Profit setting handlers with Auto option
+    bot.add_callback_handler("set_take_profit", set_take_profit_handler)
+    bot.add_callback_handler("set_take_profit_auto", set_take_profit_auto_handler)
+    bot.add_callback_handler("set_take_profit_50", lambda update, chat_id: set_take_profit_value_handler(update, chat_id, 50))
+    bot.add_callback_handler("set_take_profit_100", lambda update, chat_id: set_take_profit_value_handler(update, chat_id, 100))
+    bot.add_callback_handler("set_take_profit_200", lambda update, chat_id: set_take_profit_value_handler(update, chat_id, 200))
+    bot.add_callback_handler("set_take_profit_300", lambda update, chat_id: set_take_profit_value_handler(update, chat_id, 300))
+    
+    # Daily Trades setting handlers with Auto option
+    bot.add_callback_handler("set_daily_trades", set_daily_trades_handler)
+    bot.add_callback_handler("set_daily_trades_auto", set_daily_trades_auto_handler)
+    bot.add_callback_handler("set_daily_trades_3", lambda update, chat_id: set_daily_trades_value_handler(update, chat_id, 3))
+    bot.add_callback_handler("set_daily_trades_5", lambda update, chat_id: set_daily_trades_value_handler(update, chat_id, 5))
+    bot.add_callback_handler("set_daily_trades_8", lambda update, chat_id: set_daily_trades_value_handler(update, chat_id, 8))
+    bot.add_callback_handler("set_daily_trades_10", lambda update, chat_id: set_daily_trades_value_handler(update, chat_id, 10))
+    
+    # Max Positions setting handlers with Auto option
+    bot.add_callback_handler("set_max_positions", set_max_positions_handler)
+    bot.add_callback_handler("set_max_positions_auto", set_max_positions_auto_handler)
+    bot.add_callback_handler("set_max_positions_2", lambda update, chat_id: set_max_positions_value_handler(update, chat_id, 2))
+    bot.add_callback_handler("set_max_positions_3", lambda update, chat_id: set_max_positions_value_handler(update, chat_id, 3))
+    bot.add_callback_handler("set_max_positions_5", lambda update, chat_id: set_max_positions_value_handler(update, chat_id, 5))
+    bot.add_callback_handler("set_max_positions_8", lambda update, chat_id: set_max_positions_value_handler(update, chat_id, 8))
     bot.add_callback_handler("set_pos_size_15", lambda u, c: set_pos_size_quick_handler(u, c, 15.0))
     
     # Preset handlers
@@ -11727,7 +11763,7 @@ def auto_trading_stats_handler(update, chat_id):
         bot.send_message(chat_id, f"Error loading statistics: {str(e)}")
 
 def set_position_size_handler(update, chat_id):
-    """Handle setting position size percentage."""
+    """Handle setting position size percentage with Auto option."""
     try:
         with app.app_context():
             from models import User
@@ -11740,30 +11776,40 @@ def set_position_size_handler(update, chat_id):
             
             settings = AutoTradingManager.get_or_create_settings(user.id)
             
+            # Check if user has Auto mode enabled
+            auto_status = "🤖 Auto (Use Broadcast Values)" if getattr(settings, 'position_size_auto', False) else f"{settings.position_size_percentage:.1f}% (Custom)"
+            
             message = (
                 "📈 *SET POSITION SIZE*\n\n"
-                f"*Current:* {settings.position_size_percentage:.1f}% per trade\n"
+                f"*Current Mode:* {auto_status}\n"
                 f"*Your Balance:* {user.balance:.4f} SOL\n"
                 f"*Current Max Trade:* {settings.max_position_size:.4f} SOL\n\n"
+                
+                "🤖 *Auto Mode:* Uses position sizes from admin broadcast trades\n"
+                "⚙️ *Custom Mode:* Set your own fixed percentage\n\n"
                 
                 "💡 *Position Size Guidelines:*\n"
                 "• 5-10%: Conservative (safer, smaller gains)\n"
                 "• 10-15%: Moderate (balanced approach)\n"
                 "• 15-25%: Aggressive (higher risk/reward)\n\n"
                 
-                "⚠️ *Balance Requirements:*\n"
-                f"• 10% = Need at least {0.1 / 0.1:.1f} SOL balance\n"
-                f"• 15% = Need at least {0.1 / 0.15:.1f} SOL balance\n"
-                f"• 20% = Need at least {0.1 / 0.2:.1f} SOL balance\n\n"
-                
-                "Please enter your desired position size percentage (5-25):"
+                "Choose your preferred mode:"
             )
             
             keyboard = bot.create_inline_keyboard([
                 [
-                    {"text": "8%", "callback_data": "set_pos_size_8"},
-                    {"text": "12%", "callback_data": "set_pos_size_12"},
-                    {"text": "15%", "callback_data": "set_pos_size_15"}
+                    {"text": "🤖 Auto (Broadcast)", "callback_data": "set_pos_size_auto"}
+                ],
+                [
+                    {"text": "8% (Conservative)", "callback_data": "set_pos_size_8"},
+                    {"text": "12% (Moderate)", "callback_data": "set_pos_size_12"}
+                ],
+                [
+                    {"text": "15% (Balanced)", "callback_data": "set_pos_size_15"},
+                    {"text": "20% (Aggressive)", "callback_data": "set_pos_size_20"}
+                ],
+                [
+                    {"text": "💡 Enter Custom %", "callback_data": "set_pos_size_custom"}
                 ],
                 [
                     {"text": "🔙 Back", "callback_data": "auto_trading_risk"}
@@ -11772,11 +11818,474 @@ def set_position_size_handler(update, chat_id):
             
             bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
             
-            # Add listener for text input
-            bot.add_message_listener(chat_id, 'position_size', position_size_input_handler)
-            
     except Exception as e:
         bot.send_message(chat_id, f"Error: {str(e)}")
+
+def set_pos_size_auto_handler(update, chat_id):
+    """Enable Auto mode for position size."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.position_size_auto = True
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                "✅ *Position Size Set to Auto Mode*\n\n"
+                "Your position sizes will now automatically match the values from admin broadcast trades. "
+                "This ensures you get the optimal position size for each trade opportunity.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Position Size", "callback_data": "set_position_size"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting position size auto: {e}")
+
+def set_pos_size_value_handler(update, chat_id, percentage):
+    """Set a specific position size percentage."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.position_size_percentage = percentage
+            settings.position_size_auto = False  # Disable auto mode
+            db.session.commit()
+            
+            trade_amount = (user.balance * percentage) / 100
+            
+            bot.send_message(
+                chat_id,
+                f"✅ *Position Size Set to {percentage}%*\n\n"
+                f"Each trade will use up to {trade_amount:.4f} SOL from your current balance of {user.balance:.4f} SOL.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Position Size", "callback_data": "set_position_size"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting position size value: {e}")
+
+def set_pos_size_custom_handler(update, chat_id):
+    """Handle custom position size input."""
+    try:
+        bot.send_message(
+            chat_id,
+            "💡 *Enter Custom Position Size*\n\n"
+            "Please enter your desired position size percentage (5-25%):\n"
+            "Example: 12.5\n\n"
+            "This will be the percentage of your balance used per trade.",
+            parse_mode="Markdown",
+            reply_markup=bot.create_inline_keyboard([
+                [{"text": "❌ Cancel", "callback_data": "set_position_size"}]
+            ])
+        )
+        
+    except Exception as e:
+        logging.error(f"Error in custom position size handler: {e}")
+
+def set_stop_loss_handler(update, chat_id):
+    """Handle setting stop loss percentage with Auto option."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            auto_status = "🤖 Auto (Broadcast Values)" if getattr(settings, 'stop_loss_auto', False) else f"{settings.stop_loss_percentage:.1f}% (Custom)"
+            
+            message = (
+                "🛡️ *SET STOP LOSS*\n\n"
+                f"*Current Mode:* {auto_status}\n\n"
+                "🤖 *Auto Mode:* Uses stop loss levels from admin broadcasts\n"
+                "⚙️ *Custom Mode:* Set your own fixed stop loss\n\n"
+                "Choose your preferred mode:"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🤖 Auto (Broadcast)", "callback_data": "set_stop_loss_auto"}],
+                [
+                    {"text": "5% (Tight)", "callback_data": "set_stop_loss_5"},
+                    {"text": "10% (Moderate)", "callback_data": "set_stop_loss_10"}
+                ],
+                [
+                    {"text": "15% (Balanced)", "callback_data": "set_stop_loss_15"},
+                    {"text": "20% (Wide)", "callback_data": "set_stop_loss_20"}
+                ],
+                [{"text": "⬅️ Back to Risk Settings", "callback_data": "auto_trading_risk"}]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        logging.error(f"Error in set_stop_loss_handler: {e}")
+
+def set_stop_loss_auto_handler(update, chat_id):
+    """Enable Auto mode for stop loss."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.stop_loss_auto = True
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                "✅ *Stop Loss Set to Auto Mode*\n\n"
+                "Your stop loss levels will now automatically match the values from admin broadcast trades.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Stop Loss", "callback_data": "set_stop_loss"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting stop loss auto: {e}")
+
+def set_stop_loss_value_handler(update, chat_id, percentage):
+    """Set a specific stop loss percentage."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.stop_loss_percentage = percentage
+            settings.stop_loss_auto = False
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                f"✅ *Stop Loss Set to {percentage}%*\n\n"
+                "Your trades will automatically exit if they lose more than this percentage.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Stop Loss", "callback_data": "set_stop_loss"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting stop loss value: {e}")
+
+def set_take_profit_handler(update, chat_id):
+    """Handle setting take profit percentage with Auto option."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            auto_status = "🤖 Auto (Broadcast Values)" if getattr(settings, 'take_profit_auto', False) else f"{settings.take_profit_percentage:.1f}% (Custom)"
+            
+            message = (
+                "🎯 *SET TAKE PROFIT*\n\n"
+                f"*Current Mode:* {auto_status}\n\n"
+                "🤖 *Auto Mode:* Uses take profit levels from admin broadcasts\n"
+                "⚙️ *Custom Mode:* Set your own fixed take profit\n\n"
+                "Choose your preferred mode:"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🤖 Auto (Broadcast)", "callback_data": "set_take_profit_auto"}],
+                [
+                    {"text": "50% (Conservative)", "callback_data": "set_take_profit_50"},
+                    {"text": "100% (2x)", "callback_data": "set_take_profit_100"}
+                ],
+                [
+                    {"text": "200% (3x)", "callback_data": "set_take_profit_200"},
+                    {"text": "300% (4x)", "callback_data": "set_take_profit_300"}
+                ],
+                [{"text": "⬅️ Back to Risk Settings", "callback_data": "auto_trading_risk"}]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        logging.error(f"Error in set_take_profit_handler: {e}")
+
+def set_take_profit_auto_handler(update, chat_id):
+    """Enable Auto mode for take profit."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.take_profit_auto = True
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                "✅ *Take Profit Set to Auto Mode*\n\n"
+                "Your take profit levels will now automatically match the values from admin broadcast trades.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Take Profit", "callback_data": "set_take_profit"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting take profit auto: {e}")
+
+def set_take_profit_value_handler(update, chat_id, percentage):
+    """Set a specific take profit percentage."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.take_profit_percentage = percentage
+            settings.take_profit_auto = False
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                f"✅ *Take Profit Set to {percentage}%*\n\n"
+                "Your trades will automatically exit when they reach this profit level.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Take Profit", "callback_data": "set_take_profit"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting take profit value: {e}")
+
+def set_daily_trades_handler(update, chat_id):
+    """Handle setting daily trades limit with Auto option."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            auto_status = "🤖 Auto (Broadcast Frequency)" if getattr(settings, 'daily_trades_auto', False) else f"{settings.max_daily_trades} trades (Custom)"
+            
+            message = (
+                "📊 *SET DAILY TRADES LIMIT*\n\n"
+                f"*Current Mode:* {auto_status}\n\n"
+                "🤖 *Auto Mode:* Follows the trade frequency from admin broadcasts\n"
+                "⚙️ *Custom Mode:* Set your own daily limit\n\n"
+                "Choose your preferred mode:"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🤖 Auto (Broadcast)", "callback_data": "set_daily_trades_auto"}],
+                [
+                    {"text": "3 Trades", "callback_data": "set_daily_trades_3"},
+                    {"text": "5 Trades", "callback_data": "set_daily_trades_5"}
+                ],
+                [
+                    {"text": "8 Trades", "callback_data": "set_daily_trades_8"},
+                    {"text": "10 Trades", "callback_data": "set_daily_trades_10"}
+                ],
+                [{"text": "⬅️ Back to Risk Settings", "callback_data": "auto_trading_risk"}]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        logging.error(f"Error in set_daily_trades_handler: {e}")
+
+def set_daily_trades_auto_handler(update, chat_id):
+    """Enable Auto mode for daily trades."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.daily_trades_auto = True
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                "✅ *Daily Trades Set to Auto Mode*\n\n"
+                "Your daily trade limit will now automatically match the frequency from admin broadcast trades.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Daily Trades", "callback_data": "set_daily_trades"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting daily trades auto: {e}")
+
+def set_daily_trades_value_handler(update, chat_id, count):
+    """Set a specific daily trades limit."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.max_daily_trades = count
+            settings.daily_trades_auto = False
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                f"✅ *Daily Trades Limit Set to {count}*\n\n"
+                "The bot will not execute more than this many trades per day.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Daily Trades", "callback_data": "set_daily_trades"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting daily trades value: {e}")
+
+def set_max_positions_handler(update, chat_id):
+    """Handle setting maximum positions with Auto option."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            auto_status = "🤖 Auto (Broadcast Limits)" if getattr(settings, 'max_positions_auto', False) else f"{settings.max_simultaneous_positions} positions (Custom)"
+            
+            message = (
+                "🔢 *SET MAX SIMULTANEOUS POSITIONS*\n\n"
+                f"*Current Mode:* {auto_status}\n\n"
+                "🤖 *Auto Mode:* Uses position limits from admin broadcasts\n"
+                "⚙️ *Custom Mode:* Set your own maximum positions\n\n"
+                "Choose your preferred mode:"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [{"text": "🤖 Auto (Broadcast)", "callback_data": "set_max_positions_auto"}],
+                [
+                    {"text": "2 Positions", "callback_data": "set_max_positions_2"},
+                    {"text": "3 Positions", "callback_data": "set_max_positions_3"}
+                ],
+                [
+                    {"text": "5 Positions", "callback_data": "set_max_positions_5"},
+                    {"text": "8 Positions", "callback_data": "set_max_positions_8"}
+                ],
+                [{"text": "⬅️ Back to Risk Settings", "callback_data": "auto_trading_risk"}]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        logging.error(f"Error in set_max_positions_handler: {e}")
+
+def set_max_positions_auto_handler(update, chat_id):
+    """Enable Auto mode for max positions."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.max_positions_auto = True
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                "✅ *Max Positions Set to Auto Mode*\n\n"
+                "Your maximum simultaneous positions will now automatically match the limits from admin broadcast trades.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Max Positions", "callback_data": "set_max_positions"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting max positions auto: {e}")
+
+def set_max_positions_value_handler(update, chat_id, count):
+    """Set a specific maximum positions limit."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.max_simultaneous_positions = count
+            settings.max_positions_auto = False
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id,
+                f"✅ *Max Positions Set to {count}*\n\n"
+                "The bot will not hold more than this many positions at the same time.",
+                parse_mode="Markdown",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Max Positions", "callback_data": "set_max_positions"}]
+                ])
+            )
+            
+    except Exception as e:
+        logging.error(f"Error setting max positions value: {e}")
 
 def position_size_input_handler(update, chat_id, text):
     """Handle position size text input."""

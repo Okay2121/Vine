@@ -348,6 +348,13 @@ class AutoTradingSettings(db.Model):
     max_daily_trades = db.Column(db.Integer, default=5)  # Maximum trades per day (1-10)
     max_simultaneous_positions = db.Column(db.Integer, default=3)  # Max open positions (1-8)
     
+    # Auto Mode Settings - Use broadcast values instead of fixed values
+    position_size_auto = db.Column(db.Boolean, default=True)  # Use broadcast position sizes
+    stop_loss_auto = db.Column(db.Boolean, default=True)  # Use broadcast stop loss values
+    take_profit_auto = db.Column(db.Boolean, default=True)  # Use broadcast take profit values
+    daily_trades_auto = db.Column(db.Boolean, default=True)  # Use broadcast trade frequency
+    max_positions_auto = db.Column(db.Boolean, default=True)  # Use broadcast position limits
+    
     # Balance Allocation
     auto_trading_balance_percentage = db.Column(db.Float, default=50.0)  # % of total balance to use (20-80%)
     reserve_balance_sol = db.Column(db.Float, default=0.1)  # SOL to keep as reserve
