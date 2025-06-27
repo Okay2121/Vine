@@ -6706,11 +6706,7 @@ def run_polling():
     bot.add_callback_handler("stop_sniper", stop_sniper_handler)
     bot.add_callback_handler("sniper_stats", sniper_stats_handler)
     
-    # Auto trading specific buttons
-    bot.add_callback_handler("auto_trading_settings", auto_trading_settings_handler)
-    bot.add_callback_handler("auto_trading_risk", auto_trading_risk_handler)
-    bot.add_callback_handler("auto_trading_signals", auto_trading_signals_handler)
-    bot.add_callback_handler("auto_trading_performance", auto_trading_performance_handler)
+    # Auto trading specific buttons (main registrations are below)
     bot.add_callback_handler("toggle_auto_trading", toggle_auto_trading_handler)
     
     # Support-specific buttons
