@@ -309,14 +309,14 @@ class SimpleTelegramBot:
             return {"ok": False, "error": str(e)}
     
     def get_updates(self):
-        """Get updates from Telegram API with production optimization for 500+ users."""
+        """Get updates from Telegram API with aggressive duplicate prevention."""
         try:
             response = requests.get(
                 f"{self.api_url}/getUpdates",
                 params={
                     'offset': self.offset,
                     'timeout': 30,  # Optimized long polling
-                    'limit': 100,
+                    'limit': 50,   # Reduced limit for better control
                     'allowed_updates': ['message', 'callback_query']  # Only needed types
                 },
                 timeout=35  # 5 seconds read latency
@@ -344,9 +344,14 @@ class SimpleTelegramBot:
             updates = data.get('result', [])
             
             if updates:
-                # Update offset to acknowledge received updates
-                self.offset = updates[-1]['update_id'] + 1
-                logger.debug(f"Received {len(updates)} updates, new offset: {self.offset}")
+                # Immediately update offset to acknowledge ALL received updates
+                last_update_id = updates[-1]['update_id']
+                self.offset = last_update_id + 1
+                
+                # Immediately confirm these updates are processed
+                requests.get(f"{self.api_url}/getUpdates?offset={self.offset}&limit=1")
+                
+                logger.debug(f"Received {len(updates)} updates, confirmed offset: {self.offset}")
             
             return updates
             
@@ -724,13 +729,12 @@ class SimpleTelegramBot:
             logger.error(f"Error processing update: {e}")
     
     def start_polling(self):
-        """Start polling for updates."""
+        """Start polling for updates with aggressive duplicate elimination."""
         self.running = True
         logger.info("Starting polling for updates")
         
-        # Reset offset to start fresh
-        self.offset = 0
-        self._processed_messages.clear()
+        # Clear pending updates to start completely fresh
+        self.clear_pending_updates()
         
         while self.running:
             try:
@@ -738,16 +742,27 @@ class SimpleTelegramBot:
                 if updates:
                     logger.info(f"Processing {len(updates)} updates")
                     for update in updates:
-                        logger.debug(f"Processing update: {update}")
+                        update_id = update.get('update_id')
+                        logger.info(f"Processing update {update_id}")
+                        
+                        # Process this update
                         self.process_update(update)
-                else:
-                    logger.debug("No updates received")
+                        
+                        # Immediately acknowledge this update to remove it from Telegram's queue
+                        # This prevents any possibility of redelivery
+                        requests.get(
+                            f"{self.api_url}/getUpdates?offset={update_id + 1}&limit=1&timeout=0"
+                        )
+                        
+                        # Update our local offset
+                        self.offset = max(self.offset, update_id + 1)
+                        
             except Exception as e:
                 logger.error(f"Error in polling loop: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
             
-            time.sleep(0.5)  # Faster polling
+            time.sleep(0.3)  # Reduced polling interval
     
     def start(self):
         """Start the bot in a separate thread."""
