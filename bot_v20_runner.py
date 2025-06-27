@@ -10011,7 +10011,7 @@ def auto_trading_time_handler(update, chat_id):
                 f"• *Max Daily Trades:* {settings.max_daily_trades} trades/day\n"
                 f"• *Max Simultaneous Positions:* {settings.max_simultaneous_positions} positions\n"
                 f"• *Trading Hours:* 24/7 (Always Active)\n"
-                f"• *Cool-down Period:* {settings.cool_down_minutes} minutes between trades\n\n"
+                f"• *Cool-down Period:* {settings.fomo_cooldown_minutes} minutes between trades\n\n"
                 
                 "⚡ *Performance Settings:*\n"
                 f"• *Stop Loss:* {settings.stop_loss_percentage:.1f}% (Auto-exit on losses)\n"
@@ -10027,7 +10027,7 @@ def auto_trading_time_handler(update, chat_id):
                     {"text": f"🔄 Max Positions ({settings.max_simultaneous_positions})", "callback_data": "set_max_positions"}
                 ],
                 [
-                    {"text": f"⏱️ Cool-down ({settings.cool_down_minutes}m)", "callback_data": "set_cooldown"},
+                    {"text": f"⏱️ Cool-down ({settings.fomo_cooldown_minutes}m)", "callback_data": "set_cooldown"},
                     {"text": f"🛑 Stop Loss ({settings.stop_loss_percentage:.1f}%)", "callback_data": "set_stop_loss"}
                 ],
                 [
@@ -10966,7 +10966,7 @@ def set_daily_trades(update, callback_data, trades):
                 return
             
             settings = AutoTradingManager.get_or_create_settings(user.id)
-            settings.daily_trade_limit = trades
+            settings.max_daily_trades = trades
             db.session.commit()
             
             bot.send_message(
