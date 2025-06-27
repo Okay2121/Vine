@@ -6758,6 +6758,24 @@ def run_polling():
     bot.add_callback_handler("preset_conservative", preset_conservative_handler)
     bot.add_callback_handler("preset_moderate", preset_moderate_handler)
     bot.add_callback_handler("preset_aggressive", preset_aggressive_handler)
+    
+    # Auto trading sub-setting handlers - now properly registering after function definitions
+    bot.add_callback_handler("set_min_liquidity", set_min_liquidity_handler)
+    bot.add_callback_handler("set_market_cap", set_market_cap_handler)
+    bot.add_callback_handler("set_min_volume", set_min_volume_handler)
+    bot.add_callback_handler("toggle_admin_signals", toggle_admin_signals_handler)
+    bot.add_callback_handler("toggle_pump_fun", toggle_pump_fun_handler)
+    bot.add_callback_handler("toggle_whale_signals", toggle_whale_signals_handler)
+    bot.add_callback_handler("toggle_social", toggle_social_handler)
+    bot.add_callback_handler("set_trading_percentage", set_trading_percentage_handler)
+    bot.add_callback_handler("set_reserve_balance", set_reserve_balance_handler)
+    bot.add_callback_handler("set_daily_trades", set_daily_trades_handler)
+    bot.add_callback_handler("set_max_positions", set_max_positions_handler)
+    bot.add_callback_handler("set_cooldown", set_cooldown_handler)
+    bot.add_callback_handler("set_stop_loss", set_stop_loss_handler)
+    bot.add_callback_handler("set_take_profit", set_take_profit_handler)
+    bot.add_callback_handler("reset_time_settings", reset_time_settings_handler)
+    bot.add_callback_handler("configure_fomo_protection", configure_fomo_protection_handler)
 # Admin panel handlers
     bot.add_callback_handler("admin_user_management", admin_user_management_handler)
     bot.add_callback_handler("admin_wallet_settings", admin_wallet_settings_handler)
@@ -10026,6 +10044,549 @@ def auto_trading_anti_fomo_handler(update, chat_id):
         import logging
         logging.error(f"Error in auto_trading_anti_fomo_handler: {e}")
         bot.send_message(chat_id, f"Error loading anti-FOMO settings: {str(e)}")
+
+def set_min_liquidity_handler(update, chat_id):
+    """Handle setting minimum liquidity filter."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "💧 *SET MINIMUM LIQUIDITY*\n\n"
+                f"Current: {settings.min_liquidity_sol:.0f} SOL\n\n"
+                "Choose a minimum liquidity requirement for tokens:"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "5 SOL (Very High Risk)", "callback_data": "liquidity_5"},
+                    {"text": "10 SOL (High Risk)", "callback_data": "liquidity_10"}
+                ],
+                [
+                    {"text": "25 SOL (Medium Risk)", "callback_data": "liquidity_25"},
+                    {"text": "50 SOL (Low Risk)", "callback_data": "liquidity_50"}
+                ],
+                [
+                    {"text": "100 SOL (Conservative)", "callback_data": "liquidity_100"}
+                ],
+                [
+                    {"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting liquidity filter. Please try again.")
+
+def set_market_cap_handler(update, chat_id):
+    """Handle setting market cap range filter."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "📊 *SET MARKET CAP RANGE*\n\n"
+                f"Current: ${settings.min_market_cap:,} - ${settings.max_market_cap:,}\n\n"
+                "Choose your preferred market cap range:"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "$1K - $100K (Micro)", "callback_data": "mcap_micro"},
+                    {"text": "$10K - $500K (Small)", "callback_data": "mcap_small"}
+                ],
+                [
+                    {"text": "$50K - $1M (Medium)", "callback_data": "mcap_medium"},
+                    {"text": "$100K - $5M (Large)", "callback_data": "mcap_large"}
+                ],
+                [
+                    {"text": "$500K - $10M (Mega)", "callback_data": "mcap_mega"}
+                ],
+                [
+                    {"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting market cap filter. Please try again.")
+
+def set_min_volume_handler(update, chat_id):
+    """Handle setting minimum 24h volume filter."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "📈 *SET MINIMUM 24H VOLUME*\n\n"
+                f"Current: ${settings.min_volume_24h:,}\n\n"
+                "Choose minimum daily trading volume:"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "$1K (High Risk)", "callback_data": "volume_1k"},
+                    {"text": "$5K (Medium Risk)", "callback_data": "volume_5k"}
+                ],
+                [
+                    {"text": "$10K (Balanced)", "callback_data": "volume_10k"},
+                    {"text": "$25K (Conservative)", "callback_data": "volume_25k"}
+                ],
+                [
+                    {"text": "$50K+ (Very Safe)", "callback_data": "volume_50k"}
+                ],
+                [
+                    {"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting volume filter. Please try again.")
+
+def toggle_admin_signals_handler(update, chat_id):
+    """Toggle admin signals on/off."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.admin_signals_enabled = not settings.admin_signals_enabled
+            
+            from app import db
+            db.session.commit()
+            
+            status = "enabled" if settings.admin_signals_enabled else "disabled"
+            bot.send_message(
+                chat_id, 
+                f"Admin signals {status}! Returning to filters menu...",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
+                ])
+            )
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error toggling admin signals. Please try again.")
+
+def toggle_pump_fun_handler(update, chat_id):
+    """Toggle Pump.fun launches on/off."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.pump_fun_launches = not settings.pump_fun_launches
+            
+            from app import db
+            db.session.commit()
+            
+            status = "enabled" if settings.pump_fun_launches else "disabled"
+            bot.send_message(
+                chat_id, 
+                f"Pump.fun launch signals {status}! Returning to filters menu...",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
+                ])
+            )
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error toggling Pump.fun signals. Please try again.")
+
+def toggle_whale_signals_handler(update, chat_id):
+    """Toggle whale movement signals on/off."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.whale_movements = not settings.whale_movements
+            
+            from app import db
+            db.session.commit()
+            
+            status = "enabled" if settings.whale_movements else "disabled"
+            bot.send_message(
+                chat_id, 
+                f"Whale movement signals {status}! Returning to filters menu...",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
+                ])
+            )
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error toggling whale signals. Please try again.")
+
+def toggle_social_handler(update, chat_id):
+    """Toggle social sentiment signals on/off."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.social_sentiment = not settings.social_sentiment
+            
+            from app import db
+            db.session.commit()
+            
+            status = "enabled" if settings.social_sentiment else "disabled"
+            bot.send_message(
+                chat_id, 
+                f"Social sentiment signals {status}! Returning to filters menu...",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
+                ])
+            )
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error toggling social signals. Please try again.")
+
+def set_trading_percentage_handler(update, chat_id):
+    """Handle setting trading balance percentage."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "📊 *SET TRADING BALANCE PERCENTAGE*\n\n"
+                f"Current: {settings.auto_trading_balance_percentage:.0f}% of total balance\n"
+                f"Available: {user.balance:.4f} SOL\n\n"
+                "What percentage should be used for auto trading?"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "25% (Conservative)", "callback_data": "trading_pct_25"},
+                    {"text": "50% (Balanced)", "callback_data": "trading_pct_50"}
+                ],
+                [
+                    {"text": "75% (Aggressive)", "callback_data": "trading_pct_75"},
+                    {"text": "90% (Maximum)", "callback_data": "trading_pct_90"}
+                ],
+                [
+                    {"text": "⬅️ Back to Balance", "callback_data": "auto_trading_balance"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting trading percentage. Please try again.")
+
+def set_reserve_balance_handler(update, chat_id):
+    """Handle setting reserve balance."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "🛡️ *SET RESERVE BALANCE*\n\n"
+                f"Current: {settings.reserve_balance_sol:.2f} SOL\n"
+                f"Available: {user.balance:.4f} SOL\n\n"
+                "How much SOL should be kept as emergency reserve?"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "0.1 SOL (Minimal)", "callback_data": "reserve_01"},
+                    {"text": "0.25 SOL (Low)", "callback_data": "reserve_025"}
+                ],
+                [
+                    {"text": "0.5 SOL (Medium)", "callback_data": "reserve_05"},
+                    {"text": "1.0 SOL (High)", "callback_data": "reserve_10"}
+                ],
+                [
+                    {"text": "2.0 SOL (Maximum)", "callback_data": "reserve_20"}
+                ],
+                [
+                    {"text": "⬅️ Back to Balance", "callback_data": "auto_trading_balance"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting reserve balance. Please try again.")
+
+def set_daily_trades_handler(update, chat_id):
+    """Handle setting max daily trades."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "📅 *SET MAXIMUM DAILY TRADES*\n\n"
+                f"Current: {settings.max_daily_trades} trades per day\n\n"
+                "How many trades should be allowed per day?"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "1 trade (Conservative)", "callback_data": "daily_1"},
+                    {"text": "3 trades (Balanced)", "callback_data": "daily_3"}
+                ],
+                [
+                    {"text": "5 trades (Active)", "callback_data": "daily_5"},
+                    {"text": "8 trades (Aggressive)", "callback_data": "daily_8"}
+                ],
+                [
+                    {"text": "10 trades (Maximum)", "callback_data": "daily_10"}
+                ],
+                [
+                    {"text": "⬅️ Back to Time Settings", "callback_data": "auto_trading_time"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting daily trades. Please try again.")
+
+def set_max_positions_handler(update, chat_id):
+    """Handle setting max simultaneous positions."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "🔄 *SET MAXIMUM POSITIONS*\n\n"
+                f"Current: {settings.max_simultaneous_positions} positions\n\n"
+                "How many positions can be held simultaneously?"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "1 position (Focus)", "callback_data": "positions_1"},
+                    {"text": "2 positions (Safe)", "callback_data": "positions_2"}
+                ],
+                [
+                    {"text": "3 positions (Balanced)", "callback_data": "positions_3"},
+                    {"text": "5 positions (Active)", "callback_data": "positions_5"}
+                ],
+                [
+                    {"text": "8 positions (Maximum)", "callback_data": "positions_8"}
+                ],
+                [
+                    {"text": "⬅️ Back to Time Settings", "callback_data": "auto_trading_time"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting max positions. Please try again.")
+
+def set_cooldown_handler(update, chat_id):
+    """Handle setting cooldown period."""
+    try:
+        bot.send_message(
+            chat_id, 
+            "⏱️ Cooldown period is automatically managed based on market conditions and your risk settings.",
+            reply_markup=bot.create_inline_keyboard([
+                [{"text": "⬅️ Back to Time Settings", "callback_data": "auto_trading_time"}]
+            ])
+        )
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting cooldown. Please try again.")
+
+def set_stop_loss_handler(update, chat_id):
+    """Handle setting stop loss percentage."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "🛑 *SET STOP LOSS PERCENTAGE*\n\n"
+                f"Current: {settings.stop_loss_percentage:.1f}%\n\n"
+                "At what loss percentage should positions be automatically closed?"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "5% (Tight)", "callback_data": "stoploss_5"},
+                    {"text": "10% (Conservative)", "callback_data": "stoploss_10"}
+                ],
+                [
+                    {"text": "15% (Balanced)", "callback_data": "stoploss_15"},
+                    {"text": "20% (Loose)", "callback_data": "stoploss_20"}
+                ],
+                [
+                    {"text": "30% (Very Loose)", "callback_data": "stoploss_30"}
+                ],
+                [
+                    {"text": "⬅️ Back to Time Settings", "callback_data": "auto_trading_time"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting stop loss. Please try again.")
+
+def set_take_profit_handler(update, chat_id):
+    """Handle setting take profit percentage."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            message = (
+                "🎯 *SET TAKE PROFIT PERCENTAGE*\n\n"
+                f"Current: {settings.take_profit_percentage:.1f}%\n\n"
+                "At what profit percentage should positions be automatically closed?"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "25% (Quick)", "callback_data": "takeprofit_25"},
+                    {"text": "50% (Conservative)", "callback_data": "takeprofit_50"}
+                ],
+                [
+                    {"text": "75% (Balanced)", "callback_data": "takeprofit_75"},
+                    {"text": "100% (Aggressive)", "callback_data": "takeprofit_100"}
+                ],
+                [
+                    {"text": "200% (Moon)", "callback_data": "takeprofit_200"}
+                ],
+                [
+                    {"text": "⬅️ Back to Time Settings", "callback_data": "auto_trading_time"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, message, parse_mode="Markdown", reply_markup=keyboard)
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error setting take profit. Please try again.")
+
+def reset_time_settings_handler(update, chat_id):
+    """Reset time settings to defaults."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            
+            # Reset to moderate defaults
+            settings.max_daily_trades = 3
+            settings.max_simultaneous_positions = 2
+            settings.stop_loss_percentage = 15.0
+            settings.take_profit_percentage = 75.0
+            
+            from app import db
+            db.session.commit()
+            
+            bot.send_message(
+                chat_id, 
+                "🔄 Time settings reset to balanced defaults! Returning to time settings...",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Time Settings", "callback_data": "auto_trading_time"}]
+                ])
+            )
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error resetting settings. Please try again.")
+
+def configure_fomo_protection_handler(update, chat_id):
+    """Configure FOMO protection settings."""
+    try:
+        bot.send_message(
+            chat_id, 
+            "🛡️ FOMO protection is automatically managed based on your risk profile and market conditions. It cannot be manually configured.",
+            reply_markup=bot.create_inline_keyboard([
+                [{"text": "⬅️ Back to Anti-FOMO", "callback_data": "auto_trading_anti_fomo"}]
+            ])
+        )
+    except Exception as e:
+        bot.send_message(chat_id, "Error configuring FOMO protection. Please try again.")
 
 def auto_trading_risk_handler(update, chat_id):
     """Handle the risk settings configuration."""
