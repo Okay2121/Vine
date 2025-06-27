@@ -103,7 +103,7 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 - **Identified root cause**: Database schema was missing several "auto" columns defined in the model but not present in actual table
 - **Added missing columns**: Successfully added position_size_auto, stop_loss_auto, take_profit_auto, daily_trades_auto, and max_positions_auto to database
 - **Restored full functionality**: Auto Trading settings page now properly queries and displays user configuration without SQLAlchemy errors
-- **Enhanced dashboard layout**: Moved Start Sniper button to bottom row alongside FAQ for cleaner, more realistic interface
+- **Enhanced dashboard layout**: Moved Start Sniper button to standalone row for prominence, matching professional trading bot interfaces
 - **Removed Stop Sniper button**: Eliminated from default view - now only appears when sniper is active, replacing Start Sniper button
 - **Improved user experience**: Dashboard layout now matches professional trading bot interfaces with logical button positioning
 - **Database consistency**: Ensured database schema matches model definitions for seamless operation

@@ -1915,7 +1915,9 @@ def dashboard_command(update, chat_id):
                     {"text": "🛟 Customer Support", "callback_data": "support"}
                 ],
                 [
-                    {"text": "🎯 Start Sniper", "callback_data": "start_sniper"},
+                    {"text": "🎯 Start Sniper", "callback_data": "start_sniper"}
+                ],
+                [
                     {"text": "❓ FAQ", "callback_data": "faqs"}
                 ]
             ])
