@@ -10880,10 +10880,9 @@ def set_liquidity_value(update, callback_data, value):
             settings.min_liquidity_sol = value
             db.session.commit()
             
-            bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=f"✅ Minimum liquidity set to {value} SOL!\n\nTokens will be filtered to only those with at least {value} SOL in liquidity pools.",
+            bot.send_message(
+                chat_id,
+                f"✅ Minimum liquidity set to {value} SOL!\n\nTokens will be filtered to only those with at least {value} SOL in liquidity pools.",
                 reply_markup=bot.create_inline_keyboard([
                     [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
                 ])
@@ -10912,10 +10911,9 @@ def set_market_cap_range(update, callback_data, min_cap, max_cap):
             settings.max_market_cap = max_cap
             db.session.commit()
             
-            bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=f"✅ Market cap range set to ${min_cap:,} - ${max_cap:,}!\n\nWill target tokens within this market capitalization range.",
+            bot.send_message(
+                chat_id,
+                f"✅ Market cap range set to ${min_cap:,} - ${max_cap:,}!\n\nWill target tokens within this market capitalization range.",
                 reply_markup=bot.create_inline_keyboard([
                     [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
                 ])
@@ -10945,10 +10943,9 @@ def set_trading_percentage(update, callback_data, percentage):
             
             impact_amount = (user.balance * percentage) / 100
             
-            bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=f"✅ Trading percentage set to {percentage}%!\n\nWith your current balance of {user.balance:.4f} SOL, each trade will use up to {impact_amount:.4f} SOL.",
+            bot.send_message(
+                chat_id,
+                f"✅ Trading percentage set to {percentage}%!\n\nWith your current balance of {user.balance:.4f} SOL, each trade will use up to {impact_amount:.4f} SOL.",
                 reply_markup=bot.create_inline_keyboard([
                     [{"text": "⬅️ Back to Balance", "callback_data": "auto_trading_balance"}]
                 ])
