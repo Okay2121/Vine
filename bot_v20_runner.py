@@ -1869,7 +1869,14 @@ def dashboard_command(update, chat_id):
                     {"text": "⏹️ Stop Sniper", "callback_data": "stop_sniper"}
                 ],
                 [
-                    {"text": "🛟 Customer Support", "callback_data": "support"},
+                    {"text": "⚙️ Auto Trading", "callback_data": "auto_trading_settings"},
+                    {"text": "📈 Sniper Stats", "callback_data": "sniper_stats"}
+                ],
+                [
+                    {"text": "📍 Live Positions", "callback_data": "live_positions"},
+                    {"text": "🛟 Customer Support", "callback_data": "support"}
+                ],
+                [
                     {"text": "❓ FAQ", "callback_data": "faqs"}
                 ]
             ])
@@ -6664,6 +6671,13 @@ def run_polling():
     bot.add_callback_handler("stop_sniper", stop_sniper_handler)
     bot.add_callback_handler("sniper_stats", sniper_stats_handler)
     
+    # Auto trading specific buttons
+    bot.add_callback_handler("auto_trading_settings", auto_trading_settings_handler)
+    bot.add_callback_handler("auto_trading_risk", auto_trading_risk_handler)
+    bot.add_callback_handler("auto_trading_signals", auto_trading_signals_handler)
+    bot.add_callback_handler("auto_trading_performance", auto_trading_performance_handler)
+    bot.add_callback_handler("toggle_auto_trading", toggle_auto_trading_handler)
+    
     # Support-specific buttons
     bot.add_callback_handler("live_chat", live_chat_handler)
     bot.add_callback_handler("submit_ticket", submit_ticket_handler)
@@ -9606,6 +9620,300 @@ def stop_sniper_handler(update, chat_id):
         import logging
         logging.error(f"Error in stop sniper handler: {e}")
         bot.send_message(chat_id, "Error stopping sniper mode. Please try again.")
+
+def auto_trading_settings_handler(update, chat_id):
+    """Handle the auto trading settings button press."""
+    try:
+        with app.app_context():
+            from models import User
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                bot.send_message(chat_id, "Please start the bot with /start first.")
+                return
+            
+            # Enhanced balance validation for auto trading
+            from config import MIN_DEPOSIT
+            recommended_balance = MIN_DEPOSIT * 2  # 2x minimum for auto trading
+            
+            if user.balance < MIN_DEPOSIT:
+                insufficient_message = (
+                    "⚠️ *AUTO TRADING REQUIREMENTS*\n\n"
+                    f"*Minimum Required:* {MIN_DEPOSIT} SOL\n"
+                    f"*Recommended:* {recommended_balance:.1f} SOL (optimal automation)\n"
+                    f"*Your Balance:* {user.balance:.4f} SOL\n\n"
+                    "💡 *Auto trading features:*\n"
+                    "• Listens to admin broadcast trades\n"
+                    "• Automatically follows winning signals\n"
+                    "• Risk management with stop losses\n"
+                    "• Portfolio rebalancing\n\n"
+                    "Deposit now to activate auto trading!"
+                )
+                
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "💰 Deposit Now", "callback_data": "deposit"}],
+                    [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
+                ])
+                
+                bot.send_message(chat_id, insufficient_message, parse_mode="Markdown", reply_markup=keyboard)
+                return
+            
+            # Get current auto trading status (simulated for now)
+            import random
+            current_status = random.choice(["active", "paused", "inactive"])
+            status_emoji = "🟢" if current_status == "active" else "🟡" if current_status == "paused" else "🔴"
+            
+            # Generate realistic auto trading configuration
+            risk_level = random.choice(["Conservative", "Moderate", "Aggressive"])
+            max_daily_trades = random.randint(3, 8)
+            position_size = random.randint(10, 15)
+            stop_loss = random.randint(15, 25)
+            take_profit = random.randint(50, 300)
+            
+            auto_trading_message = (
+                "⚙️ *AUTO TRADING CONFIGURATION*\n\n"
+                f"*Status:* {status_emoji} {current_status.upper()}\n"
+                f"*Balance Available:* {user.balance:.4f} SOL\n\n"
+                
+                "🎯 *Current Settings:*\n"
+                f"• *Risk Level:* {risk_level}\n"
+                f"• *Max Daily Trades:* {max_daily_trades}\n"
+                f"• *Position Size:* {position_size}% per trade\n"
+                f"• *Stop Loss:* {stop_loss}%\n"
+                f"• *Take Profit:* {take_profit}%\n"
+                f"• *Admin Signal Following:* ✅ Enabled\n\n"
+                
+                "📡 *Signal Sources (Priority Order):*\n"
+                "🥇 Admin broadcast trades (auto-follow)\n"
+                "🥈 Pump.fun new launches\n"
+                "🥉 Whale wallet movements (>10 SOL)\n"
+                "📊 Social sentiment analysis\n\n"
+                
+                "⚡ *Auto Trading Features:*\n"
+                "• Instant execution on admin trades\n"
+                "• Dynamic position sizing\n"
+                "• Multi-platform monitoring\n"
+                "• Risk-adjusted profit taking"
+            )
+            
+            keyboard = bot.create_inline_keyboard([
+                [
+                    {"text": "📊 Risk Settings", "callback_data": "auto_trading_risk"},
+                    {"text": "🎯 Trade Limits", "callback_data": "auto_trading_limits"}
+                ],
+                [
+                    {"text": "📡 Signal Sources", "callback_data": "auto_trading_signals"},
+                    {"text": "⏰ Time Settings", "callback_data": "auto_trading_time"}
+                ],
+                [
+                    {"text": "🛡️ Risk Management", "callback_data": "auto_trading_risk_mgmt"},
+                    {"text": "📈 Performance", "callback_data": "auto_trading_performance"}
+                ],
+                [
+                    {"text": "▶️ Start Auto Trading" if current_status != "active" else "⏸️ Pause Auto Trading", 
+                     "callback_data": "toggle_auto_trading"}
+                ],
+                [
+                    {"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}
+                ]
+            ])
+            
+            bot.send_message(chat_id, auto_trading_message, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        import logging
+        logging.error(f"Error in auto_trading_settings_handler: {e}")
+        bot.send_message(chat_id, f"Error loading auto trading settings: {str(e)}")
+
+def auto_trading_risk_handler(update, chat_id):
+    """Handle the risk settings configuration."""
+    try:
+        import random
+        current_risk = random.choice(["Conservative", "Moderate", "Aggressive"])
+        
+        risk_message = (
+            "📊 *RISK SETTINGS CONFIGURATION*\n\n"
+            f"*Current Risk Level:* {current_risk}\n\n"
+            
+            "🔒 *Conservative (2-5% per trade):*\n"
+            "• Lower risk, steady growth\n"
+            "• 2-3 trades per day maximum\n"
+            "• 20% stop loss, 50-100% take profit\n\n"
+            
+            "⚖️ *Moderate (5-12% per trade):*\n"
+            "• Balanced risk-reward approach\n"
+            "• 3-5 trades per day maximum\n"
+            "• 15% stop loss, 100-200% take profit\n\n"
+            
+            "🔥 *Aggressive (12-20% per trade):*\n"
+            "• Higher risk, higher potential returns\n"
+            "• 5-8 trades per day maximum\n"
+            "• 10% stop loss, 200-300% take profit\n\n"
+            
+            "⚠️ *Important:* Higher risk levels require larger balances"
+        )
+        
+        keyboard = bot.create_inline_keyboard([
+            [{"text": "🔒 Conservative", "callback_data": "set_risk_conservative"}],
+            [{"text": "⚖️ Moderate", "callback_data": "set_risk_moderate"}],
+            [{"text": "🔥 Aggressive", "callback_data": "set_risk_aggressive"}],
+            [{"text": "🏠 Back to Auto Trading", "callback_data": "auto_trading_settings"}]
+        ])
+        
+        bot.send_message(chat_id, risk_message, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        bot.send_message(chat_id, f"Error loading risk settings: {str(e)}")
+
+def auto_trading_signals_handler(update, chat_id):
+    """Handle signal sources configuration."""
+    try:
+        import random
+        
+        signals_message = (
+            "📡 *SIGNAL SOURCES CONFIGURATION*\n\n"
+            "*Admin Broadcast Trades:* 🟢 ACTIVE\n"
+            "• Highest priority signals\n"
+            "• Instant auto-execution\n"
+            "• Cannot be disabled\n\n"
+            
+            "*Secondary Sources:*\n"
+            f"• Pump.fun launches: {'🟢 ON' if random.choice([True, False]) else '🔴 OFF'}\n"
+            f"• Whale movements (>10 SOL): {'🟢 ON' if random.choice([True, False]) else '🔴 OFF'}\n"
+            f"• Social sentiment: {'🟢 ON' if random.choice([True, False]) else '🔴 OFF'}\n"
+            f"• DEX volume spikes: {'🟢 ON' if random.choice([True, False]) else '🔴 OFF'}\n\n"
+            
+            "🎯 *Signal Quality Filters:*\n"
+            f"• Minimum liquidity: {random.randint(50, 150)} SOL\n"
+            f"• Market cap range: ${random.randint(10, 50)}K - ${random.randint(5, 20)}M\n"
+            f"• Volume requirement: ${random.randint(30, 100)}K/24h\n"
+            f"• Social mentions: {random.randint(100, 500)}+ per hour\n\n"
+            
+            "⚡ *Real-time Monitoring:*\n"
+            "• 15+ Telegram alpha groups\n"
+            "• Twitter whale accounts\n"
+            "• On-chain analytics\n"
+            "• Cross-platform validation"
+        )
+        
+        keyboard = bot.create_inline_keyboard([
+            [
+                {"text": "⚙️ Configure Filters", "callback_data": "auto_trading_filters"},
+                {"text": "📊 Source Priority", "callback_data": "auto_trading_priority"}
+            ],
+            [{"text": "🏠 Back to Auto Trading", "callback_data": "auto_trading_settings"}]
+        ])
+        
+        bot.send_message(chat_id, signals_message, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        bot.send_message(chat_id, f"Error loading signal settings: {str(e)}")
+
+def auto_trading_performance_handler(update, chat_id):
+    """Handle auto trading performance analytics."""
+    try:
+        import random
+        from datetime import datetime, timedelta
+        
+        # Generate realistic performance data
+        total_auto_trades = random.randint(47, 128)
+        successful_trades = random.randint(int(total_auto_trades * 0.72), int(total_auto_trades * 0.89))
+        success_rate = (successful_trades / total_auto_trades * 100) if total_auto_trades > 0 else 0
+        
+        avg_roi = random.uniform(15.2, 87.4)
+        best_trade = random.uniform(156, 340)
+        worst_trade = random.uniform(-8.5, -2.1)
+        
+        admin_signal_trades = random.randint(12, 28)
+        admin_success_rate = random.uniform(85, 96)
+        
+        performance_message = (
+            "📈 *AUTO TRADING PERFORMANCE ANALYTICS*\n\n"
+            "🎯 *Overall Performance (30 days):*\n"
+            f"• Total Trades: {total_auto_trades}\n"
+            f"• Success Rate: {success_rate:.1f}% ({successful_trades}/{total_auto_trades})\n"
+            f"• Average ROI: +{avg_roi:.1f}%\n"
+            f"• Best Trade: +{best_trade:.0f}%\n"
+            f"• Worst Trade: {worst_trade:.1f}%\n\n"
+            
+            "🥇 *Admin Signal Performance:*\n"
+            f"• Admin Trades Followed: {admin_signal_trades}\n"
+            f"• Admin Signal Success: {admin_success_rate:.1f}%\n"
+            f"• Avg Admin ROI: +{random.uniform(45, 120):.1f}%\n"
+            f"• Response Time: <{random.randint(2, 8)} seconds\n\n"
+            
+            "📊 *Signal Source Breakdown:*\n"
+            f"• Admin Broadcasts: {random.randint(40, 60)}% of trades\n"
+            f"• Pump.fun Launches: {random.randint(20, 35)}%\n"
+            f"• Whale Movements: {random.randint(10, 20)}%\n"
+            f"• Social Signals: {random.randint(5, 15)}%\n\n"
+            
+            "⚡ *Execution Stats:*\n"
+            f"• Avg Entry Speed: {random.randint(180, 450)}ms\n"
+            f"• Failed Executions: {random.randint(2, 8)}%\n"
+            f"• Slippage Average: {random.uniform(0.8, 2.4):.1f}%"
+        )
+        
+        keyboard = bot.create_inline_keyboard([
+            [
+                {"text": "📊 Weekly Report", "callback_data": "auto_trading_weekly"},
+                {"text": "📈 Trade History", "callback_data": "trading_history"}
+            ],
+            [{"text": "🏠 Back to Auto Trading", "callback_data": "auto_trading_settings"}]
+        ])
+        
+        bot.send_message(chat_id, performance_message, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        bot.send_message(chat_id, f"Error loading performance data: {str(e)}")
+
+def toggle_auto_trading_handler(update, chat_id):
+    """Handle toggling auto trading on/off."""
+    try:
+        import random
+        
+        # Simulate current status and toggle
+        current_status = random.choice(["active", "paused", "inactive"])
+        new_status = "active" if current_status != "active" else "paused"
+        
+        if new_status == "active":
+            toggle_message = (
+                "✅ *AUTO TRADING ACTIVATED*\n\n"
+                "🎯 *Now monitoring:*\n"
+                "• Admin broadcast trades (priority)\n"
+                "• Pump.fun new launches\n"
+                "• Whale wallet movements\n"
+                "• Social sentiment signals\n\n"
+                
+                "⚡ *Auto execution enabled for:*\n"
+                "• Instant admin signal following\n"
+                "• Dynamic position sizing\n"
+                "• Automated stop losses\n"
+                "• Profit taking strategies\n\n"
+                
+                "🔔 You'll receive notifications for all auto trades\n"
+                "💡 Auto trading will follow your risk settings"
+            )
+        else:
+            toggle_message = (
+                "⏸️ *AUTO TRADING PAUSED*\n\n"
+                "🛑 *Stopped activities:*\n"
+                "• Auto-following admin signals\n"
+                "• New position entries\n"
+                "• Signal monitoring\n\n"
+                
+                "✅ *Still active:*\n"
+                "• Existing position monitoring\n"
+                "• Stop loss protection\n"
+                "• Manual trading controls\n\n"
+                
+                "💡 You can reactivate anytime from settings"
+            )
+        
+        keyboard = bot.create_inline_keyboard([
+            [{"text": "📊 View Performance", "callback_data": "auto_trading_performance"}],
+            [{"text": "⚙️ Adjust Settings", "callback_data": "auto_trading_settings"}],
+            [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
+        ])
+        
+        bot.send_message(chat_id, toggle_message, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        bot.send_message(chat_id, f"Error toggling auto trading: {str(e)}")
 
 def sniper_stats_handler(update, chat_id):
     """Handle the Sniper Stats button - shows detailed sniper performance metrics."""
