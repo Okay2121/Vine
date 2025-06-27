@@ -6772,8 +6772,9 @@ def run_polling():
     bot.add_callback_handler("set_min_volume", set_min_volume_handler)
     bot.add_callback_handler("add_telegram_channels", add_telegram_channels_handler)
     bot.add_callback_handler("toggle_pump_fun", toggle_pump_fun_handler)
-    bot.add_callback_handler("toggle_whale_signals", toggle_whale_signals_handler)
+    bot.add_callback_handler("toggle_whales", toggle_whales_handler)
     bot.add_callback_handler("toggle_social", toggle_social_handler)
+    bot.add_callback_handler("toggle_volume", toggle_volume_handler)
     bot.add_callback_handler("set_trading_percentage", set_trading_percentage_handler)
     bot.add_callback_handler("set_reserve_balance", set_reserve_balance_handler)
     bot.add_callback_handler("set_daily_trades", set_daily_trades_handler)
@@ -10364,9 +10365,9 @@ def toggle_pump_fun_handler(update, chat_id):
             status = "enabled" if settings.pump_fun_launches else "disabled"
             bot.send_message(
                 chat_id, 
-                f"Pump.fun launch signals {status}! Returning to filters menu...",
+                f"🚀 Pump.fun launch signals {status}! Returning to signal sources...",
                 reply_markup=bot.create_inline_keyboard([
-                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
+                    [{"text": "⬅️ Back to Signal Sources", "callback_data": "auto_trading_signals"}]
                 ])
             )
             
@@ -10422,14 +10423,72 @@ def toggle_social_handler(update, chat_id):
             status = "enabled" if settings.social_sentiment else "disabled"
             bot.send_message(
                 chat_id, 
-                f"Social sentiment signals {status}! Returning to filters menu...",
+                f"📱 Social sentiment signals {status}! Returning to signal sources...",
                 reply_markup=bot.create_inline_keyboard([
-                    [{"text": "⬅️ Back to Filters", "callback_data": "auto_trading_filters"}]
+                    [{"text": "⬅️ Back to Signal Sources", "callback_data": "auto_trading_signals"}]
                 ])
             )
             
     except Exception as e:
         bot.send_message(chat_id, "Error toggling social signals. Please try again.")
+
+def toggle_whales_handler(update, chat_id):
+    """Toggle whale movements signals on/off."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.whale_movements = not settings.whale_movements
+            
+            from app import db
+            db.session.commit()
+            
+            status = "enabled" if settings.whale_movements else "disabled"
+            bot.send_message(
+                chat_id, 
+                f"🐋 Whale movements signals {status}! Returning to signal sources...",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Signal Sources", "callback_data": "auto_trading_signals"}]
+                ])
+            )
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error toggling whale signals. Please try again.")
+
+def toggle_volume_handler(update, chat_id):
+    """Toggle DEX volume spikes signals on/off."""
+    try:
+        with app.app_context():
+            from models import User
+            from utils.auto_trading_manager import AutoTradingManager
+            
+            user = User.query.filter_by(telegram_id=str(chat_id)).first()
+            if not user:
+                return
+            
+            settings = AutoTradingManager.get_or_create_settings(user.id)
+            settings.dex_volume_spikes = not settings.dex_volume_spikes
+            
+            from app import db
+            db.session.commit()
+            
+            status = "enabled" if settings.dex_volume_spikes else "disabled"
+            bot.send_message(
+                chat_id, 
+                f"📈 DEX volume spikes signals {status}! Returning to signal sources...",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "⬅️ Back to Signal Sources", "callback_data": "auto_trading_signals"}]
+                ])
+            )
+            
+    except Exception as e:
+        bot.send_message(chat_id, "Error toggling volume signals. Please try again.")
 
 def set_trading_percentage_handler(update, chat_id):
     """Handle setting trading balance percentage."""
@@ -11264,9 +11323,13 @@ def auto_trading_signals_handler(update, chat_id):
             social_enabled = settings.social_sentiment
             volume_enabled = settings.dex_volume_spikes
             
+            # Check if any signal source is enabled
+            any_signal_enabled = pump_fun_enabled or whale_enabled or social_enabled or volume_enabled
+            
             # Get user's custom channels count
             custom_channels_count = random.randint(2, 8)
             
+            # Build the signals message conditionally
             signals_message = (
                 "📡 *SIGNAL SOURCES & AUTOMATION*\n\n"
                 
@@ -11275,22 +11338,38 @@ def auto_trading_signals_handler(update, chat_id):
                 f"• Whale Movements: {'🟢' if whale_enabled else '🔴'}\n"
                 f"• Social Sentiment: {'🟢' if social_enabled else '🔴'}\n"
                 f"• DEX Volume Spikes: {'🟢' if volume_enabled else '🔴'}\n\n"
-                
-                "📱 *Telegram Channels:*\n"
-                f"• Active channels: {custom_channels_count} connected\n"
-                f"• Signal frequency: {random.randint(15, 45)} calls/day\n"
-                f"• Average response: {random.randint(180, 450)}ms\n\n"
-                
+            )
+            
+            # Only show Telegram Channels section if at least one signal source is enabled
+            if any_signal_enabled:
+                signals_message += (
+                    "📱 *Telegram Channels:*\n"
+                    f"• Active channels: {custom_channels_count} connected\n"
+                    f"• Signal frequency: {random.randint(15, 45)} calls/day\n"
+                    f"• Average response: {random.randint(180, 450)}ms\n\n"
+                )
+            
+            signals_message += (
                 "⚙️ *Risk Filters Active:*\n"
                 f"• Min Liquidity: {settings.min_liquidity_sol} SOL\n"
                 f"• Market Cap: ${settings.min_market_cap:,} - ${settings.max_market_cap:,}\n"
                 f"• Min 24h Volume: ${settings.min_volume_24h:,}\n\n"
-                
-                "📢 *Add Custom Signal Channels*\n"
-                "Connect your favorite alpha groups and trading channels for additional signals."
             )
             
-            keyboard = bot.create_inline_keyboard([
+            # Only show channel management text if signals are enabled
+            if any_signal_enabled:
+                signals_message += (
+                    "📢 *Add Custom Signal Channels*\n"
+                    "Connect your favorite alpha groups and trading channels for additional signals."
+                )
+            else:
+                signals_message += (
+                    "💡 *Enable Signal Sources*\n"
+                    "Turn on at least one signal source above to access Telegram channel management."
+                )
+            
+            # Build keyboard rows
+            keyboard_rows = [
                 [
                     {"text": f"🚀 Pump.fun {'✅' if pump_fun_enabled else '❌'}", "callback_data": "toggle_pump_fun"},
                     {"text": f"🐋 Whales {'✅' if whale_enabled else '❌'}", "callback_data": "toggle_whales"}
@@ -11298,11 +11377,18 @@ def auto_trading_signals_handler(update, chat_id):
                 [
                     {"text": f"📱 Social {'✅' if social_enabled else '❌'}", "callback_data": "toggle_social"},
                     {"text": f"📈 Volume {'✅' if volume_enabled else '❌'}", "callback_data": "toggle_volume"}
-                ],
-                [
+                ]
+            ]
+            
+            # Only add telegram channel management buttons if signals are enabled
+            if any_signal_enabled:
+                keyboard_rows.append([
                     {"text": "📢 Add Telegram Channels", "callback_data": "add_telegram_channels"},
                     {"text": "🗂️ Manage Channels", "callback_data": "manage_telegram_channels"}
-                ],
+                ])
+            
+            # Add risk filters and back button
+            keyboard_rows.extend([
                 [
                     {"text": "⚙️ Risk Filters", "callback_data": "configure_risk_filters"}
                 ],
@@ -11310,6 +11396,8 @@ def auto_trading_signals_handler(update, chat_id):
                     {"text": "🏠 Back to Auto Trading", "callback_data": "auto_trading_settings"}
                 ]
             ])
+            
+            keyboard = bot.create_inline_keyboard(keyboard_rows)
             
             bot.send_message(chat_id, signals_message, parse_mode="Markdown", reply_markup=keyboard)
     except Exception as e:
