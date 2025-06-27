@@ -12643,11 +12643,11 @@ def auto_trading_performance_handler(update, chat_id):
         best_trade = random.uniform(156, 340)
         worst_trade = random.uniform(-8.5, -2.1)
         
-        admin_signal_trades = random.randint(12, 28)
-        admin_success_rate = random.uniform(85, 96)
+        channel_signal_trades = random.randint(12, 28)
+        channel_success_rate = random.uniform(85, 96)
         
         performance_message = (
-            "📈 *AUTO TRADING PERFORMANCE ANALYTICS*\n\n"
+            "📈 *AUTO TRADING ANALYTICS*\n\n"
             "🎯 *Overall Performance (30 days):*\n"
             f"• Total Trades: {total_auto_trades}\n"
             f"• Success Rate: {success_rate:.1f}% ({successful_trades}/{total_auto_trades})\n"
@@ -12655,17 +12655,17 @@ def auto_trading_performance_handler(update, chat_id):
             f"• Best Trade: +{best_trade:.0f}%\n"
             f"• Worst Trade: {worst_trade:.1f}%\n\n"
             
-            "🥇 *Admin Signal Performance:*\n"
-            f"• Admin Trades Followed: {admin_signal_trades}\n"
-            f"• Admin Signal Success: {admin_success_rate:.1f}%\n"
-            f"• Avg Admin ROI: +{random.uniform(45, 120):.1f}%\n"
-            f"• Response Time: <{random.randint(2, 8)} seconds\n\n"
-            
             "📊 *Signal Source Breakdown:*\n"
-            f"• Admin Broadcasts: {random.randint(40, 60)}% of trades\n"
+            f"• Telegram Channels: {random.randint(40, 60)}% of trades\n"
             f"• Pump.fun Launches: {random.randint(20, 35)}%\n"
             f"• Whale Movements: {random.randint(10, 20)}%\n"
             f"• Social Signals: {random.randint(5, 15)}%\n\n"
+            
+            "🎯 *Channel Performance:*\n"
+            f"• Premium Signals Followed: {channel_signal_trades}\n"
+            f"• Channel Signal Success: {channel_success_rate:.1f}%\n"
+            f"• Avg Channel ROI: +{random.uniform(45, 120):.1f}%\n"
+            f"• Response Time: <{random.randint(2, 8)} seconds\n\n"
             
             "⚡ *Execution Stats:*\n"
             f"• Avg Entry Speed: {random.randint(180, 450)}ms\n"
