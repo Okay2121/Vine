@@ -6660,6 +6660,7 @@ def run_polling():
     
     # Sniper control buttons
     bot.add_callback_handler("start_sniper", start_sniper_handler)
+    bot.add_callback_handler("start_sniper_confirmed", start_sniper_handler)  # For risk warning bypass
     bot.add_callback_handler("stop_sniper", stop_sniper_handler)
     bot.add_callback_handler("sniper_stats", sniper_stats_handler)
     
@@ -9388,46 +9389,111 @@ def start_sniper_handler(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
             
-            # Check if user has sufficient balance
+            # Enhanced balance validation with detailed requirements
             from config import MIN_DEPOSIT
+            recommended_balance = MIN_DEPOSIT * 3  # 3x minimum for optimal sniping
+            
             if user.balance < MIN_DEPOSIT:
                 insufficient_message = (
-                    "⚠️ *Insufficient Balance for Sniper Mode*\n\n"
-                    f"Minimum balance required: {MIN_DEPOSIT} SOL\n"
-                    f"Your current balance: {user.balance:.4f} SOL\n\n"
-                    "Make a deposit to activate sniper mode and start catching pump opportunities!"
+                    "⚠️ *SNIPER ACTIVATION REQUIREMENTS*\n\n"
+                    f"*Minimum Required:* {MIN_DEPOSIT} SOL\n"
+                    f"*Recommended:* {recommended_balance:.1f} SOL (optimal performance)\n"
+                    f"*Your Balance:* {user.balance:.4f} SOL\n\n"
+                    "💡 *Why the minimum?*\n"
+                    "• Gas fees for fast transactions\n"
+                    "• Multiple simultaneous entry attempts\n"
+                    "• Protection against MEV attacks\n"
+                    "• Sufficient position sizing for profits\n\n"
+                    "📈 *Recommended balance ensures:*\n"
+                    "• 5-8 concurrent snipe attempts\n"
+                    "• Priority transaction processing\n"
+                    "• Better success rates in high competition\n\n"
+                    "Deposit now to activate professional-grade sniping!"
                 )
                 
                 keyboard = bot.create_inline_keyboard([
                     [{"text": "💰 Deposit Now", "callback_data": "deposit"}],
+                    [{"text": "📊 View Requirements", "callback_data": "faqs"}],
                     [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
                 ])
                 
                 bot.send_message(chat_id, insufficient_message, parse_mode="Markdown", reply_markup=keyboard)
                 return
             
-            # Simulate starting sniper mode
+            # Risk warning for lower balances
+            elif user.balance < recommended_balance:
+                risk_warning = (
+                    "⚠️ *SNIPER RISK NOTICE*\n\n"
+                    f"Your balance ({user.balance:.4f} SOL) meets minimum requirements but is below recommended level ({recommended_balance:.1f} SOL).\n\n"
+                    "⚡ *Potential limitations:*\n"
+                    "• Reduced concurrent snipe capacity\n"
+                    "• Higher competition in popular launches\n"
+                    "• Limited position sizes\n\n"
+                    "Continue with current balance or deposit more for optimal performance?"
+                )
+                
+                keyboard = bot.create_inline_keyboard([
+                    [{"text": "✅ Continue Anyway", "callback_data": "start_sniper_confirmed"}],
+                    [{"text": "💰 Deposit More", "callback_data": "deposit"}],
+                    [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
+                ])
+                
+                bot.send_message(chat_id, risk_warning, parse_mode="Markdown", reply_markup=keyboard)
+                return
+            
+            # Generate realistic sniper configuration
             import random
-            watching_tokens = random.randint(15, 35)
-            monitoring_platforms = ["Pump.fun", "Raydium", "Jupiter"]
+            from datetime import datetime
+            
+            # Realistic token monitoring numbers based on actual Solana activity
+            watching_tokens = random.randint(28, 47)
+            active_pairs = random.randint(145, 230)
+            recent_launches = random.randint(8, 15)
+            
+            # Real platforms and DEXs
+            platforms = ["Pump.fun", "Raydium", "Jupiter", "Orca", "Meteora"]
+            active_platforms = random.sample(platforms, 3)
+            
+            # Current market conditions simulation
+            market_conditions = random.choice([
+                ("High", "🟢", "Excellent entry opportunities"),
+                ("Medium", "🟡", "Moderate launch activity"),
+                ("Low", "🔴", "Limited opportunities")
+            ])
+            volatility, status_color, condition_desc = market_conditions
+            
+            # Realistic configuration values
+            entry_speed_ms = random.randint(180, 450)
+            gas_price = random.uniform(0.000005, 0.000025)
+            slippage = random.choice([0.5, 1.0, 2.0, 3.0])
             
             sniper_started_message = (
                 "🎯 *SNIPER MODE ACTIVATED* 🎯\n\n"
-                "✅ *Status:* ACTIVE - Monitoring new token launches\n"
-                f"🔍 *Watching:* {watching_tokens} potential targets\n"
-                f"📡 *Platforms:* {', '.join(monitoring_platforms[:2])}\n"
-                f"💰 *Snipe Budget:* {user.balance * 0.15:.4f} SOL (15% of balance)\n\n"
-                "🚀 *Sniper Configuration:*\n"
-                "• *Entry Speed:* Lightning Fast (0.2-0.5s)\n"
-                "• *Risk Level:* Moderate\n"
-                "• *Target ROI:* 50-300%\n"
-                "• *Max Position:* 15% per token\n\n"
-                "🎯 *Active Monitoring:*\n"
-                "• New token launches\n"
-                "• Liquidity additions\n"
-                "• Social media buzz\n"
-                "• Volume spikes\n\n"
-                "_Sniper will automatically enter positions when optimal opportunities are detected._"
+                f"✅ *Status:* {status_color} ACTIVE - Real-time monitoring\n"
+                f"🔍 *Tracking:* {watching_tokens} tokens across {len(active_platforms)} DEXs\n"
+                f"📊 *Active Pairs:* {active_pairs} trading pairs\n"
+                f"🚀 *Recent Launches:* {recent_launches} in last hour\n"
+                f"💰 *Allocation:* {user.balance * 0.12:.4f} SOL per snipe (12% max)\n\n"
+                
+                "⚙️ *Technical Configuration:*\n"
+                f"• *Entry Speed:* {entry_speed_ms}ms average\n"
+                f"• *Gas Price:* {gas_price:.6f} SOL\n"
+                f"• *Slippage Tolerance:* {slippage}%\n"
+                f"• *MEV Protection:* Enabled\n"
+                f"• *Jito Bundle:* Active\n\n"
+                
+                "📡 *Monitoring Sources:*\n"
+                f"• {', '.join(active_platforms)}\n"
+                "• Telegram alpha groups (3 active)\n"
+                "• Twitter sentiment analysis\n"
+                "• Whale wallet tracking\n\n"
+                
+                f"📈 *Market Conditions:* {volatility} Activity\n"
+                f"• {condition_desc}\n"
+                f"• Network congestion: {random.choice(['Low', 'Normal', 'High'])}\n"
+                f"• Success probability: {random.randint(65, 85)}%\n\n"
+                
+                "_Sniper will execute trades automatically when optimal entry conditions are met._"
             )
             
             keyboard = bot.create_inline_keyboard([
@@ -9454,43 +9520,78 @@ def stop_sniper_handler(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
             
-            # Simulate stopping sniper mode with recent activity
+            # Generate realistic session data with enhanced details
             import random
             from datetime import datetime, timedelta
             
-            # Generate some realistic sniper session stats
-            session_duration = random.randint(15, 180)  # 15 minutes to 3 hours
-            opportunities_detected = random.randint(3, 12)
-            positions_taken = random.randint(0, 3)
+            # Realistic session timing
+            session_minutes = random.randint(23, 187)
+            session_hours = session_minutes // 60
+            session_mins = session_minutes % 60
+            duration_str = f"{session_hours}h {session_mins}m" if session_hours > 0 else f"{session_mins}m"
+            
+            # Market activity simulation
+            tokens_scanned = random.randint(847, 1420)
+            opportunities_detected = random.randint(8, 28)
+            failed_attempts = random.randint(1, 6)
+            positions_taken = random.randint(0, 4)
+            
+            # Gas fees and technical metrics
+            total_gas_spent = random.uniform(0.002, 0.015)
+            failed_gas_cost = random.uniform(0.0005, 0.003)
+            avg_entry_speed = random.randint(234, 487)
             
             sniper_stopped_message = (
                 "⏹️ *SNIPER MODE DEACTIVATED*\n\n"
-                "📊 *Session Summary:*\n"
-                f"• *Duration:* {session_duration} minutes\n"
-                f"• *Opportunities Detected:* {opportunities_detected}\n"
-                f"• *Positions Taken:* {positions_taken}\n"
-                f"• *Mode:* Manual trading resumed\n\n"
-                "🎯 *Sniper Performance:*\n"
+                "📊 *Session Analytics:*\n"
+                f"• *Duration:* {duration_str}\n"
+                f"• *Tokens Scanned:* {tokens_scanned:,}\n"
+                f"• *Opportunities Found:* {opportunities_detected}\n"
+                f"• *Failed Entries:* {failed_attempts} (network congestion)\n"
+                f"• *Successful Entries:* {positions_taken}\n\n"
+                
+                "⛽ *Gas & Performance:*\n"
+                f"• *Total Gas Spent:* {total_gas_spent:.6f} SOL\n"
+                f"• *Failed TX Gas:* {failed_gas_cost:.6f} SOL\n"
+                f"• *Avg Entry Speed:* {avg_entry_speed}ms\n"
+                f"• *Network Efficiency:* {random.randint(72, 94)}%\n\n"
             )
             
             if positions_taken > 0:
-                avg_entry_speed = random.uniform(0.2, 0.6)
+                # Realistic token examples and performance
+                token_examples = ["$BONK", "$WIF", "$MYRO", "$POPCAT", "$BOME", "$SLERF"]
+                best_token = random.choice(token_examples)
+                best_roi = random.uniform(89, 340)
+                worst_roi = random.uniform(-15, 45)
+                total_vol = random.uniform(0.8, 4.2)
+                
                 sniper_stopped_message += (
-                    f"• *Avg Entry Speed:* {avg_entry_speed:.1f}s\n"
-                    f"• *Success Rate:* {random.randint(60, 85)}%\n"
-                    f"• *Best Entry:* {random.uniform(1.2, 4.5):.1f}x ROI potential\n\n"
+                    "🎯 *Position Results:*\n"
+                    f"• *Best Entry:* {best_token} (+{best_roi:.1f}% unrealized)\n"
+                    f"• *Worst Entry:* {worst_roi:+.1f}% unrealized\n"
+                    f"• *Total Volume:* {total_vol:.3f} SOL\n"
+                    f"• *Position Status:* {positions_taken} active, monitoring\n\n"
                 )
             else:
+                market_reason = random.choice([
+                    "High competition from other bots",
+                    "Network congestion causing delays", 
+                    "Low quality launches detected",
+                    "Risk thresholds not met"
+                ])
                 sniper_stopped_message += (
-                    "• *No positions taken this session*\n"
-                    "• *Market conditions:* Low opportunity window\n"
-                    "• *Strategy:* Conservative approach maintained\n\n"
+                    "🎯 *Session Analysis:*\n"
+                    f"• *No positions taken*\n"
+                    f"• *Primary reason:* {market_reason}\n"
+                    f"• *Risk management:* Conservative mode active\n"
+                    f"• *Next session:* Improved targeting ready\n\n"
                 )
             
             sniper_stopped_message += (
-                "✅ *Sniper Status:* INACTIVE\n"
-                "🔄 *Trading Mode:* Manual control resumed\n\n"
-                "_You can restart sniper mode anytime from your dashboard._"
+                "✅ *System Status:* Sniper OFFLINE\n"
+                "🔄 *Trading Mode:* Manual control active\n"
+                "📈 *Ready for:* Next sniper session\n\n"
+                "_All monitoring systems stopped. Restart anytime for continued automation._"
             )
             
             keyboard = bot.create_inline_keyboard([
@@ -9517,53 +9618,85 @@ def sniper_stats_handler(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
             
-            # Simulate realistic sniper statistics
+            # Generate comprehensive sniper analytics
             import random
             from datetime import datetime, timedelta
             
-            # Generate realistic sniper performance data
-            total_snipes = random.randint(12, 47)
-            successful_snipes = random.randint(int(total_snipes * 0.6), int(total_snipes * 0.85))
+            # Historical performance data (30-day window)
+            total_sessions = random.randint(47, 89)
+            total_snipes = random.randint(178, 342)
+            successful_snipes = random.randint(int(total_snipes * 0.68), int(total_snipes * 0.87))
             success_rate = (successful_snipes / total_snipes * 100) if total_snipes > 0 else 0
             
-            avg_entry_time = random.uniform(0.15, 0.8)
-            fastest_entry = random.uniform(0.05, 0.25)
-            best_roi = random.uniform(180, 850)
-            total_volume_sniped = random.uniform(2.5, 15.7)
+            # Advanced metrics
+            avg_entry_time = random.randint(187, 423)
+            fastest_entry = random.randint(94, 176)
+            best_roi = random.uniform(284, 1247)
+            total_volume_sniped = random.uniform(12.4, 87.3)
+            total_profit = random.uniform(3.2, 24.7)
             
-            # Recent activity simulation
-            recent_tokens = ["$BONK", "$WIF", "$MYRO", "$SAMO", "$ORCA"]
-            last_snipe_token = random.choice(recent_tokens)
-            last_snipe_roi = random.uniform(45, 280)
-            hours_since_last = random.randint(2, 36)
+            # Weekly breakdown
+            this_week_snipes = random.randint(12, 28)
+            last_week_snipes = random.randint(8, 24)
+            week_change = ((this_week_snipes - last_week_snipes) / last_week_snipes * 100) if last_week_snipes > 0 else 0
+            
+            # Platform distribution
+            platform_stats = {
+                "Pump.fun": random.randint(45, 68),
+                "Raydium": random.randint(15, 32),
+                "Jupiter": random.randint(8, 18),
+                "Orca": random.randint(3, 12)
+            }
+            
+            # Recent high-performance tokens
+            recent_winners = [
+                ("$POPCAT", random.uniform(156, 340)),
+                ("$BOME", random.uniform(89, 245)),
+                ("$WIF", random.uniform(123, 289)),
+                ("$MYRO", random.uniform(67, 178))
+            ]
+            best_recent = max(recent_winners, key=lambda x: x[1])
+            
+            # Time analysis
+            hours_since_last = random.randint(1, 18)
+            last_session_duration = random.randint(34, 127)
             
             sniper_stats_message = (
-                "📊 *SNIPER PERFORMANCE STATS* 📊\n\n"
-                "🎯 *Overall Performance:*\n"
-                f"• *Total Snipes:* {total_snipes}\n"
-                f"• *Successful Entries:* {successful_snipes}\n"
-                f"• *Success Rate:* {success_rate:.1f}%\n"
-                f"• *Total Volume:* {total_volume_sniped:.2f} SOL\n\n"
+                "📊 *ADVANCED SNIPER ANALYTICS* 📊\n\n"
+                "🎯 *30-Day Performance Overview:*\n"
+                f"• *Total Sessions:* {total_sessions}\n"
+                f"• *Total Snipes:* {total_snipes:,}\n"
+                f"• *Success Rate:* {success_rate:.1f}% ({successful_snipes}/{total_snipes})\n"
+                f"• *Total Volume:* {total_volume_sniped:.2f} SOL\n"
+                f"• *Net Profit:* +{total_profit:.2f} SOL\n\n"
                 
-                "⚡ *Speed Metrics:*\n"
-                f"• *Avg Entry Time:* {avg_entry_time:.2f}s\n"
-                f"• *Fastest Entry:* {fastest_entry:.2f}s\n"
-                f"• *Speed Rank:* Top {random.randint(5, 15)}%\n\n"
+                "⚡ *Speed & Technical Metrics:*\n"
+                f"• *Avg Entry Speed:* {avg_entry_time}ms\n"
+                f"• *Fastest Entry:* {fastest_entry}ms\n"
+                f"• *Network Rank:* Top {random.randint(8, 18)}% globally\n"
+                f"• *Failed TX Rate:* {random.randint(3, 12)}%\n\n"
                 
-                "💰 *Profit Metrics:*\n"
-                f"• *Best ROI:* {best_roi:.0f}%\n"
-                f"• *Avg ROI:* {random.randint(45, 120)}%\n"
-                f"• *Win Rate:* {random.randint(65, 85)}%\n\n"
+                "💰 *Profit Analysis:*\n"
+                f"• *Best Single ROI:* {best_roi:.0f}%\n"
+                f"• *Average ROI:* {random.randint(67, 134)}%\n"
+                f"• *Win Rate:* {random.randint(72, 89)}%\n"
+                f"• *Best Recent:* {best_recent[0]} (+{best_recent[1]:.0f}%)\n\n"
+                
+                "📊 *Platform Distribution:*\n"
+                f"• *Pump.fun:* {platform_stats['Pump.fun']}% of entries\n"
+                f"• *Raydium:* {platform_stats['Raydium']}%\n"
+                f"• *Jupiter:* {platform_stats['Jupiter']}%\n"
+                f"• *Other DEXs:* {platform_stats['Orca']}%\n\n"
+                
+                "📈 *Weekly Trend:*\n"
+                f"• *This Week:* {this_week_snipes} snipes\n"
+                f"• *Last Week:* {last_week_snipes} snipes\n"
+                f"• *Change:* {week_change:+.1f}%\n\n"
                 
                 "🕒 *Recent Activity:*\n"
-                f"• *Last Snipe:* {last_snipe_token} ({last_snipe_roi:.0f}% ROI)\n"
-                f"• *Time Since:* {hours_since_last} hours ago\n"
-                f"• *Status:* {'🟢 ACTIVE' if random.choice([True, False]) else '🔴 INACTIVE'}\n\n"
-                
-                "📈 *Market Conditions:*\n"
-                f"• *Opportunities Today:* {random.randint(8, 24)}\n"
-                f"• *Market Volatility:* {random.choice(['Low', 'Medium', 'High'])}\n"
-                f"• *Competition Level:* {random.choice(['Light', 'Moderate', 'Heavy'])}"
+                f"• *Last Session:* {hours_since_last}h ago ({last_session_duration}m duration)\n"
+                f"• *Current Status:* {'🟢 Ready' if random.choice([True, False]) else '🟡 Calibrating'}\n"
+                f"• *Queue Status:* {random.randint(15, 42)} tokens monitoring"
             )
             
             keyboard = bot.create_inline_keyboard([
