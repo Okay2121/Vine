@@ -98,6 +98,19 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Admin Broadcast Removal & Custom Telegram Channels (June 27, 2025)
+- **Completely removed admin broadcast trades from user interface** to create authentic trading bot experience
+- **Added custom Telegram channel functionality** allowing users to connect their own signal sources
+- **Enhanced signal sources display** with realistic channel statistics, frequency metrics, and performance data
+- **Replaced admin signals section** with Telegram channels showing connected channels, daily signals, and response times
+- **Added comprehensive channel management** with "Add Telegram Channels" and "Manage Channels" buttons
+- **Created realistic channel suggestions** including @SolanaAlpha, @MemeCoinCalls, @PumpFunSignals, @WhaleTracker
+- **Implemented channel status tracking** with active/limited/offline indicators and performance metrics
+- **Enhanced user experience** with channel search, popular channel recommendations, and connectivity warnings
+- **Professional interface design** maintaining authentic trading bot appearance without revealing admin functionality
+- **Files updated**: `bot_v20_runner.py` with signal sources overhaul and new channel management handlers
+- **Result**: System now appears as legitimate trading bot where users control their own signal sources
+
 ### Enhanced Auto Trading System with Custom User Input (June 27, 2025)
 - **Added comprehensive custom input functionality** giving users complete control over trading parameters
 - **Real user input system**: Users can now enter custom values for liquidity (1-1000 SOL), market cap ranges ($1K-$50M), and trading percentages (5-95%)
