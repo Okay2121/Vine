@@ -98,6 +98,18 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Auto Trading Settings Page Connection Fix (June 30, 2025)
+- **Fixed critical database schema issue** where auto trading settings page buttons stopped responding
+- **Root cause**: Missing `external_signals_enabled` column in auto_trading_settings database table causing handler failures
+- **Solution implemented**: Added missing database column with proper default values through automated schema migration
+- **Components fixed**:
+  - Added `external_signals_enabled BOOLEAN DEFAULT TRUE` column to auto_trading_settings table
+  - Verified all AutoTradingManager functions work correctly with complete schema
+  - Confirmed auto_trading_settings_handler can load settings without errors
+  - Tested all required model properties (effective_trading_balance, max_position_size, success_rate)
+- **Result**: Auto trading settings page buttons now respond properly and users can access all configuration options
+- **Files created**: `fix_auto_trading_schema.py`, `verify_auto_trading_fix.py` for database migration and verification
+
 ### Complete Autonomous Trading System Transformation (June 30, 2025)
 - **Updated Telegram bot token** to 7562541416:AAHM0CLmgEuAzuEU7TpLkulCM0Yzp0xhrQI for @ThriveQuantbot
 - **Restored clean "Autopilot Dashboard" interface** matching user's requested screenshot design
