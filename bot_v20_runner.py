@@ -1034,30 +1034,15 @@ def start_command(update, chat_id):
 def copy_referral_handler(update, chat_id):
     """Handle the copy referral link button press."""
     try:
-        # Import the referral module
-        import referral_module
+        # Use simplified referral system - same as referral_command
+        from simple_referral_system import simple_referral_manager
         
         with app.app_context():
-            # Create referral manager if not exists
-            global referral_manager
-            if 'referral_manager' not in globals() or referral_manager is None:
-                referral_manager = referral_module.ReferralManager(app.app_context)
-                referral_manager.set_bot_username("ThriveQuantbot")
-                logger.info("Initialized referral manager")
-            
             user_id = str(update['callback_query']['from']['id'])
             
-            # Get the referral link
-            stats = referral_manager.get_referral_stats(user_id)
-            
-            # Generate the referral code if needed
-            if not stats['has_code']:
-                code = referral_manager.generate_or_get_referral_code(user_id)
-                if code:
-                    stats['has_code'] = True
-            
-            # Show copy confirmation message
-            referral_link = f"https://t.me/thrivesolanabot?start=ref_{user_id}"
+            # Get the referral link using the simple system (already has correct bot username)
+            stats = simple_referral_manager.get_referral_stats(user_id)
+            referral_link = stats['referral_link']
             
             # Send the referral link as a separate message for easy copying
             bot.send_message(
@@ -1068,7 +1053,7 @@ def copy_referral_handler(update, chat_id):
             
             bot.send_message(
                 chat_id,
-                "✅ Your referral link is copied to clipboard! Share with friends to earn 5% of their profits."
+                "✅ Your referral link is ready! Share with friends to earn 5% of their profits."
             )
     except Exception as e:
         logger.error(f"Error in copy_referral_handler: {e}")
@@ -1166,28 +1151,17 @@ def share_referral_handler(update, chat_id):
 def copy_referral_message_handler(update, chat_id):
     """Handle the copy referral message button press."""
     try:
-        import referral_module
+        # Use simplified referral system for consistency
+        from simple_referral_system import simple_referral_manager
         
         with app.app_context():
-            # Create referral manager if not exists
-            global referral_manager
-            if 'referral_manager' not in globals() or referral_manager is None:
-                referral_manager = referral_module.ReferralManager(app.app_context)
-                referral_manager.set_bot_username("ThriveQuantbot")
-                logger.info("Initialized referral manager")
-            
             user_id = str(update['callback_query']['from']['id'])
             
-            # Generate the referral code if needed
-            stats = referral_manager.get_referral_stats(user_id)
-            if not stats['has_code']:
-                code = referral_manager.generate_or_get_referral_code(user_id)
-                if code:
-                    stats['has_code'] = True
+            # Get the referral link using the simple system (already has correct bot username)
+            stats = simple_referral_manager.get_referral_stats(user_id)
+            referral_link = stats['referral_link']
             
             # Create the exact same shareable message
-            referral_link = f"https://t.me/ThriveQuantbot?start=ref_{user_id}"
-            
             share_message = (
                 "🚀 Join me on THRIVE!\n\n"
                 "I've been using this amazing crypto trading bot that's helping me "
