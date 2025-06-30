@@ -9531,7 +9531,7 @@ def referral_qr_code_handler(update, chat_id):
             
             # Create referral link
             user_id = str(update['callback_query']['from']['id'])
-            referral_link = f"https://t.me/thrivesolanabot?start=ref_{user_id}"
+            referral_link = f"https://t.me/ThriveQuantbot?start=ref_{user_id}"
             
             # Generate QR code
             qr = qrcode.QRCode(
@@ -9622,7 +9622,7 @@ def copy_referral_link_handler(update, chat_id):
             
             # Create referral link
             user_id = str(update['callback_query']['from']['id'])
-            referral_link = f"https://t.me/thrivesolanabot?start=ref_{user_id}"
+            referral_link = f"https://t.me/ThriveQuantbot?start=ref_{user_id}"
             
             # Create the complete shareable message
             complete_message = (
