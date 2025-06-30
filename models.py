@@ -342,7 +342,7 @@ class AutoTradingSettings(db.Model):
     
     # Auto Trading Status
     is_enabled = db.Column(db.Boolean, default=True)
-    admin_signals_enabled = db.Column(db.Boolean, default=True)  # Always follow admin broadcasts
+    external_signals_enabled = db.Column(db.Boolean, default=True)  # Follow external market signals
     
     # Risk Management Settings
     position_size_percentage = db.Column(db.Float, default=10.0)  # % of balance per trade (5-25%)

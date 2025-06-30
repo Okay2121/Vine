@@ -10188,7 +10188,7 @@ def auto_trading_settings_handler(update, chat_id):
                     f"*Recommended:* {recommended_balance:.1f} SOL (optimal automation)\n"
                     f"*Your Balance:* {user.balance:.4f} SOL\n\n"
                     "💡 *Auto trading features:*\n"
-                    "• Listens to admin broadcast trades\n"
+                    "• Monitors multiple signal sources\n"
                     "• Automatically follows winning signals\n"
                     "• Risk management with stop losses\n"
                     "• Portfolio rebalancing\n\n"
@@ -12110,7 +12110,7 @@ def set_position_size_handler(update, chat_id):
                 f"*Your Balance:* {user.balance:.4f} SOL\n"
                 f"*Current Max Trade:* {settings.max_position_size:.4f} SOL\n\n"
                 
-                "🤖 *Auto Mode:* Uses position sizes from admin broadcast trades\n"
+                "🤖 *Auto Mode:* Uses position sizes from external market signals\n"
                 "⚙️ *Custom Mode:* Set your own fixed percentage\n\n"
                 
                 "💡 *Position Size Guidelines:*\n"
@@ -12167,7 +12167,7 @@ def set_pos_size_auto_handler(update, chat_id):
             bot.send_message(
                 chat_id,
                 "✅ *Position Size Set to Auto Mode*\n\n"
-                "Your position sizes will now automatically match the values from admin broadcast trades. "
+                "Your position sizes will now automatically match the values from external market signals. "
                 "This ensures you get the optimal position size for each trade opportunity.",
                 parse_mode="Markdown",
                 reply_markup=bot.create_inline_keyboard([
@@ -12244,7 +12244,7 @@ def set_stop_loss_handler(update, chat_id):
             message = (
                 "🛡️ *SET STOP LOSS*\n\n"
                 f"*Current Mode:* {auto_status}\n\n"
-                "🤖 *Auto Mode:* Uses stop loss levels from admin broadcasts\n"
+                "🤖 *Auto Mode:* Uses stop loss levels from external market signals\n"
                 "⚙️ *Custom Mode:* Set your own fixed stop loss\n\n"
                 "Choose your preferred mode:"
             )
@@ -12288,7 +12288,7 @@ def set_stop_loss_auto_handler(update, chat_id):
             bot.send_message(
                 chat_id,
                 "✅ *Stop Loss Set to Auto Mode*\n\n"
-                "Your stop loss levels will now automatically match the values from admin broadcast trades.",
+                "Your stop loss levels will now automatically match the values from external market signals.",
                 parse_mode="Markdown",
                 reply_markup=bot.create_inline_keyboard([
                     [{"text": "⬅️ Back to Stop Loss", "callback_data": "set_stop_loss"}]
@@ -12344,7 +12344,7 @@ def set_take_profit_handler(update, chat_id):
             message = (
                 "🎯 *SET TAKE PROFIT*\n\n"
                 f"*Current Mode:* {auto_status}\n\n"
-                "🤖 *Auto Mode:* Uses take profit levels from admin broadcasts\n"
+                "🤖 *Auto Mode:* Uses take profit levels from external market signals\n"
                 "⚙️ *Custom Mode:* Set your own fixed take profit\n\n"
                 "Choose your preferred mode:"
             )
@@ -12385,7 +12385,7 @@ def set_take_profit_auto_handler(update, chat_id):
             bot.send_message(
                 chat_id,
                 "✅ *Take Profit Set to Auto Mode*\n\n"
-                "Your take profit levels will now automatically match the values from admin broadcast trades.",
+                "Your take profit levels will now automatically match the values from external market signals.",
                 parse_mode="Markdown",
                 reply_markup=bot.create_inline_keyboard([
                     [{"text": "⬅️ Back to Take Profit", "callback_data": "set_take_profit"}]
@@ -12441,7 +12441,7 @@ def set_daily_trades_handler(update, chat_id):
             message = (
                 "📊 *SET DAILY TRADES LIMIT*\n\n"
                 f"*Current Mode:* {auto_status}\n\n"
-                "🤖 *Auto Mode:* Follows the trade frequency from admin broadcasts\n"
+                "🤖 *Auto Mode:* Follows the trade frequency from external market signals\n"
                 "⚙️ *Custom Mode:* Set your own daily limit\n\n"
                 "Choose your preferred mode:"
             )
@@ -12482,7 +12482,7 @@ def set_daily_trades_auto_handler(update, chat_id):
             bot.send_message(
                 chat_id,
                 "✅ *Daily Trades Set to Auto Mode*\n\n"
-                "Your daily trade limit will now automatically match the frequency from admin broadcast trades.",
+                "Your daily trade limit will now automatically match the frequency from external market signals.",
                 parse_mode="Markdown",
                 reply_markup=bot.create_inline_keyboard([
                     [{"text": "⬅️ Back to Daily Trades", "callback_data": "set_daily_trades"}]
@@ -12538,7 +12538,7 @@ def set_max_positions_handler(update, chat_id):
             message = (
                 "🔢 *SET MAX SIMULTANEOUS POSITIONS*\n\n"
                 f"*Current Mode:* {auto_status}\n\n"
-                "🤖 *Auto Mode:* Uses position limits from admin broadcasts\n"
+                "🤖 *Auto Mode:* Uses position limits from external market signals\n"
                 "⚙️ *Custom Mode:* Set your own maximum positions\n\n"
                 "Choose your preferred mode:"
             )
@@ -12579,7 +12579,7 @@ def set_max_positions_auto_handler(update, chat_id):
             bot.send_message(
                 chat_id,
                 "✅ *Max Positions Set to Auto Mode*\n\n"
-                "Your maximum simultaneous positions will now automatically match the limits from admin broadcast trades.",
+                "Your maximum simultaneous positions will now automatically match the limits from external market signals.",
                 parse_mode="Markdown",
                 reply_markup=bot.create_inline_keyboard([
                     [{"text": "⬅️ Back to Max Positions", "callback_data": "set_max_positions"}]

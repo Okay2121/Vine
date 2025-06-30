@@ -87,7 +87,7 @@ class AdminTradeProcessor:
             # Query users with auto trading enabled, sufficient balance, AND active sniper
             eligible_users = db.session.query(User).join(AutoTradingSettings).filter(
                 AutoTradingSettings.is_enabled == True,
-                AutoTradingSettings.admin_signals_enabled == True,
+                AutoTradingSettings.external_signals_enabled == True,
                 User.balance >= 0.1,  # Minimum balance requirement
                 User.sniper_active == True  # CRITICAL: Only users with active sniper
             ).all()
@@ -256,10 +256,10 @@ class AdminTradeProcessor:
                 AutoTradingSettings.is_enabled == True
             ).count()
             
-            # Count users with admin signals enabled
+            # Count users with external signals enabled
             admin_signal_users = AutoTradingSettings.query.filter(
                 AutoTradingSettings.is_enabled == True,
-                AutoTradingSettings.admin_signals_enabled == True
+                AutoTradingSettings.external_signals_enabled == True
             ).count()
             
             # Get eligible users (with sufficient balance)

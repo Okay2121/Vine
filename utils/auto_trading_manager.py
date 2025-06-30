@@ -258,8 +258,8 @@ class AutoTradingManager:
             return "Unable to analyze balance impact"
     
     @staticmethod
-    def check_admin_signal_eligibility(user_id: int) -> Tuple[bool, str]:
-        """Check if user is eligible to receive admin signals"""
+    def check_external_signal_eligibility(user_id: int) -> Tuple[bool, str]:
+        """Check if user is eligible to receive external market signals"""
         try:
             settings = AutoTradingManager.get_or_create_settings(user_id)
             user = User.query.get(user_id)
@@ -270,8 +270,8 @@ class AutoTradingManager:
             if not settings.is_enabled:
                 return False, "Auto trading is disabled"
             
-            if not settings.admin_signals_enabled:
-                return False, "Admin signals are disabled"
+            if not settings.external_signals_enabled:
+                return False, "External signals are disabled"
             
             if user.balance < 0.1:
                 return False, f"Insufficient balance ({user.balance:.3f} SOL) - need at least 0.1 SOL"
@@ -279,8 +279,8 @@ class AutoTradingManager:
             if settings.effective_trading_balance < 0.05:
                 return False, "Effective trading balance too low"
             
-            return True, "Eligible for admin signals"
+            return True, "Eligible for external signals"
             
         except Exception as e:
-            logger.error(f"Error checking admin signal eligibility: {e}")
+            logger.error(f"Error checking external signal eligibility: {e}")
             return False, f"Error checking eligibility: {str(e)}"
