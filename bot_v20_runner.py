@@ -1857,7 +1857,15 @@ def dashboard_command(update, chat_id):
                 "⚠️ *Note: 2% fee applies to profits only (not deposits)*"
             )
             
-            # Create keyboard matching the screenshot
+            # Dynamic sniper button based on user status
+            sniper_button_text = "🎯 Start Sniper"
+            sniper_callback = "start_sniper"
+            
+            if hasattr(user, 'sniper_active') and user.sniper_active:
+                sniper_button_text = "⏹️ Stop Sniper"
+                sniper_callback = "stop_sniper"
+            
+            # Create keyboard matching the screenshot with dynamic sniper button
             keyboard = bot.create_inline_keyboard([
                 [
                     {"text": "💰 Deposit", "callback_data": "deposit"},
@@ -1876,7 +1884,7 @@ def dashboard_command(update, chat_id):
                     {"text": "🛟 Customer Support", "callback_data": "support"}
                 ],
                 [
-                    {"text": "🎯 Start Sniper", "callback_data": "start_sniper"}
+                    {"text": sniper_button_text, "callback_data": sniper_callback}
                 ],
                 [
                     {"text": "❓ FAQ", "callback_data": "faqs"}
