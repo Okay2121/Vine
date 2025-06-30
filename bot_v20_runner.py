@@ -6631,8 +6631,8 @@ def run_polling():
         logger.warning("Bot is already running globally, skipping duplicate start")
         return
     
-    # Get bot token from environment variable or config
-    token = BOT_TOKEN
+    # Get bot token directly from environment variable (not cached import)
+    token = os.environ.get('TELEGRAM_BOT_TOKEN')
     
     if not token:
         logger.error("No Telegram bot token provided. Set the TELEGRAM_BOT_TOKEN environment variable.")
