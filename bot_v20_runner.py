@@ -12102,7 +12102,7 @@ def set_position_size_handler(update, chat_id):
             settings = AutoTradingManager.get_or_create_settings(user.id)
             
             # Check if user has Auto mode enabled
-            auto_status = "🤖 Auto (Use Broadcast Values)" if getattr(settings, 'position_size_auto', False) else f"{settings.position_size_percentage:.1f}% (Custom)"
+            auto_status = "🤖 Auto (Bot Optimization)" if getattr(settings, 'position_size_auto', False) else f"{settings.position_size_percentage:.1f}% (Custom)"
             
             message = (
                 "📈 *SET POSITION SIZE*\n\n"
@@ -12122,7 +12122,7 @@ def set_position_size_handler(update, chat_id):
             )
             
             # Show Auto as selected if currently in auto mode
-            auto_button_text = "🤖 Auto (Current)" if getattr(settings, 'position_size_auto', True) else "🤖 Auto (Broadcast)"
+            auto_button_text = "🤖 Auto (Current)" if getattr(settings, 'position_size_auto', True) else "🤖 Auto (Bot Optimization)"
             
             keyboard = bot.create_inline_keyboard([
                 [
@@ -12239,7 +12239,7 @@ def set_stop_loss_handler(update, chat_id):
                 return
             
             settings = AutoTradingManager.get_or_create_settings(user.id)
-            auto_status = "🤖 Auto (Broadcast Values)" if getattr(settings, 'stop_loss_auto', False) else f"{settings.stop_loss_percentage:.1f}% (Custom)"
+            auto_status = "🤖 Auto (Bot Optimization)" if getattr(settings, 'stop_loss_auto', False) else f"{settings.stop_loss_percentage:.1f}% (Custom)"
             
             message = (
                 "🛡️ *SET STOP LOSS*\n\n"
@@ -12250,7 +12250,7 @@ def set_stop_loss_handler(update, chat_id):
             )
             
             # Show Auto as selected if currently in auto mode
-            auto_button_text = "🤖 Auto (Current)" if getattr(settings, 'stop_loss_auto', True) else "🤖 Auto (Broadcast)"
+            auto_button_text = "🤖 Auto (Current)" if getattr(settings, 'stop_loss_auto', True) else "🤖 Auto (Bot Optimization)"
             
             keyboard = bot.create_inline_keyboard([
                 [{"text": auto_button_text, "callback_data": "set_stop_loss_auto"}],
@@ -12339,7 +12339,7 @@ def set_take_profit_handler(update, chat_id):
                 return
             
             settings = AutoTradingManager.get_or_create_settings(user.id)
-            auto_status = "🤖 Auto (Broadcast Values)" if getattr(settings, 'take_profit_auto', False) else f"{settings.take_profit_percentage:.1f}% (Custom)"
+            auto_status = "🤖 Auto (Bot Optimization)" if getattr(settings, 'take_profit_auto', False) else f"{settings.take_profit_percentage:.1f}% (Custom)"
             
             message = (
                 "🎯 *SET TAKE PROFIT*\n\n"
@@ -12350,7 +12350,7 @@ def set_take_profit_handler(update, chat_id):
             )
             
             keyboard = bot.create_inline_keyboard([
-                [{"text": "🤖 Auto (Broadcast)", "callback_data": "set_take_profit_auto"}],
+                [{"text": "🤖 Auto (Bot Optimization)", "callback_data": "set_take_profit_auto"}],
                 [
                     {"text": "50% (Conservative)", "callback_data": "set_take_profit_50"},
                     {"text": "100% (2x)", "callback_data": "set_take_profit_100"}
@@ -12436,7 +12436,7 @@ def set_daily_trades_handler(update, chat_id):
                 return
             
             settings = AutoTradingManager.get_or_create_settings(user.id)
-            auto_status = "🤖 Auto (Broadcast Frequency)" if getattr(settings, 'daily_trades_auto', False) else f"{settings.max_daily_trades} trades (Custom)"
+            auto_status = "🤖 Auto (Bot Optimization)" if getattr(settings, 'daily_trades_auto', False) else f"{settings.max_daily_trades} trades (Custom)"
             
             message = (
                 "📊 *SET DAILY TRADES LIMIT*\n\n"
@@ -12447,7 +12447,7 @@ def set_daily_trades_handler(update, chat_id):
             )
             
             keyboard = bot.create_inline_keyboard([
-                [{"text": "🤖 Auto (Broadcast)", "callback_data": "set_daily_trades_auto"}],
+                [{"text": "🤖 Auto (Bot Optimization)", "callback_data": "set_daily_trades_auto"}],
                 [
                     {"text": "3 Trades", "callback_data": "set_daily_trades_3"},
                     {"text": "5 Trades", "callback_data": "set_daily_trades_5"}
@@ -12533,7 +12533,7 @@ def set_max_positions_handler(update, chat_id):
                 return
             
             settings = AutoTradingManager.get_or_create_settings(user.id)
-            auto_status = "🤖 Auto (Broadcast Limits)" if getattr(settings, 'max_positions_auto', False) else f"{settings.max_simultaneous_positions} positions (Custom)"
+            auto_status = "🤖 Auto (Bot Optimization)" if getattr(settings, 'max_positions_auto', False) else f"{settings.max_simultaneous_positions} positions (Custom)"
             
             message = (
                 "🔢 *SET MAX SIMULTANEOUS POSITIONS*\n\n"
@@ -12544,7 +12544,7 @@ def set_max_positions_handler(update, chat_id):
             )
             
             keyboard = bot.create_inline_keyboard([
-                [{"text": "🤖 Auto (Broadcast)", "callback_data": "set_max_positions_auto"}],
+                [{"text": "🤖 Auto (Bot Optimization)", "callback_data": "set_max_positions_auto"}],
                 [
                     {"text": "2 Positions", "callback_data": "set_max_positions_2"},
                     {"text": "3 Positions", "callback_data": "set_max_positions_3"}
