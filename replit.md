@@ -98,6 +98,17 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Bot Token Update and Interface Restoration (June 30, 2025)
+- **Updated Telegram bot token** to 7562541416:AAHM0CLmgEuAzuEU7TpLkulCM0Yzp0xhrQI for @ThriveQuantbot
+- **Restored clean "Autopilot Dashboard" interface** matching user's requested screenshot design
+- **Fixed token loading mechanism** to use environment variables directly instead of cached imports
+- **Resolved HTTP 401 authentication errors** by updating .env file and restarting workflow
+- **Confirmed bot functionality** with successful polling startup and handler registration
+- **Files updated**: `.env` (token update), `bot_v20_runner.py` (token loading fix)
+- **Result**: Bot now fully operational with clean dashboard interface as requested
+
+## Recent Changes
+
 ### Wallet Address Removal for Professional Authenticity (June 27, 2025)
 - **Removed all wallet address displays** from user-facing interfaces after user feedback that showing wallet addresses appears unprofessional and "trying too hard" to convince memecoin traders
 - **Enhanced professional messaging** by replacing specific wallet addresses with general institutional custody infrastructure language
