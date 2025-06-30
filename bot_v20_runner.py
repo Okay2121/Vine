@@ -1540,64 +1540,61 @@ def help_command(update, chat_id):
     """Handle the /help command with professional memecoin trader focus."""
     try:
         help_message = (
-            "⚡ *THRIVE AUTONOMOUS TRADING SYSTEM*\n"
-            "*Professional MEV Bot for Solana Memecoins*\n\n"
+            "🤖 *THRIVE TRADING BOT HELP*\n\n"
             
-            "🏛️ *INSTITUTIONAL-GRADE INFRASTRUCTURE*\n"
-            "• Multi-signature custody architecture with hardware security modules\n"
-            "• Sub-100ms execution speeds via Jito bundle optimization\n"
-            "• Private mempool access for front-running protection\n"
-            "• Algorithmic risk management with dynamic position sizing\n"
-            "• Enterprise-grade audit trails and compliance protocols\n\n"
+            "📋 *MAIN COMMANDS*\n"
+            "`/start` - Start the bot and create your account\n"
+            "`/dashboard` - View your balance and trading performance\n"
+            "`/deposit` - Add SOL to start trading\n"
+            "`/withdraw` - Withdraw your profits\n"
+            "`/referral` - Get your referral link and earnings\n"
+            "`/help` - Show this help message\n\n"
             
-            "🧠 *ADVANCED TRADING ALGORITHMS*\n"
-            "• Real-time whale wallet tracking and copy trading\n"
-            "• Social sentiment analysis from 50+ alpha groups\n"
-            "• Pump.fun launch detection with liquidity scanning\n"
-            "• MEV sandwich attack protection and gas optimization\n"
-            "• Automated arbitrage detection across DEX platforms\n\n"
+            "⚙️ *TRADING FEATURES*\n"
+            "• *Auto Trading Settings* - Configure automated trading\n"
+            "  - Set position sizes and risk levels\n"
+            "  - Choose signal sources (Pump.fun, whale tracking)\n"
+            "  - Set stop loss and take profit levels\n"
+            "  - Manage daily trade limits\n\n"
             
-            "🎯 *SNIPER TECHNOLOGY*\n"
-            "• Automated token launch detection and instant execution\n"
-            "• Network congestion analysis for optimal gas pricing\n"
-            "• Multi-platform scanning: Raydium, Jupiter, Orca, Meteora\n"
-            "• Success rate optimization: 180-450ms average entry speed\n"
-            "• Portfolio balancing with intelligent risk distribution\n\n"
+            "• *Sniper Mode* - Fast token buying\n"
+            "  - Monitor new token launches\n"
+            "  - Quick buy opportunities\n"
+            "  - Real-time market scanning\n\n"
             
-            "💎 *PROFESSIONAL FEATURES*\n"
-            "• Real-time USD conversion with live SOL price tracking\n"
-            "• Advanced auto-trading with custom position parameters\n"
-            "• Comprehensive referral system with 5% profit sharing\n"
-            "• Multi-tier balance validation and risk management\n"
-            "• Professional verification system with blockchain transparency\n\n"
+            "• *Performance Tracking* - View your results\n"
+            "  - Daily and total P/L\n"
+            "  - Trading history\n"
+            "  - Success rate statistics\n\n"
             
-            "🔧 *ESSENTIAL COMMANDS*\n"
-            "`/start` - Initialize account with institutional onboarding\n"
-            "`/dashboard` - Access real-time performance analytics\n"
-            "`/sniper` - Control autonomous token detection system\n"
-            "`/settings` - Configure advanced trading parameters\n"
-            "`/withdraw` - Execute secure profit withdrawals\n"
-            "`/referral` - Access institutional referral program\n\n"
+            "💰 *HOW IT WORKS*\n"
+            "1. Deposit SOL to activate trading\n"
+            "2. Configure your auto trading settings\n"
+            "3. Bot monitors markets and executes trades\n"
+            "4. View profits in your dashboard\n"
+            "5. Withdraw anytime\n\n"
             
-            "⚠️ *RISK DISCLOSURE*\n"
-            "• Minimum balance requirements for optimal performance\n"
-            "• 2% fee applies to profits only (not deposits)\n"
-            "• Advanced features require institutional-grade custody\n"
-            "• All trades executed with MEV protection protocols"
+            "🎁 *REFERRAL PROGRAM*\n"
+            "• Earn 5% of your friends' profits\n"
+            "• Share your referral link\n"
+            "• Track your referral earnings\n\n"
+            
+            "💡 *GETTING STARTED*\n"
+            "Use the buttons below to access main features or type any command above."
         )
         
         keyboard = bot.create_inline_keyboard([
             [
-                {"text": "🎯 Start Sniper", "callback_data": "sniper_mode"},
-                {"text": "⚙️ Auto Trading", "callback_data": "auto_trading_settings"}
-            ],
-            [
                 {"text": "📊 Dashboard", "callback_data": "view_dashboard"},
-                {"text": "🔗 Blockchain Verification", "callback_data": "blockchain_verification"}
+                {"text": "⚙️ Auto Trading Settings", "callback_data": "auto_trading_settings"}
             ],
             [
-                {"text": "💰 Platform Deposit", "callback_data": "deposit"},
-                {"text": "🏛️ Institutional FAQ", "callback_data": "faq"}
+                {"text": "🎯 Sniper Mode", "callback_data": "sniper_mode"},
+                {"text": "💰 Deposit", "callback_data": "deposit"}
+            ],
+            [
+                {"text": "💸 Withdraw", "callback_data": "withdraw"},
+                {"text": "👥 Referral Program", "callback_data": "referral"}
             ]
         ])
         
