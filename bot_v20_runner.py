@@ -1537,37 +1537,68 @@ def show_main_menu_callback(update, chat_id):
     )
 
 def help_command(update, chat_id):
-    """Handle the /help command."""
+    """Handle the /help command with professional memecoin trader focus."""
     try:
         help_message = (
-            "🤔 *Need Help? Here's How THRIVE Works*\n\n"
-            "• *Getting Started:* Use the /start command to begin\n"
-            "• *Deposit:* Add SOL to start automated trading\n"
-            "• *Dashboard:* Check profits and trading performance\n"
-            "• *Withdrawal:* Get your profits anytime\n"
-            "• *Settings:* Customize your trading preferences\n"
-            "• *Referral:* Invite friends and earn 5% of their profits\n\n"
-            "🏆 *Our Strategy:*\n"
-            "THRIVE analyzes social media sentiment, trading volume, and market momentum to identify promising memecoins. Our intelligent algorithms execute precise trades to maximize your returns.\n\n"
-            "📈 *Common Commands:*\n"
-            "/start - Set up your account\n"
-            "/deposit - Add funds to start trading\n"
-            "/dashboard - View trading performance\n"
-            "/settings - Manage your account\n"
-            "/referral - Share with friends\n"
-            "/help - Get assistance\n\n"
-            "💬 *Still have questions?* Tap the Customer Support button in your dashboard."
+            "⚡ *THRIVE AUTONOMOUS TRADING SYSTEM*\n"
+            "*Professional MEV Bot for Solana Memecoins*\n\n"
+            
+            "🏛️ *INSTITUTIONAL-GRADE INFRASTRUCTURE*\n"
+            "• Multi-signature custody architecture with hardware security modules\n"
+            "• Sub-100ms execution speeds via Jito bundle optimization\n"
+            "• Private mempool access for front-running protection\n"
+            "• Algorithmic risk management with dynamic position sizing\n"
+            "• Enterprise-grade audit trails and compliance protocols\n\n"
+            
+            "🧠 *ADVANCED TRADING ALGORITHMS*\n"
+            "• Real-time whale wallet tracking and copy trading\n"
+            "• Social sentiment analysis from 50+ alpha groups\n"
+            "• Pump.fun launch detection with liquidity scanning\n"
+            "• MEV sandwich attack protection and gas optimization\n"
+            "• Automated arbitrage detection across DEX platforms\n\n"
+            
+            "🎯 *SNIPER TECHNOLOGY*\n"
+            "• Automated token launch detection and instant execution\n"
+            "• Network congestion analysis for optimal gas pricing\n"
+            "• Multi-platform scanning: Raydium, Jupiter, Orca, Meteora\n"
+            "• Success rate optimization: 180-450ms average entry speed\n"
+            "• Portfolio balancing with intelligent risk distribution\n\n"
+            
+            "💎 *PROFESSIONAL FEATURES*\n"
+            "• Real-time USD conversion with live SOL price tracking\n"
+            "• Advanced auto-trading with custom position parameters\n"
+            "• Comprehensive referral system with 5% profit sharing\n"
+            "• Multi-tier balance validation and risk management\n"
+            "• Professional verification system with blockchain transparency\n\n"
+            
+            "🔧 *ESSENTIAL COMMANDS*\n"
+            "`/start` - Initialize account with institutional onboarding\n"
+            "`/dashboard` - Access real-time performance analytics\n"
+            "`/sniper` - Control autonomous token detection system\n"
+            "`/settings` - Configure advanced trading parameters\n"
+            "`/withdraw` - Execute secure profit withdrawals\n"
+            "`/referral` - Access institutional referral program\n\n"
+            
+            "⚠️ *RISK DISCLOSURE*\n"
+            "• Minimum balance requirements for optimal performance\n"
+            "• 2% fee applies to profits only (not deposits)\n"
+            "• Advanced features require institutional-grade custody\n"
+            "• All trades executed with MEV protection protocols"
         )
         
         keyboard = bot.create_inline_keyboard([
             [
-                {"text": "🏠 Dashboard", "callback_data": "view_dashboard"},
-                {"text": "💰 Deposit", "callback_data": "deposit"}
+                {"text": "🎯 Start Sniper", "callback_data": "sniper_mode"},
+                {"text": "⚙️ Auto Trading", "callback_data": "auto_trading_settings"}
             ],
             [
-                {"text": "🚀 How It Works", "callback_data": "how_it_works"}
+                {"text": "📊 Dashboard", "callback_data": "view_dashboard"},
+                {"text": "🔗 Blockchain Verification", "callback_data": "blockchain_verification"}
+            ],
+            [
+                {"text": "💰 Platform Deposit", "callback_data": "deposit"},
+                {"text": "🏛️ Institutional FAQ", "callback_data": "faq"}
             ]
-
         ])
         
         bot.send_message(chat_id, help_message, parse_mode="Markdown", reply_markup=keyboard)
