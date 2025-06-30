@@ -77,6 +77,9 @@ from models import User, UserStatus, Profit, Transaction, TradingPosition, Refer
 # Import smart balance allocation system
 from smart_balance_allocator import process_smart_buy_broadcast, process_smart_sell_broadcast
 
+# Import price fetcher for real-time USD conversion
+from utils.price_fetcher import format_balance_with_usd, sol_to_usd, get_sol_price_usd, get_price_change_indicator
+
 # Global bot instance management
 _bot_instance = None
 _bot_running = False
@@ -1831,15 +1834,25 @@ def dashboard_command(update, chat_id):
                 days_with_balance = 0
                 current_balance = user.balance
             
-            # Simple dashboard message matching the screenshot
+            # Simple dashboard message with real-time USD conversion
+            balance_with_usd = format_balance_with_usd(current_balance)
+            today_pl_with_usd = format_balance_with_usd(today_profit_amount, show_sol=(today_profit_amount != 0))
+            total_pl_with_usd = format_balance_with_usd(total_profit_amount, show_sol=(total_profit_amount != 0))
+            
+            # Get current SOL price and change indicator for realism
+            sol_price = get_sol_price_usd()
+            price_change = get_price_change_indicator()
+            
             dashboard_message = (
                 "📊 *Autopilot Dashboard*\n\n"
-                f"• *Balance:* {current_balance:.2f} SOL\n"
-                f"• *Today's P/L:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
-                f"• *Total P/L:* +{total_profit_percentage:.1f}% (+{total_profit_amount:.2f} SOL)\n"
+                f"• *Balance:* {balance_with_usd}\n"
+                f"• *Today's P/L:* {today_pl_with_usd} ({today_profit_percentage:.1f}%)\n"
+                f"• *Total P/L:* +{total_profit_percentage:.1f}% (+{total_pl_with_usd})\n"
                 f"• *Profit Streak:* {streak} Days\n"
                 f"• *Mode:* Autopilot Trader (Fully Automated)\n"
                 f"• *Day:* {days_with_balance}\n\n"
+                
+                f"💹 *SOL Price:* ${sol_price:.2f} {price_change}\n\n"
                 
                 "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
                 "💡 *Thrive automatically manages your portfolio to optimize profit and reduce risk.*\n\n"
@@ -7031,19 +7044,22 @@ def withdraw_profit_handler(update, chat_id):
             else:
                 display_wallet = wallet_address
             
-            # Show initial withdrawal screen with real-time processing and proper P/L formatting
+            # Show initial withdrawal screen with real-time USD conversion
+            balance_with_usd = format_balance_with_usd(available_balance)
+            profit_with_usd = format_balance_with_usd(total_profit_amount, show_sol=(total_profit_amount != 0))
+            
             withdrawal_message = (
                 "💰 *Withdraw Funds*\n\n"
-                f"Available Balance: *{available_balance:.2f} SOL*\n"
+                f"Available Balance: *{balance_with_usd}*\n"
             )
             
-            # Add Total P/L with proper sign formatting (same logic as dashboards)
+            # Add Total P/L with proper sign formatting and USD conversion
             if total_profit_amount > 0:
-                withdrawal_message += f"Total P/L: *+{total_profit_amount:.2f} SOL* (+{total_profit_percentage:.1f}%)\n\n"
+                withdrawal_message += f"Total P/L: *+{profit_with_usd}* (+{total_profit_percentage:.1f}%)\n\n"
             elif total_profit_amount < 0:
-                withdrawal_message += f"Total P/L: *{total_profit_amount:.2f} SOL* ({total_profit_percentage:.1f}%)\n\n"
+                withdrawal_message += f"Total P/L: *{profit_with_usd}* ({total_profit_percentage:.1f}%)\n\n"
             else:
-                withdrawal_message += f"Total P/L: *{total_profit_amount:.2f} SOL* ({total_profit_percentage:.1f}%)\n\n"
+                withdrawal_message += f"Total P/L: *{profit_with_usd}* ({total_profit_percentage:.1f}%)\n\n"
             
             withdrawal_message += (
                 f"Withdrawal Wallet: `{display_wallet}`\n\n"
@@ -7249,8 +7265,9 @@ def trading_history_handler(update, chat_id):
             slippage_protection = random.uniform(0.4, 0.9)
             network_uptime = random.uniform(99.4, 99.8)
             
-            # Calculate sophisticated portfolio metrics
-            portfolio_usd = current_balance * random.uniform(157, 167)  # SOL price simulation
+            # Calculate sophisticated portfolio metrics with real-time USD conversion
+            balance_with_usd = format_balance_with_usd(current_balance)
+            initial_with_usd = format_balance_with_usd(initial_deposit)
             capital_deployed = random.uniform(91.2, 97.8)
             risk_score = random.randint(78, 94)
             alpha_generation = random.uniform(8.3, 15.7)
@@ -7262,8 +7279,8 @@ def trading_history_handler(update, chat_id):
                 f"🎯 Opportunities: {arbitrage_opportunities} active | 🐋 Whale Tracking: {whale_tracking}\n\n"
                 
                 "💼 *PORTFOLIO ANALYTICS*\n"
-                f"• *Portfolio Value:* {current_balance:.2f} SOL (${portfolio_usd:,.0f})\n"
-                f"• *Initial Capital:* {initial_deposit:.2f} SOL\n"
+                f"• *Portfolio Value:* {balance_with_usd}\n"
+                f"• *Initial Capital:* {initial_with_usd}\n"
                 f"• *Capital Deployed:* {capital_deployed:.1f}% of available funds\n"
                 f"• *Risk Score:* {risk_score}/100 (Optimized)\n\n"
             )
@@ -7271,26 +7288,30 @@ def trading_history_handler(update, chat_id):
             # Advanced Performance Metrics
             performance_message += "📊 *PERFORMANCE METRICS*\n"
             
-            # Total P/L with alpha metrics
+            # Total P/L with alpha metrics and USD conversion
+            total_pl_with_usd = format_balance_with_usd(total_profit_amount, show_sol=(total_profit_amount != 0))
+            
             if total_profit_amount >= 0:
-                performance_message += f"• *Total P/L:* +{total_profit_amount:.2f} SOL (+{total_profit_percentage:.1f}%)\n"
+                performance_message += f"• *Total P/L:* +{total_pl_with_usd} (+{total_profit_percentage:.1f}%)\n"
             else:
-                performance_message += f"• *Total P/L:* {total_profit_amount:.2f} SOL ({total_profit_percentage:.1f}%)\n"
+                performance_message += f"• *Total P/L:* {total_pl_with_usd} ({total_profit_percentage:.1f}%)\n"
                 
             performance_message += f"• *Alpha vs Market:* +{alpha_generation:.1f}% outperformance\n"
             performance_message += f"• *Sharpe Ratio:* {random.uniform(2.1, 3.4):.2f} (Excellent)\n"
             performance_message += f"• *Max Drawdown:* -{random.uniform(1.2, 2.8):.1f}% (Controlled)\n\n"
             
-            # Today's P/L with sophisticated metrics
+            # Today's P/L with sophisticated metrics and USD conversion
+            today_pl_with_usd = format_balance_with_usd(today_profit_amount, show_sol=(today_profit_amount != 0))
+            
             performance_message += "⚡ *TODAY'S EXECUTION*\n"
             starting_balance = current_balance - today_profit_amount
             
             if today_profit_amount > 0:
-                performance_message += f"• *Today's P/L:* +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
+                performance_message += f"• *Today's P/L:* +{today_pl_with_usd} (+{today_profit_percentage:.1f}%)\n"
             elif today_profit_amount < 0:
-                performance_message += f"• *Today's P/L:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
+                performance_message += f"• *Today's P/L:* {today_pl_with_usd} ({today_profit_percentage:.1f}%)\n"
             else:
-                performance_message += f"• *Today's P/L:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
+                performance_message += f"• *Today's P/L:* {today_pl_with_usd} ({today_profit_percentage:.1f}%)\n"
                 
             performance_message += f"• *Execution Efficiency:* {random.randint(89, 96)}% optimal\n"
             performance_message += f"• *Gas Optimization:* {gas_optimization}% savings\n"
