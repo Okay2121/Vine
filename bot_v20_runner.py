@@ -1850,8 +1850,6 @@ def dashboard_command(update, chat_id):
                 f"• *Mode:* Autopilot Trader (Fully Automated)\n"
                 f"• *Day:* {days_with_balance}\n\n"
                 
-                f"💹 *SOL Price:* ${sol_price:.2f} {price_change}\n\n"
-                
                 "💡 *Thrive automatically manages your portfolio to optimize profit and reduce risk.*\n\n"
                 "⚠️ *Note: 2% fee applies to profits only (not deposits)*"
             )
@@ -7056,7 +7054,6 @@ def withdraw_profit_handler(update, chat_id):
             
             withdrawal_message = (
                 "💰 *Withdraw Funds*\n\n"
-                f"💹 *SOL Price:* ${sol_price:.2f} {price_change}\n\n"
                 f"Available Balance: *{balance_with_usd}*\n"
             )
             
@@ -7284,7 +7281,6 @@ def trading_history_handler(update, chat_id):
             
             # Build clean Performance Dashboard matching screenshot format
             performance_message = "🚀 *PERFORMANCE DASHBOARD* 🚀\n\n"
-            performance_message += f"💹 *SOL Price:* ${sol_price:.2f} {price_change}\n\n"
             
             # BALANCE section (with USD for current balance only)
             performance_message += "💰 *BALANCE*\n"
