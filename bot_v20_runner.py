@@ -7051,9 +7051,12 @@ def withdraw_profit_handler(update, chat_id):
             
             # Show initial withdrawal screen with USD for balance only
             balance_with_usd = format_balance_with_usd(available_balance)
+            sol_price = get_sol_price_usd()
+            price_change = get_price_change_indicator()
             
             withdrawal_message = (
                 "💰 *Withdraw Funds*\n\n"
+                f"💹 *SOL Price:* ${sol_price:.2f} {price_change}\n\n"
                 f"Available Balance: *{balance_with_usd}*\n"
             )
             
@@ -7275,8 +7278,13 @@ def trading_history_handler(update, chat_id):
             risk_score = random.randint(78, 94)
             alpha_generation = random.uniform(8.3, 15.7)
             
+            # Get current SOL price for real-time display
+            sol_price = get_sol_price_usd()
+            price_change = get_price_change_indicator()
+            
             # Build clean Performance Dashboard matching screenshot format
             performance_message = "🚀 *PERFORMANCE DASHBOARD* 🚀\n\n"
+            performance_message += f"💹 *SOL Price:* ${sol_price:.2f} {price_change}\n\n"
             
             # BALANCE section (with USD for current balance only)
             performance_message += "💰 *BALANCE*\n"

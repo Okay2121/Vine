@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 _price_cache = {
     'price': None,
     'timestamp': 0,
-    'cache_duration': 60  # Cache price for 60 seconds
+    'cache_duration': 30  # Cache price for 30 seconds for real-time feel
 }
 
 def get_sol_price_usd() -> Optional[float]:
