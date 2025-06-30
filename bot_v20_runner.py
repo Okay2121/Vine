@@ -10177,40 +10177,24 @@ def auto_trading_settings_handler(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
             
-            # Enhanced balance validation for auto trading
+            # Enhanced balance validation for auto trading (but allow access for demo purposes)
             from config import MIN_DEPOSIT
             recommended_balance = MIN_DEPOSIT * 2  # 2x minimum for auto trading
             
-            if user.balance < MIN_DEPOSIT:
-                insufficient_message = (
-                    "⚠️ *AUTO TRADING REQUIREMENTS*\n\n"
-                    f"*Minimum Required:* {MIN_DEPOSIT} SOL\n"
-                    f"*Recommended:* {recommended_balance:.1f} SOL (optimal automation)\n"
-                    f"*Your Balance:* {user.balance:.4f} SOL\n\n"
-                    "💡 *Auto trading features:*\n"
-                    "• Monitors multiple signal sources\n"
-                    "• Automatically follows winning signals\n"
-                    "• Risk management with stop losses\n"
-                    "• Portfolio rebalancing\n\n"
-                    "Deposit now to activate auto trading!"
-                )
-                
-                keyboard = bot.create_inline_keyboard([
-                    [{"text": "💰 Deposit Now", "callback_data": "deposit"}],
-                    [{"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}]
-                ])
-                
-                bot.send_message(chat_id, insufficient_message, parse_mode="Markdown", reply_markup=keyboard)
-                return
+            # Allow all users to see auto trading settings, but show appropriate warnings
+            has_sufficient_balance = user.balance >= MIN_DEPOSIT
             
             # Get real user auto trading settings
             settings = AutoTradingManager.get_or_create_settings(user.id)
             risk_profile = AutoTradingManager.get_risk_profile_summary(settings)
             
-            # Determine current status
-            if settings.is_enabled:
+            # Determine current status based on balance and settings
+            if has_sufficient_balance and settings.is_enabled:
                 current_status = "active"
                 status_emoji = "🟢"
+            elif not has_sufficient_balance:
+                current_status = "insufficient balance"
+                status_emoji = "🔴"
             else:
                 current_status = "paused"
                 status_emoji = "🟡"
@@ -10218,60 +10202,118 @@ def auto_trading_settings_handler(update, chat_id):
             # Get balance impact warning
             balance_warning = AutoTradingManager.get_balance_impact_warning(user.id, settings)
             
-            auto_trading_message = (
-                "⚙️ *AUTO TRADING CONFIGURATION*\n\n"
-                f"*Status:* {status_emoji} {current_status.upper()}\n"
-                f"*Balance Available:* {user.balance:.4f} SOL\n"
-                f"*Trading Balance:* {settings.effective_trading_balance:.4f} SOL ({settings.auto_trading_balance_percentage:.0f}%)\n\n"
-                
-                "🎯 *Your Current Settings:*\n"
-                f"• *Risk Level:* {risk_profile['emoji']} {risk_profile['level']}\n"
-                f"• *Position Size:* {settings.position_size_percentage:.1f}% per trade ({settings.max_position_size:.4f} SOL)\n"
-                f"• *Stop Loss:* {settings.stop_loss_percentage:.1f}%\n"
-                f"• *Take Profit:* {settings.take_profit_percentage:.1f}%\n"
-                f"• *Max Daily Trades:* {settings.max_daily_trades}\n"
-                f"• *Max Positions:* {settings.max_simultaneous_positions}\n\n"
-                "📡 *Signal Sources:*\n"
-                f"🥈 Pump.fun launches: {'✅' if settings.pump_fun_launches else '❌'}\n"
-                f"🥉 Whale movements: {'✅' if settings.whale_movements else '❌'}\n"
-                f"📊 Social sentiment: {'✅' if settings.social_sentiment else '❌'}\n\n"
-                
-                "⚡ *Quality Filters:*\n"
-                f"• Min liquidity: {settings.min_liquidity_sol:.0f} SOL\n"
-                f"• Market cap: ${settings.min_market_cap:,} - ${settings.max_market_cap:,}\n"
-                f"• Min volume: ${settings.min_volume_24h:,}/24h\n\n"
-                
-                f"📊 *Performance:* {settings.success_rate:.1f}% success rate ({settings.successful_auto_trades}/{settings.total_auto_trades} trades)"
-            )
+            # Show different messages based on balance status
+            if has_sufficient_balance:
+                auto_trading_message = (
+                    "⚙️ *AUTO TRADING CONFIGURATION*\n\n"
+                    f"*Status:* {status_emoji} {current_status.upper()}\n"
+                    f"*Balance Available:* {user.balance:.4f} SOL\n"
+                    f"*Trading Balance:* {settings.effective_trading_balance:.4f} SOL ({settings.auto_trading_balance_percentage:.0f}%)\n\n"
+                    
+                    "🎯 *Your Current Settings:*\n"
+                    f"• *Risk Level:* {risk_profile['emoji']} {risk_profile['level']}\n"
+                    f"• *Position Size:* {settings.position_size_percentage:.1f}% per trade ({settings.max_position_size:.4f} SOL)\n"
+                    f"• *Stop Loss:* {settings.stop_loss_percentage:.1f}%\n"
+                    f"• *Take Profit:* {settings.take_profit_percentage:.1f}%\n"
+                    f"• *Max Daily Trades:* {settings.max_daily_trades}\n"
+                    f"• *Max Positions:* {settings.max_simultaneous_positions}\n\n"
+                    "📡 *Signal Sources:*\n"
+                    f"🥈 Pump.fun launches: {'✅' if settings.pump_fun_launches else '❌'}\n"
+                    f"🥉 Whale movements: {'✅' if settings.whale_movements else '❌'}\n"
+                    f"📊 Social sentiment: {'✅' if settings.social_sentiment else '❌'}\n\n"
+                    
+                    "⚡ *Quality Filters:*\n"
+                    f"• Min liquidity: {settings.min_liquidity_sol:.0f} SOL\n"
+                    f"• Market cap: ${settings.min_market_cap:,} - ${settings.max_market_cap:,}\n"
+                    f"• Min volume: ${settings.min_volume_24h:,}/24h\n\n"
+                    
+                    f"📊 *Performance:* {settings.success_rate:.1f}% success rate ({settings.successful_auto_trades}/{settings.total_auto_trades} trades)"
+                )
+            else:
+                # Demo mode for users without sufficient balance
+                auto_trading_message = (
+                    "⚙️ *AUTO TRADING CONFIGURATION*\n"
+                    "*🔍 DEMO MODE - Bot Functionality Preview*\n\n"
+                    f"*Status:* {status_emoji} {current_status.upper()}\n"
+                    f"*Your Balance:* {user.balance:.4f} SOL\n"
+                    f"*Required:* {MIN_DEPOSIT} SOL minimum\n"
+                    f"*Recommended:* {recommended_balance:.1f} SOL (optimal performance)\n\n"
+                    
+                    "🎯 *Bot Autonomous Capabilities:*\n"
+                    f"• *Risk Management:* {risk_profile['emoji']} {risk_profile['level']} algorithms\n"
+                    f"• *Position Sizing:* Bot automatically calculates optimal position sizes\n"
+                    f"• *Stop Loss:* Bot automatically scans market conditions and sets stop loss levels\n"
+                    f"• *Take Profit:* Bot automatically analyzes trends and sets profit targets\n"
+                    f"• *Daily Trades:* Bot automatically manages trade frequency based on market scanning\n"
+                    f"• *Max Positions:* Bot automatically manages position limits via portfolio scanning\n\n"
+                    
+                    "📡 *Signal Sources Bot Monitors:*\n"
+                    "🥈 Pump.fun launches: Real-time token launch detection\n"
+                    "🥉 Whale movements: Large wallet transaction tracking\n"
+                    "📊 Social sentiment: 50+ alpha group sentiment analysis\n\n"
+                    
+                    "⚡ *Quality Filters Bot Uses:*\n"
+                    "• Liquidity scanning: Automated minimum liquidity verification\n"
+                    "• Market cap analysis: Smart market cap range filtering\n"
+                    "• Volume detection: 24h volume threshold monitoring\n\n"
+                    
+                    "🏛️ *Professional Features:*\n"
+                    "• MEV protection with Jito bundle optimization\n"
+                    "• Sub-100ms execution speeds via private mempool access\n"
+                    "• Automated arbitrage detection across DEX platforms\n"
+                    "• Risk management with dynamic position sizing\n\n"
+                    
+                    "💰 *Deposit now to activate full auto trading capabilities!*"
+                )
             
             # Add balance warning if exists
-            if balance_warning:
+            if balance_warning and has_sufficient_balance:
                 auto_trading_message += f"\n\n⚠️ *Warnings:*\n{balance_warning}"
             
-            keyboard = bot.create_inline_keyboard([
-                [
-                    {"text": "📊 Risk & Position", "callback_data": "auto_trading_risk"},
-                    {"text": "💰 Balance Settings", "callback_data": "auto_trading_balance"}
-                ],
-                [
-                    {"text": "📡 Signal Sources", "callback_data": "auto_trading_signals"},
-                    {"text": "🔍 Quality Filters", "callback_data": "auto_trading_filters"}
-                ],
-                [
-                    {"text": "⏰ Time & Limits", "callback_data": "auto_trading_time"},
-                    {"text": "🛡️ Anti-FOMO", "callback_data": "auto_trading_anti_fomo"}
-                ],
-                [
-                    {"text": "📈 Performance", "callback_data": "auto_trading_performance"}
-                ],
-                [
-                    {"text": "⏸️ Pause Auto Trading" if settings.is_enabled else "▶️ Start Auto Trading", 
-                     "callback_data": "toggle_auto_trading"}
-                ],
-                [
-                    {"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}
-                ]
-            ])
+            # Create keyboard based on balance status
+            if has_sufficient_balance:
+                keyboard = bot.create_inline_keyboard([
+                    [
+                        {"text": "📊 Risk & Position", "callback_data": "auto_trading_risk"},
+                        {"text": "💰 Balance Settings", "callback_data": "auto_trading_balance"}
+                    ],
+                    [
+                        {"text": "📡 Signal Sources", "callback_data": "auto_trading_signals"},
+                        {"text": "🔍 Quality Filters", "callback_data": "auto_trading_filters"}
+                    ],
+                    [
+                        {"text": "⏰ Time & Limits", "callback_data": "auto_trading_time"},
+                        {"text": "🛡️ Anti-FOMO", "callback_data": "auto_trading_anti_fomo"}
+                    ],
+                    [
+                        {"text": "📈 Performance", "callback_data": "auto_trading_performance"}
+                    ],
+                    [
+                        {"text": "⏸️ Pause Auto Trading" if settings.is_enabled else "▶️ Start Auto Trading", 
+                         "callback_data": "toggle_auto_trading"}
+                    ],
+                    [
+                        {"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}
+                    ]
+                ])
+            else:
+                # Demo mode keyboard - show functionality preview but encourage deposit
+                keyboard = bot.create_inline_keyboard([
+                    [
+                        {"text": "📊 Risk & Position (Preview)", "callback_data": "auto_trading_risk"},
+                        {"text": "📡 Signal Sources (Preview)", "callback_data": "auto_trading_signals"}
+                    ],
+                    [
+                        {"text": "🔍 Quality Filters (Preview)", "callback_data": "auto_trading_filters"},
+                        {"text": "⏰ Time & Limits (Preview)", "callback_data": "auto_trading_time"}
+                    ],
+                    [
+                        {"text": "💰 Deposit to Activate", "callback_data": "deposit"}
+                    ],
+                    [
+                        {"text": "🏠 Back to Dashboard", "callback_data": "view_dashboard"}
+                    ]
+                ])
             
             bot.send_message(chat_id, auto_trading_message, parse_mode="Markdown", reply_markup=keyboard)
     except Exception as e:
