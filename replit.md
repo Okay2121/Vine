@@ -99,18 +99,19 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 ## Recent Changes
 
 ### Real-time USD Amount Display Implementation (June 30, 2025)
-- **Added comprehensive real-time USD conversion system** throughout bot interface for maximum authenticity
+- **Added selective real-time USD conversion system** for key balance displays only per user preference
 - **Created utils/price_fetcher.py module** with live SOL price fetching from multiple reliable sources (CoinGecko, Binance)
-- **Enhanced all major dashboards with USD displays**:
-  - Autopilot Dashboard: Balance, P/L amounts, and current SOL price with change indicators
-  - Performance Dashboard: Portfolio value, P/L metrics, and capital tracking with USD equivalents
-  - Withdrawal Screen: Available balance and P/L calculations with real-time USD conversion
+- **Enhanced balance displays with USD conversion**:
+  - Autopilot Dashboard: Main balance shows USD equivalent, P/L amounts in SOL only
+  - Performance Dashboard: Portfolio value shows USD equivalent, P/L metrics in SOL only
+  - Withdrawal Screen: Available balance shows USD equivalent, P/L in SOL only
+  - Current SOL price with realistic change indicators displayed across dashboards
 - **Smart formatting system** for USD amounts (K for thousands, M for millions) with proper fallbacks
 - **60-second price caching** to reduce API calls while maintaining real-time accuracy
 - **Multiple API source redundancy** ensuring price data availability with realistic fallback pricing
-- **Live price change indicators** with realistic daily movement simulation for enhanced realism
-- **Files enhanced**: `utils/price_fetcher.py` (new), `bot_v20_runner.py` with USD integration across 3 major dashboard functions
-- **Result**: Bot now displays professional real-time USD amounts alongside SOL values, significantly enhancing user trust and authenticity
+- **Strategic USD placement**: USD displays limited to main balance areas only, maintaining clean interface
+- **Files enhanced**: `utils/price_fetcher.py` (new), `bot_v20_runner.py` with selective USD integration
+- **Result**: Bot now displays professional real-time USD amounts for balances while keeping P/L in SOL, providing authenticity without overwhelming the interface
 
 ### Auto Trading Settings Page Connection Fix (June 30, 2025)
 - **Fixed critical database schema issue** where auto trading settings page buttons stopped responding
