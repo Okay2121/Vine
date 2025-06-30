@@ -1799,7 +1799,7 @@ def deposit_command(update, chat_id):
         bot.send_message(chat_id, f"Error accessing deposit interface: {str(e)}")
 
 def dashboard_command(update, chat_id):
-    """Handle the /dashboard command with real-time performance data."""
+    """Handle the /dashboard command - show simple Autopilot Dashboard matching the user's screenshot."""
     try:
         from datetime import datetime, timedelta
         
@@ -1809,27 +1809,20 @@ def dashboard_command(update, chat_id):
                 bot.send_message(chat_id, "Please start the bot with /start first.")
                 return
                 
-            # Get real-time performance data (same source as Performance Dashboard)
+            # Get real-time performance data
             from performance_tracking import get_performance_data, get_days_with_balance
             performance_data = get_performance_data(user.id)
             
             if performance_data:
-                # Extract values from performance data (synchronized with Performance Dashboard)
                 total_profit_amount = performance_data['total_profit']
                 total_profit_percentage = performance_data['total_percentage']
                 today_profit_amount = performance_data['today_profit']
                 today_profit_percentage = performance_data['today_percentage']
                 streak = performance_data['streak_days']
                 current_balance = performance_data['current_balance']
-                
-                # Get days with SOL balance for proper day counter
                 days_with_balance = get_days_with_balance(user.id)
-                
-                # Log successful data retrieval for debugging
-                import logging
-                logging.info(f"Autopilot Dashboard - Real-time data retrieved: streak={streak}, today_profit={today_profit_amount}, total_profit={total_profit_amount}, days_with_balance={days_with_balance}")
             else:
-                # Simple fallback if performance tracking completely fails
+                # Fallback values
                 total_profit_amount = 0
                 total_profit_percentage = 0
                 today_profit_amount = 0
@@ -1838,177 +1831,44 @@ def dashboard_command(update, chat_id):
                 days_with_balance = 0
                 current_balance = user.balance
             
-            # Calculate progress metrics
-            days_active = days_with_balance
-            days_left = max(0, 7 - days_active)
-            
-            # Calculate next milestone target - 10% of initial deposit or minimum 0.05 SOL
-            milestone_target = max(user.initial_deposit * 0.1, 0.05) if user.initial_deposit > 0 else 0.05
-            
-            # Calculate progress towards next milestone
-            goal_progress = min(100, (total_profit_amount / milestone_target) * 100) if milestone_target > 0 else 0
-            progress_blocks = int(min(14, goal_progress / (100/14)))
-            progress_bar = f"[{'▓' * progress_blocks}{'░' * (14 - progress_blocks)}]"
-            
-            # Generate real-time MEV metrics
-            import random
-            import time
-            
-            # Real-time execution metrics
-            execution_latency = random.randint(45, 89)
-            tokens_scanning = random.randint(1100, 1400)
-            active_opportunities = random.randint(8, 15)
-            win_rate = random.uniform(87.5, 92.8)
-            alpha_vs_market = random.uniform(6.2, 12.7)
-            gas_savings = random.randint(18, 28)
-            slippage_avg = random.uniform(0.6, 1.2)
-            whale_wallets = random.randint(78, 95)
-            new_launches = random.randint(25, 42)
-            rpc_latency = random.randint(9, 18)
-            validator_count = random.randint(6, 10)
-            stake_weighted = random.uniform(18.5, 28.7)
-            
-            # Calculate sophisticated metrics
-            portfolio_usd = current_balance * random.uniform(155, 165)  # SOL price simulation
-            capital_efficiency = min(98.5, random.uniform(89.0, 96.5))
-            risk_exposure = current_balance * random.uniform(0.15, 0.25)
-            risk_limit = max(current_balance * 6, 50.0)
-            execution_buffer = random.uniform(0.03, 0.08)
-            sharpe_ratio = random.uniform(2.4, 3.2)
-            max_drawdown = random.uniform(0.8, 2.1)
-            consecutive_wins = random.randint(6, 12)
-            
-            # Format P/L values with proper sign handling for both positive and negative values
+            # Simple dashboard message matching the screenshot
             dashboard_message = (
-                "📊 *Autopilot Dashboard*\n"
-                f"⚡ Execution: {execution_latency}ms | 🛡️ MEV Protection: ACTIVE\n"
-                f"🔄 Scanning: {tokens_scanning:,} tokens/sec | 🎯 Opportunities: {active_opportunities}\n\n"
+                "📊 *Autopilot Dashboard*\n\n"
+                f"• *Balance:* {current_balance:.2f} SOL\n"
+                f"• *Today's P/L:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
+                f"• *Total P/L:* +{total_profit_percentage:.1f}% (+{total_profit_amount:.2f} SOL)\n"
+                f"• *Profit Streak:* {streak} Days\n"
+                f"• *Mode:* Autopilot Trader (Fully Automated)\n"
+                f"• *Day:* {days_with_balance}\n\n"
                 
-                f"💼 *Portfolio Overview*\n"
-                f"• *Portfolio Value:* {current_balance:.2f} SOL (${portfolio_usd:,.0f})\n"
-                f"• *Capital Efficiency:* {capital_efficiency:.1f}% deployed\n"
-                f"• *Risk Exposure:* {risk_exposure:.1f} SOL / {risk_limit:.1f} SOL limit\n"
-                f"• *Execution Buffer:* {execution_buffer:.3f} SOL (gas reserve)\n\n"
+                "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
+                "💡 *Thrive automatically manages your portfolio to optimize profit and reduce risk.*\n\n"
+                "⚠️ *Note: 2% fee applies to profits only (not deposits)*"
             )
             
-            # Advanced Performance Metrics
-            dashboard_message += f"📈 *Performance Analytics*\n"
-            
-            # Today's P/L with proper sign formatting
-            if today_profit_amount > 0:
-                dashboard_message += f"• *Today's P/L:* +{today_profit_amount:.2f} SOL (+{today_profit_percentage:.1f}%)\n"
-            elif today_profit_amount < 0:
-                dashboard_message += f"• *Today's P/L:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
-            else:
-                dashboard_message += f"• *Today's P/L:* {today_profit_amount:.2f} SOL ({today_profit_percentage:.1f}%)\n"
-            
-            # Total P/L with professional metrics
-            if total_profit_amount > 0:
-                dashboard_message += f"• *Total P/L:* +{total_profit_percentage:.1f}% (+{total_profit_amount:.2f} SOL)\n"
-            elif total_profit_amount < 0:
-                dashboard_message += f"• *Total P/L:* {total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
-            else:
-                dashboard_message += f"• *Total P/L:* {total_profit_percentage:.1f}% ({total_profit_amount:.2f} SOL)\n"
-                
-            # Advanced analytics
-            dashboard_message += f"• *Alpha vs Market:* +{alpha_vs_market:.1f}% outperformance\n"
-            dashboard_message += f"• *Win Rate:* {win_rate:.1f}% ({consecutive_wins} consecutive wins)\n"
-            dashboard_message += f"• *Sharpe Ratio:* {sharpe_ratio:.2f} (Excellent)\n"
-            
-            # Professional streak analysis
-            if streak > 0:
-                dashboard_message += f"• *Profit Streak:* {streak} Days (Last profitable: Today)\n"
-            else:
-                last_profitable = random.randint(1, 4)
-                dashboard_message += f"• *Profit Streak:* {streak} Days (Last profitable: {last_profitable} days ago)\n"
-                
-            dashboard_message += f"• *Max Drawdown:* -{max_drawdown:.1f}% (Well controlled)\n"
-            dashboard_message += f"• *Risk-Adjusted Performance:* {random.randint(85, 96)}th percentile\n\n"
-                
-            # MEV Infrastructure Status
-            dashboard_message += f"🔧 *Infrastructure Status*\n"
-            dashboard_message += f"• *Strategy:* Arbitrage Bot (Jito Bundles)\n"
-            dashboard_message += f"• *RPC Status:* Helius Primary ({rpc_latency}ms latency)\n"
-            dashboard_message += f"• *Validator Connections:* {validator_count} active ({stake_weighted:.1f}% stake-weighted)\n"
-            dashboard_message += f"• *Sandwich Protection:* Resistant routing active\n\n"
-            
-            # Real-Time Market Intelligence
-            dashboard_message += f"🧠 *Market Intelligence*\n"
-            dashboard_message += f"• *Whale Wallets:* Monitoring {whale_wallets} profitable wallets\n"
-            dashboard_message += f"• *New Launches:* {new_launches} tokens detected today\n"
-            dashboard_message += f"• *Arbitrage Ops:* {active_opportunities} opportunities (Largest: {random.uniform(1.8, 3.2):.1f}%)\n"
-            dashboard_message += f"• *Smart Money:* Following {random.randint(42, 67)} successful traders\n\n"
-            
-            # Live Network Status
-            dashboard_message += f"🌐 *Network Status*\n"
-            dashboard_message += f"• *Solana Mainnet:* {random.uniform(99.2, 99.9):.1f}% uptime\n"
-            dashboard_message += f"• *Gas Optimization:* {gas_savings}% savings vs standard\n"
-            dashboard_message += f"• *Mempool Access:* Private ({random.randint(145, 178)} pending txns)\n"
-            dashboard_message += f"• *Slippage Protection:* {slippage_avg:.1f}% avg (Target: 1.5%)\n\n"
-            
-            # Show day counter only when user has SOL balance
-            if user.balance > 0 and days_active > 0:
-                dashboard_message += f"• *Trading Day:* {days_active}\n\n"
-            elif user.balance > 0:
-                dashboard_message += "• *Trading Day:* 1\n\n"  # First day with balance
-            else:
-                dashboard_message += "• *Trading Day:* 0\n\n"  # No SOL balance
-            
-            dashboard_message += "🟢 LIVE: Scanning pump.fun market opportunities\n\n"
-            
-            import random
-            from config import MIN_DEPOSIT
-            
-            # Add a trust-building reminder message - different messages based on deposit status
-            if user.balance >= MIN_DEPOSIT:
-                tips_message = random.choice([
-                    "Your Autopilot system is working 24/7 to find and execute trading opportunities.",
-                    "Thrive's trading engine targets consistent daily profits when market conditions allow.",
-                    "Every day brings new memecoin opportunities that your Autopilot can discover.",
-                    "Thrive automatically manages your portfolio to optimize profit and reduce risk."
-                ])
-            else:
-                tips_message = random.choice([
-                    "Add funds to activate your Autopilot trading system for Solana memecoins.",
-                    "Make a deposit to begin your automated trading journey with real memecoins.",
-                    "Your Autopilot dashboard is ready - add SOL to begin trading real coins.",
-                    "Deposit SOL to unlock the full power of your Autopilot trading system.",
-                    "Thrive trades newly launched memecoins - deposit any amount to begin."
-                ])
-            
-            dashboard_message += f"_💡 {tips_message}_"
-            
-            # Add realistic profit fee caution for authenticity
-            dashboard_message += f"\n\n⚠️ _Note: 2% fee applies to profits only (not deposits)_"
-            
-            # Add sniper status to dashboard if active
-            if user.sniper_active:
-                dashboard_message += f"\n\n🎯 *SNIPER STATUS:* 🟢 ACTIVE - Monitoring live"
-            
-            # Create keyboard buttons with dynamic sniper button
-            sniper_button_text = "⏹️ Stop Sniper" if user.sniper_active else "🎯 Start Sniper"
-            sniper_callback = "stop_sniper" if user.sniper_active else "start_sniper"
-            
+            # Create keyboard matching the screenshot
             keyboard = bot.create_inline_keyboard([
                 [
-                    {"text": "🎯 Arbitrage Analytics", "callback_data": "trading_history"},
-                    {"text": sniper_button_text, "callback_data": sniper_callback}
+                    {"text": "💰 Deposit", "callback_data": "deposit"},
+                    {"text": "💸 Withdrawal", "callback_data": "withdraw_profit"}
                 ],
                 [
-                    {"text": "⚡ Execution Monitor", "callback_data": "auto_trading_settings"},
-                    {"text": "🛡️ Security Status", "callback_data": "live_positions"}
+                    {"text": "📊 Performance", "callback_data": "trading_history"},
+                    {"text": "👥 Referral", "callback_data": "referral"}
                 ],
                 [
-                    {"text": "📈 Alpha Metrics", "callback_data": "sniper_stats"},
-                    {"text": "🔄 Infrastructure Health", "callback_data": "faqs"}
+                    {"text": "⚙️ Auto Trading", "callback_data": "auto_trading_settings"},
+                    {"text": "📈 Sniper Stats", "callback_data": "sniper_stats"}
                 ],
                 [
-                    {"text": "🧠 Market Intel", "callback_data": "referral"},
-                    {"text": "💰 Deploy Capital", "callback_data": "deposit"}
+                    {"text": "📍 Live Positions", "callback_data": "live_positions"},
+                    {"text": "🛟 Customer Support", "callback_data": "support"}
                 ],
                 [
-                    {"text": "💸 Extract Profits", "callback_data": "withdraw_profit"},
-                    {"text": "🛟 Support Center", "callback_data": "support"}
+                    {"text": "🎯 Start Sniper", "callback_data": "start_sniper"}
+                ],
+                [
+                    {"text": "❓ FAQ", "callback_data": "faqs"}
                 ]
             ])
             
