@@ -1852,7 +1852,6 @@ def dashboard_command(update, chat_id):
                 
                 f"💹 *SOL Price:* ${sol_price:.2f} {price_change}\n\n"
                 
-                "Autopilot is actively scanning for new trading opportunities! 💪\n\n"
                 "💡 *Thrive automatically manages your portfolio to optimize profit and reduce risk.*\n\n"
                 "⚠️ *Note: 2% fee applies to profits only (not deposits)*"
             )
