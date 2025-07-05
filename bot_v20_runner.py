@@ -5520,104 +5520,76 @@ def process_trade_broadcast_with_timestamp(trade_text, admin_id, custom_timestam
         
 def admin_broadcast_trade_message_handler(update, chat_id, text):
     """
-    Process and send the trade information broadcast to all active users with personalized profit calculations.
-    Enhanced Format: Buy $TOKEN CONTRACT_ADDRESS PRICE AMOUNT TX_LINK or Sell $TOKEN CONTRACT_ADDRESS PRICE AMOUNT TX_LINK
+    Process trade information using simplified format: CONTRACT_ADDRESS ENTRY_PRICE EXIT_PRICE TX_LINK
+    Auto-fetches token data from DEX Screener and generates professional position displays.
     
-    Example: Buy $SCAI E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.000002782 45000 https://solscan.io/tx/abc123
+    Example: E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.000002782 0.0003847 https://solscan.io/tx/abc123
     """
     try:
         # Remove the message listener
         bot.remove_listener(chat_id)
         
         # Show processing message
-        processing_msg = "⏳ Processing enhanced trade broadcast with market data..."
+        processing_msg = "⏳ Processing simplified trade with DEX Screener integration..."
         bot.send_message(chat_id, processing_msg)
         
-        # Import enhanced trade processor
-        try:
-            from utils.enhanced_trade_processor import enhanced_trade_processor
-        except ImportError:
-            bot.send_message(chat_id, "❌ Enhanced trade processor not available. Please check system.")
-            return
+        # Import simplified trade processor
+        from utils.simplified_trade_processor import SimplifiedTradeProcessor
+        
+        # Initialize processor
+        processor = SimplifiedTradeProcessor()
         
         # Get admin ID from the update
         admin_id = str(update.get('message', {}).get('from', {}).get('id', 'admin'))
         
-        # Parse trade message using enhanced processor
-        trade_data = enhanced_trade_processor.parse_trade_message(text.strip())
+        # Parse trade message using simplified processor
+        trade_data = processor.parse_trade_message(text.strip())
         
         if not trade_data:
             error_msg = (
                 "❌ *Invalid Trade Format*\n\n"
-                "Please use the enhanced format:\n"
-                "`Buy $SYMBOL CONTRACT_ADDRESS PRICE AMOUNT TX_LINK`\n"
-                "`Sell $SYMBOL CONTRACT_ADDRESS PRICE AMOUNT TX_LINK`\n\n"
+                "Please use the simplified format:\n"
+                "`CONTRACT_ADDRESS ENTRY_PRICE EXIT_PRICE TX_LINK`\n\n"
                 "Example:\n"
-                "`Buy $SCAI E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.000002782 45000 https://solscan.io/tx/abc123`"
+                "`E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.000002782 0.0003847 https://solscan.io/tx/abc123`\n\n"
+                "The system will automatically:\n"
+                "• Fetch token symbol and name from DEX Screener\n"
+                "• Calculate market caps at entry and exit\n"
+                "• Generate realistic position sizes for all users\n"
+                "• Create professional position displays"
             )
             bot.send_message(chat_id, error_msg, parse_mode="Markdown")
             return
         
-        success = False
-        response = ""
+        # Store trade data for time selection
+        bot._pending_trade_data = trade_data
         
-        # Check if custom timestamp was set from time selection
-        custom_timestamp = None
-        if hasattr(bot, '_custom_timestamp') and bot._custom_timestamp:
-            custom_timestamp = bot._custom_timestamp
-            bot._custom_timestamp = None  # Clear after use
+        # Show time selection interface
+        time_keyboard = bot.create_inline_keyboard([
+            [{"text": "🔄 Auto Time (Now)", "callback_data": "time_auto"}],
+            [
+                {"text": "⏰ 5 min ago", "callback_data": "time_5m"},
+                {"text": "⏰ 15 min ago", "callback_data": "time_15m"},
+                {"text": "⏰ 1 hr ago", "callback_data": "time_1h"}
+            ],
+            [
+                {"text": "⏰ 3 hr ago", "callback_data": "time_3h"},
+                {"text": "⏰ 6 hr ago", "callback_data": "time_6h"},
+                {"text": "⏰ 12 hr ago", "callback_data": "time_12h"}
+            ],
+            [{"text": "🕒 Custom Time", "callback_data": "time_custom"}]
+        ])
         
-        # Process trade using enhanced system
-        if trade_data['trade_type'] == 'buy':
-            # Process BUY trade with DEX Screener integration
-            success, response, affected_count = enhanced_trade_processor.process_buy_trade(
-                trade_data, admin_id, custom_timestamp
-            )
-            
-            if success:
-                response = (
-                    f"✅ *Enhanced BUY Order Executed*\n\n"
-                    f"🎯 *Token:* {trade_data['symbol']}\n"
-                    f"📊 *Contract:* {trade_data['contract_address'][:8]}...{trade_data['contract_address'][-8:]}\n"
-                    f"💰 *Entry Price:* {trade_data['price']:.8f} SOL\n"
-                    f"👥 *Users Affected:* {affected_count}\n"
-                    f"🔗 [Transaction]({trade_data['tx_link']})\n\n"
-                    f"*All positions now enriched with real market data from DEX Screener!*"
-                )
-                
-        elif trade_data['trade_type'] == 'sell':
-            # Process SELL trade with DEX Screener integration
-            success, response, affected_count = enhanced_trade_processor.process_sell_trade(
-                trade_data, admin_id, custom_timestamp
-            )
-            
-            if success:
-                response = (
-                    f"✅ *Enhanced SELL Order Executed*\n\n"
-                    f"🎯 *Token:* {trade_data['symbol']}\n"
-                    f"📊 *Contract:* {trade_data['contract_address'][:8]}...{trade_data['contract_address'][-8:]}\n"
-                    f"💰 *Exit Price:* {trade_data['price']:.8f} SOL\n"
-                    f"👥 *Positions Closed:* {affected_count}\n"
-                    f"🔗 [Transaction]({trade_data['tx_link']})\n\n"
-                    f"*All exits now include authentic market data and realistic ownership metrics!*"
-                )
-        else:
-            response = "❌ Invalid trade format. Please check your message format."
+        time_msg = (
+            f"✅ *Trade Parsed Successfully*\n\n"
+            f"📊 *Contract:* {trade_data['contract_address'][:8]}...{trade_data['contract_address'][-8:]}\n"
+            f"📈 *Entry Price:* {trade_data['entry_price']:.8f} SOL\n"
+            f"📉 *Exit Price:* {trade_data['exit_price']:.8f} SOL\n"
+            f"💰 *ROI:* {trade_data['roi_percentage']:+.2f}%\n\n"
+            "⏰ *When should this trade appear to have executed?*"
+        )
         
-        # Send the response to the admin
-        bot.send_message(chat_id, response, parse_mode="Markdown")
-        
-        # If successful, add a button to return to the admin panel
-        if success:
-            keyboard = bot.create_inline_keyboard([
-                [{"text": "🔙 Back to Admin Panel", "callback_data": "admin_broadcast"}]
-            ])
-            
-            bot.send_message(
-                chat_id,
-                "What would you like to do next?",
-                reply_markup=keyboard
-            )
+        bot.send_message(chat_id, time_msg, reply_markup=time_keyboard, parse_mode="Markdown")
     
     except Exception as e:
         import logging
@@ -5684,10 +5656,10 @@ def time_selection_handler(update, chat_id):
 
 def process_trade_broadcast_with_timestamp(chat_id, timestamp):
     """
-    Process trade broadcast with specified timestamp using enhanced trade processor
+    Process trade broadcast with specified timestamp using simplified trade processor
     """
     try:
-        from utils.enhanced_trade_processor import EnhancedTradeProcessor
+        from utils.simplified_trade_processor import SimplifiedTradeProcessor
         
         # Get the stored trade data
         if not hasattr(bot, '_pending_trade_data'):
@@ -5696,22 +5668,38 @@ def process_trade_broadcast_with_timestamp(chat_id, timestamp):
             
         trade_data = bot._pending_trade_data
         
-        # Initialize enhanced trade processor
-        processor = EnhancedTradeProcessor()
+        # Initialize simplified trade processor
+        processor = SimplifiedTradeProcessor()
         
         # Process the trade with custom timestamp
         result = processor.process_trade(
             trade_data=trade_data,
-            custom_timestamp=timestamp,
-            admin_chat_id=chat_id
+            admin_id=str(chat_id),
+            custom_timestamp=timestamp
         )
         
         if result['success']:
+            # Send position notifications to all affected users
+            from utils.position_notification_system import PositionNotificationSystem
+            notification_system = PositionNotificationSystem(bot)
+            
+            # Notify all users of the trade
+            notification_result = notification_system.notify_all_users_of_trade(
+                result['token_data'], 
+                result['roi_percentage'], 
+                result['affected_count']
+            )
+            
+            result['notification_result'] = notification_result
+            
+            # Send comprehensive admin summary
+            notification_system.send_trade_summary_to_admin(chat_id, result)
+            
             # Clear the pending trade data
             if hasattr(bot, '_pending_trade_data'):
                 delattr(bot, '_pending_trade_data')
                 
-            # Send success message with return button
+            # Send navigation options
             keyboard = bot.create_inline_keyboard([
                 [{"text": "🔙 Back to Admin Panel", "callback_data": "admin_broadcast"}]
             ])
