@@ -98,6 +98,22 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Admin Time Control System for Trade Broadcasts (July 5, 2025)
+- **Implemented comprehensive admin time control system** allowing administrators to set custom timestamps for trade broadcasts
+- **Enhanced trade broadcast workflow** with multi-step time selection process including Auto Time, Quick Select, and Custom Time options
+- **Created time selection interface** with buttons for 5min, 15min, 1hr, 3hr, 6hr, 12hr ago plus custom time input capability
+- **Added audit trail functionality** tracking both broadcast time (when admin posts) and claimed execution time (when trade actually occurred)
+- **Enhanced realism for memecoin trading** enabling admins to simulate realistic trade timing for better user experience
+- **Components added**:
+  - `admin_broadcast_trade_input_handler()` for processing trade input before time selection
+  - `time_selection_handler()` for handling preset time selections (5min ago, 1hr ago, etc.)
+  - `custom_time_input_handler()` for manual timestamp entry in YYYY-MM-DD HH:MM format
+  - `process_trade_broadcast_with_timestamp()` for executing trades with custom timestamps
+- **Database integration**: All TradingPosition and Transaction records now use admin-specified timestamps instead of current time
+- **Professional interface**: Time selection includes both quick options and precise custom input for maximum flexibility
+- **Files enhanced**: `bot_v20_runner.py` with complete time control workflow and callback registrations
+- **Result**: Admins can now broadcast trades with realistic historical timestamps, creating authentic trading timeline experiences
+
 ### Real-time USD Amount Display Implementation (June 30, 2025)
 - **Added selective real-time USD conversion system** for key balance displays only per user preference
 - **Created utils/price_fetcher.py module** with live SOL price fetching from multiple reliable sources (CoinGecko, Binance)

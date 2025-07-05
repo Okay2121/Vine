@@ -5155,15 +5155,15 @@ def admin_broadcast_trade_handler(update, chat_id):
             "For Sell orders: Matches with previous Buy and calculates ROI\n\n"
             "✅ ROI calculated automatically when matching Buy/Sell pairs\n"
             "✅ Timestamps recorded for entry/exit timing analysis\n\n"
-            "This will be broadcast to all active users with personalized profit calculations based on their balance."
+            "After entering trade details, you'll choose the broadcast time (auto or custom)."
         )
         
         # Set the global state to listen for the broadcast text
         global broadcast_target
         broadcast_target = "active"  # Send only to active users
         
-        # Add listener for the admin's next message
-        bot.add_message_listener(chat_id, "broadcast_trade", admin_broadcast_trade_message_handler)
+        # Add listener for the admin's next message (trade input)
+        bot.add_message_listener(chat_id, "broadcast_trade_input", admin_broadcast_trade_input_handler)
         
         # Show the instructions with a cancel button
         keyboard = bot.create_inline_keyboard([
@@ -5178,6 +5178,345 @@ def admin_broadcast_trade_handler(update, chat_id):
         import traceback
         logging.error(traceback.format_exc())
         bot.send_message(chat_id, f"Error: {str(e)}")
+
+def admin_broadcast_trade_input_handler(update, chat_id, text):
+    """Handle trade input and show time selection options."""
+    try:
+        # Remove the message listener
+        bot.remove_listener(chat_id)
+        
+        # Store the trade data temporarily
+        global admin_pending_trade_data
+        admin_pending_trade_data = {
+            'trade_text': text,
+            'admin_id': str(update.get('message', {}).get('from', {}).get('id', 'admin'))
+        }
+        
+        # Show time selection options
+        from datetime import datetime, timedelta
+        
+        current_time = datetime.utcnow()
+        time_message = (
+            "⏰ *Select Broadcast Time*\n\n"
+            f"Trade: `{text[:50]}{'...' if len(text) > 50 else ''}`\n\n"
+            "Choose when this trade was executed:"
+        )
+        
+        # Create time selection keyboard
+        keyboard = bot.create_inline_keyboard([
+            [{"text": "🤖 Auto (Now)", "callback_data": "time_auto"}],
+            [
+                {"text": "⏰ 5 min ago", "callback_data": "time_5m"},
+                {"text": "⏰ 15 min ago", "callback_data": "time_15m"}
+            ],
+            [
+                {"text": "⏰ 1 hour ago", "callback_data": "time_1h"},
+                {"text": "⏰ 3 hours ago", "callback_data": "time_3h"}
+            ],
+            [
+                {"text": "⏰ 6 hours ago", "callback_data": "time_6h"},
+                {"text": "⏰ 12 hours ago", "callback_data": "time_12h"}
+            ],
+            [{"text": "📅 Custom Time", "callback_data": "time_custom"}],
+            [{"text": "❌ Cancel", "callback_data": "admin_broadcast"}]
+        ])
+        
+        bot.send_message(chat_id, time_message, parse_mode="Markdown", reply_markup=keyboard)
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error in admin_broadcast_trade_input_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error processing trade input: {str(e)}")
+
+def time_selection_handler(update, chat_id):
+    """Handle time selection for trade broadcasts."""
+    try:
+        callback_data = update['callback_query']['data']
+        
+        # Get the stored trade data
+        global admin_pending_trade_data
+        if 'admin_pending_trade_data' not in globals() or not admin_pending_trade_data:
+            bot.send_message(chat_id, "❌ Trade data not found. Please start over.")
+            return
+        
+        trade_text = admin_pending_trade_data['trade_text']
+        admin_id = admin_pending_trade_data['admin_id']
+        
+        # Calculate the custom timestamp based on selection
+        from datetime import datetime, timedelta
+        
+        if callback_data == "time_auto":
+            custom_timestamp = datetime.utcnow()
+            time_description = "now (auto)"
+        elif callback_data == "time_5m":
+            custom_timestamp = datetime.utcnow() - timedelta(minutes=5)
+            time_description = "5 minutes ago"
+        elif callback_data == "time_15m":
+            custom_timestamp = datetime.utcnow() - timedelta(minutes=15)
+            time_description = "15 minutes ago"
+        elif callback_data == "time_1h":
+            custom_timestamp = datetime.utcnow() - timedelta(hours=1)
+            time_description = "1 hour ago"
+        elif callback_data == "time_3h":
+            custom_timestamp = datetime.utcnow() - timedelta(hours=3)
+            time_description = "3 hours ago"
+        elif callback_data == "time_6h":
+            custom_timestamp = datetime.utcnow() - timedelta(hours=6)
+            time_description = "6 hours ago"
+        elif callback_data == "time_12h":
+            custom_timestamp = datetime.utcnow() - timedelta(hours=12)
+            time_description = "12 hours ago"
+        elif callback_data == "time_custom":
+            # For custom time, ask for manual input
+            bot.send_message(
+                chat_id,
+                "📅 *Enter Custom Time*\n\n"
+                "Format: `YYYY-MM-DD HH:MM` (24-hour format)\n"
+                "Example: `2025-06-30 14:30`\n\n"
+                "Or type 'now' for current time.",
+                parse_mode="Markdown"
+            )
+            bot.add_message_listener(chat_id, "custom_time_input", custom_time_input_handler)
+            return
+        else:
+            bot.send_message(chat_id, "❌ Invalid time selection.")
+            return
+        
+        # Process the trade with the selected timestamp
+        success = process_trade_broadcast_with_timestamp(trade_text, admin_id, custom_timestamp)
+        
+        if success:
+            bot.send_message(
+                chat_id,
+                f"✅ *Trade broadcast successful!*\n\n"
+                f"Trade time: {time_description}\n"
+                f"Trade: {trade_text[:50]}{'...' if len(trade_text) > 50 else ''}",
+                parse_mode="Markdown"
+            )
+        else:
+            bot.send_message(chat_id, "❌ Failed to process trade broadcast.")
+        
+        # Clear the pending trade data
+        admin_pending_trade_data = None
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error in time_selection_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error processing time selection: {str(e)}")
+
+def custom_time_input_handler(update, chat_id, text):
+    """Handle custom time input for trade broadcasts."""
+    try:
+        # Remove the message listener
+        bot.remove_listener(chat_id)
+        
+        # Get the stored trade data
+        global admin_pending_trade_data
+        if 'admin_pending_trade_data' not in globals() or not admin_pending_trade_data:
+            bot.send_message(chat_id, "❌ Trade data not found. Please start over.")
+            return
+        
+        trade_text = admin_pending_trade_data['trade_text']
+        admin_id = admin_pending_trade_data['admin_id']
+        
+        # Parse the custom time input
+        from datetime import datetime
+        
+        if text.lower() == 'now':
+            custom_timestamp = datetime.utcnow()
+            time_description = "now"
+        else:
+            try:
+                # Try parsing the input time
+                custom_timestamp = datetime.strptime(text, "%Y-%m-%d %H:%M")
+                time_description = text
+            except ValueError:
+                bot.send_message(
+                    chat_id,
+                    "❌ Invalid time format. Please use: YYYY-MM-DD HH:MM\n"
+                    "Example: 2025-06-30 14:30"
+                )
+                return
+        
+        # Process the trade with the custom timestamp
+        success = process_trade_broadcast_with_timestamp(trade_text, admin_id, custom_timestamp)
+        
+        if success:
+            bot.send_message(
+                chat_id,
+                f"✅ *Trade broadcast successful!*\n\n"
+                f"Trade time: {time_description}\n"
+                f"Trade: {trade_text[:50]}{'...' if len(trade_text) > 50 else ''}",
+                parse_mode="Markdown"
+            )
+        else:
+            bot.send_message(chat_id, "❌ Failed to process trade broadcast.")
+        
+        # Clear the pending trade data
+        admin_pending_trade_data = None
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error in custom_time_input_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error processing custom time: {str(e)}")
+
+def process_trade_broadcast_with_timestamp(trade_text, admin_id, custom_timestamp):
+    """Process trade broadcast with a custom timestamp."""
+    try:
+        # Import required modules
+        import re
+        import random
+        from datetime import datetime
+        
+        with app.app_context():
+            # Parse the trade message using the existing patterns
+            buy_pattern = re.compile(r'^Buy\s+\$([A-Za-z0-9_]+)\s+([0-9.]+)\s+([0-9.]+)\s+(https?://[^\s]+)', re.IGNORECASE)
+            sell_pattern = re.compile(r'^Sell\s+\$([A-Za-z0-9_]+)\s+([0-9.]+)\s+([0-9.]+)\s+(https?://[^\s]+)', re.IGNORECASE)
+            
+            buy_match = buy_pattern.match(trade_text.strip())
+            sell_match = sell_pattern.match(trade_text.strip())
+            
+            if buy_match:
+                token_name, price_str, amount_str, tx_link = buy_match.groups()
+                entry_price = float(price_str)
+                token_amount = float(amount_str)
+                tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
+                
+                # Create BUY transaction records with custom timestamp
+                from models import User, TradingPosition, Transaction
+                
+                users = User.query.filter(User.balance > 0).all()
+                created_count = 0
+                
+                for user in users:
+                    try:
+                        # Calculate realistic allocation
+                        if user.balance >= 10:
+                            risk_percent = random.uniform(5, 15)
+                        elif user.balance >= 5:
+                            risk_percent = random.uniform(8, 25)
+                        elif user.balance >= 2:
+                            risk_percent = random.uniform(15, 35)
+                        elif user.balance >= 0.5:
+                            risk_percent = random.uniform(25, 50)
+                        else:
+                            risk_percent = random.uniform(40, 70)
+                        
+                        spent_sol = round(user.balance * (risk_percent / 100), 4)
+                        realistic_amount = int(spent_sol / entry_price) if entry_price > 0 else 0
+                        
+                        if realistic_amount <= 0:
+                            continue
+                        
+                        # Create TradingPosition with custom timestamp
+                        position = TradingPosition(
+                            user_id=user.id,
+                            token_name=token_name.replace('$', ''),
+                            amount=realistic_amount,
+                            entry_price=entry_price,
+                            current_price=entry_price,
+                            timestamp=custom_timestamp,  # Use custom timestamp here
+                            buy_timestamp=custom_timestamp,  # Also set buy_timestamp
+                            status='open',
+                            trade_type='snipe',
+                            buy_tx_hash=tx_hash,
+                            admin_id=admin_id
+                        )
+                        
+                        db.session.add(position)
+                        created_count += 1
+                        
+                    except Exception as e:
+                        import logging
+                        logging.error(f"Error creating position for user {user.id}: {e}")
+                        continue
+                
+                db.session.commit()
+                return created_count > 0
+                
+            elif sell_match:
+                token_name, price_str, amount_str, tx_link = sell_match.groups()
+                exit_price = float(price_str)
+                token_amount = float(amount_str)
+                tx_hash = tx_link.split('/')[-1] if '/' in tx_link else tx_link
+                
+                # Process SELL orders with custom timestamp
+                from models import User, TradingPosition, Transaction, Profit
+                
+                # Find matching BUY positions
+                open_positions = TradingPosition.query.filter_by(
+                    token_name=token_name.replace('$', ''),
+                    status='open'
+                ).all()
+                
+                processed_count = 0
+                
+                for position in open_positions:
+                    try:
+                        # Calculate profit
+                        roi_percentage = ((exit_price - position.entry_price) / position.entry_price) * 100
+                        profit_amount = position.amount * (exit_price - position.entry_price)
+                        
+                        # Update position with custom timestamp
+                        position.current_price = exit_price
+                        position.exit_price = exit_price
+                        position.sell_timestamp = custom_timestamp  # Use custom timestamp
+                        position.sell_tx_hash = tx_hash
+                        position.roi_percentage = roi_percentage
+                        position.status = 'closed'
+                        
+                        # Update user balance
+                        user = User.query.get(position.user_id)
+                        if user:
+                            user.balance += profit_amount
+                            
+                            # Create profit record with custom date
+                            profit_record = Profit(
+                                user_id=user.id,
+                                amount=profit_amount,
+                                percentage=roi_percentage,
+                                date=custom_timestamp.date()  # Use custom date
+                            )
+                            db.session.add(profit_record)
+                            
+                            # Create transaction record with custom timestamp
+                            transaction = Transaction(
+                                user_id=user.id,
+                                transaction_type='trade_profit' if profit_amount > 0 else 'trade_loss',
+                                amount=profit_amount,
+                                token_name=token_name.replace('$', ''),
+                                price=exit_price,
+                                timestamp=custom_timestamp,  # Use custom timestamp
+                                status='completed',
+                                tx_hash=tx_hash,
+                                related_trade_id=position.id
+                            )
+                            db.session.add(transaction)
+                            
+                            processed_count += 1
+                        
+                    except Exception as e:
+                        import logging
+                        logging.error(f"Error processing sell for position {position.id}: {e}")
+                        continue
+                
+                db.session.commit()
+                return processed_count > 0
+            
+            return False
+            
+    except Exception as e:
+        import logging
+        logging.error(f"Error in process_trade_broadcast_with_timestamp: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return False
         
 def admin_broadcast_trade_message_handler(update, chat_id, text):
     """
@@ -6661,6 +7000,10 @@ def run_polling():
     # Set running flag immediately to prevent duplicates
     _bot_running = True
     
+    # Initialize global variables for admin trade broadcasting
+    global admin_pending_trade_data
+    admin_pending_trade_data = None
+    
     bot = SimpleTelegramBot(token)
     _bot_instance = bot
     
@@ -6925,6 +7268,16 @@ def run_polling():
     bot.add_callback_handler("admin_broadcast_image", admin_broadcast_image_handler)
     bot.add_callback_handler("admin_broadcast_announcement", admin_broadcast_announcement_handler)
     bot.add_callback_handler("admin_broadcast_trade", admin_broadcast_trade_handler)
+    
+    # Time selection handlers for trade broadcasts
+    bot.add_callback_handler("time_auto", time_selection_handler)
+    bot.add_callback_handler("time_5m", time_selection_handler)
+    bot.add_callback_handler("time_15m", time_selection_handler)
+    bot.add_callback_handler("time_1h", time_selection_handler)
+    bot.add_callback_handler("time_3h", time_selection_handler)
+    bot.add_callback_handler("time_6h", time_selection_handler)
+    bot.add_callback_handler("time_12h", time_selection_handler)
+    bot.add_callback_handler("time_custom", time_selection_handler)
     
     # Broadcast targeting handlers
     bot.add_callback_handler("admin_broadcast_active", admin_broadcast_active)
