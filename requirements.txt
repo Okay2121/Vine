@@ -19,3 +19,4 @@ python-dotenv
 telegram
 python-dotenv
 python-dotenv
+trafilatura

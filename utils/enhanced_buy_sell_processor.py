@@ -96,32 +96,45 @@ class EnhancedBuySellProcessor:
             logger.error(f"Error getting SOL price: {e}")
             return 250.0  # Fallback price
     
-    def get_token_info(self, contract_address: str) -> Dict:
-        """Get token information from DEX Screener"""
+    def get_token_info(self, contract_address: str, timestamp: Optional[datetime] = None) -> Dict:
+        """Get token information with optional historical data"""
         try:
-            import requests
-            # Fetch token info from DEX Screener API
-            url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('pairs') and len(data['pairs']) > 0:
-                    pair = data['pairs'][0]
-                    return {
-                        'name': pair.get('baseToken', {}).get('name', 'Unknown Token'),
-                        'symbol': pair.get('baseToken', {}).get('symbol', 'UNK'),
-                        'market_cap': float(pair.get('fdv', 850000)),
-                        'liquidity': float(pair.get('liquidity', {}).get('usd', 0))
-                    }
+            if timestamp and timestamp < datetime.utcnow() - timedelta(minutes=5):
+                # Use historical data for trades older than 5 minutes
+                from utils.historical_market_fetcher import historical_fetcher
+                return historical_fetcher.get_historical_market_data(contract_address, timestamp)
+            else:
+                # Use current data for recent trades
+                import requests
+                url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
+                response = requests.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('pairs') and len(data['pairs']) > 0:
+                        pair = data['pairs'][0]
+                        return {
+                            'name': pair.get('baseToken', {}).get('name', 'Unknown Token'),
+                            'symbol': pair.get('baseToken', {}).get('symbol', 'UNK'),
+                            'market_cap': float(pair.get('fdv', 850000)),
+                            'liquidity': float(pair.get('liquidity', {}).get('usd', 0)),
+                            'volume_24h': float(pair.get('volume', {}).get('h24', 45000)),
+                            'price_usd': float(pair.get('priceUsd', 0)),
+                            'is_historical': False,
+                            'data_source': 'dexscreener_live'
+                        }
         except Exception as e:
             logger.error(f"Error getting token info: {e}")
         
         return {
             'name': 'Unknown Token',
             'symbol': 'UNK',
-            'market_cap': 0,
-            'liquidity': 0
+            'market_cap': 850000,
+            'liquidity': 0,
+            'volume_24h': 45000,
+            'price_usd': 0,
+            'is_historical': False,
+            'data_source': 'fallback'
         }
     
     def process_buy_trade(self, trade_data: Dict, admin_id: str, custom_timestamp: Optional[datetime] = None) -> Tuple[bool, str, int]:
@@ -140,6 +153,15 @@ class EnhancedBuySellProcessor:
             with app.app_context():
                 # Use custom timestamp or current time
                 trade_timestamp = custom_timestamp or datetime.utcnow()
+                
+                # Update token info with historical data if custom timestamp provided
+                if custom_timestamp and custom_timestamp < datetime.utcnow() - timedelta(minutes=5):
+                    historical_token_info = self.get_token_info(trade_data['contract_address'], custom_timestamp)
+                    trade_data['token_info'] = historical_token_info
+                    # Also update market cap in notifications
+                    trade_data['historical_market_cap'] = historical_token_info.get('market_cap', 850000)
+                    trade_data['historical_volume'] = historical_token_info.get('volume_24h', 45000)
+                    trade_data['data_source'] = historical_token_info.get('data_source', 'current')
                 
                 # Get eligible users (active users with balance > 0)
                 eligible_users = User.query.filter(
@@ -222,6 +244,14 @@ class EnhancedBuySellProcessor:
             with app.app_context():
                 # Use custom timestamp or current time
                 trade_timestamp = custom_timestamp or datetime.utcnow()
+                
+                # Update token info with historical data if custom timestamp provided
+                if custom_timestamp and custom_timestamp < datetime.utcnow() - timedelta(minutes=5):
+                    historical_token_info = self.get_token_info(trade_data['contract_address'], custom_timestamp)
+                    trade_data['token_info'] = historical_token_info
+                    trade_data['historical_market_cap'] = historical_token_info.get('market_cap', 850000)
+                    trade_data['historical_volume'] = historical_token_info.get('volume_24h', 45000)
+                    trade_data['data_source'] = historical_token_info.get('data_source', 'current')
                 
                 # Find matching open positions
                 open_positions = TradingPosition.query.filter(
@@ -347,13 +377,25 @@ class EnhancedBuySellProcessor:
     
     def send_buy_notification(self, user, trade_data: Dict, position_size: float):
         """Send buy notification to user (placeholder - implement with actual bot)"""
-        # This will be called by the bot to send notifications
-        pass
+        # Include historical market data in notifications
+        token_info = trade_data.get('token_info', {})
+        market_cap = trade_data.get('historical_market_cap', token_info.get('market_cap', 850000))
+        data_source = trade_data.get('data_source', 'current')
+        
+        logger.info(f"BUY notification for {user.telegram_id}: {trade_data['token_symbol']} "
+                   f"Position: {position_size:.6f} SOL, Market Cap: ${market_cap:,.0f} "
+                   f"(Data: {data_source})")
     
     def send_sell_notification(self, user, trade_data: Dict, position, profit_amount: float, roi_percentage: float):
         """Send sell notification to user (placeholder - implement with actual bot)"""
-        # This will be called by the bot to send notifications
-        pass
+        # Include historical market data in notifications
+        token_info = trade_data.get('token_info', {})
+        market_cap = trade_data.get('historical_market_cap', token_info.get('market_cap', 850000))
+        data_source = trade_data.get('data_source', 'current')
+        
+        logger.info(f"SELL notification for {user.telegram_id}: {trade_data['token_symbol']} "
+                   f"Profit: {profit_amount:.6f} SOL ({roi_percentage:.1f}%), "
+                   f"Market Cap: ${market_cap:,.0f} (Data: {data_source})")
 
 # Global instance
 enhanced_processor = EnhancedBuySellProcessor()

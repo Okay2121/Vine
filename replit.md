@@ -98,19 +98,22 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
-### Enhanced Buy/Sell Trade Broadcast System with Admin Time Control (July 5, 2025)
+### Enhanced Buy/Sell Trade Broadcast System with Historical Market Data Tracking (July 5, 2025)
 - **Implemented unified Buy/Sell trade format processing** replacing separate entry/exit price system with intuitive action-based format
 - **Created comprehensive enhanced trade processor** (`utils/enhanced_buy_sell_processor.py`) supporting both BUY and SELL trade operations
 - **Enhanced admin interface with flexible time control** including Auto (real-time), preset intervals (5min-1day ago), and custom timestamp input
 - **Unified trade format**: `ACTION $SYMBOL CONTRACT_ADDRESS PRICE TX_LINK` (e.g., "Buy $PEPE E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.00045 https://solscan.io/tx/abc123")
-- **Automatic token processing** with real DEX Screener integration for symbol/name resolution and market data
+- **Historical market data integration** (`utils/historical_market_fetcher.py`) providing authentic market cap and volume data for backdated trades
+- **Advanced time-based modeling** using sophisticated memecoin growth patterns to estimate historical market conditions
+- **CoinGecko historical SOL price integration** for accurate historical price conversions and calculations
+- **Automatic historical data detection** - trades older than 5 minutes automatically fetch period-appropriate market data
 - **Professional time selection interface** with buttons for 5min, 15min, 1hr, 3hr, 6hr, 12hr, 1day ago plus custom time input
 - **Smart trade processing**: BUY creates new positions for all users, SELL matches existing positions and calculates profits
-- **Comprehensive audit trail** tracking both broadcast time and claimed execution time for realistic trade timing
-- **Enhanced realism** enabling admins to simulate authentic memecoin trading timelines with historical timestamps
-- **Files created**: `utils/enhanced_buy_sell_processor.py`, `test_enhanced_trade_system.py`
+- **Comprehensive audit trail** tracking both broadcast time and claimed execution time with authentic market conditions
+- **Enhanced realism** enabling admins to simulate authentic memecoin trading timelines with realistic historical market caps
+- **Files created**: `utils/enhanced_buy_sell_processor.py`, `utils/historical_market_fetcher.py`, `test_enhanced_trade_system.py`, `test_historical_market_data.py`
 - **Files updated**: `bot_v20_runner.py` with enhanced trade handlers and time control workflow
-- **Result**: Professional trade broadcast system with unified format and flexible timing control for authentic trading experiences
+- **Result**: Professional trade broadcast system with unified format, flexible timing control, and authentic historical market data for realistic trading experiences
 
 ### USD Trade Format Implementation with Automatic SOL Conversion (July 5, 2025)
 - **Implemented USD-based trade broadcast system** replacing SOL prices with more intuitive USD format
