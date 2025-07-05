@@ -5514,43 +5514,40 @@ def process_trade_broadcast_with_timestamp(trade_text, admin_id, custom_timestam
         
 def admin_broadcast_trade_message_handler(update, chat_id, text):
     """
-    Process trade information using simplified format: CONTRACT_ADDRESS ENTRY_PRICE EXIT_PRICE TX_LINK
-    Auto-fetches token data from DEX Screener and generates professional position displays.
+    Process trade information using USD format: CONTRACT_ADDRESS ENTRY_PRICE_USD EXIT_PRICE_USD TX_LINK
+    Auto-fetches token data from DEX Screener and converts USD to SOL for calculations.
     
-    Example: E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.000002782 0.0003847 https://solscan.io/tx/abc123
+    Example: E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.00045 0.062 https://solscan.io/tx/abc123
     """
     try:
         # Remove the message listener
         bot.remove_listener(chat_id)
         
         # Show processing message
-        processing_msg = "⏳ Processing simplified trade with DEX Screener integration..."
+        processing_msg = "⏳ Processing USD trade with automatic SOL conversion..."
         bot.send_message(chat_id, processing_msg)
         
-        # Import simplified trade processor
-        from utils.simplified_trade_processor import SimplifiedTradeProcessor
-        
-        # Initialize processor
-        processor = SimplifiedTradeProcessor()
+        # Import USD trade processor
+        from utils.usd_trade_processor import usd_processor
         
         # Get admin ID from the update
         admin_id = str(update.get('message', {}).get('from', {}).get('id', 'admin'))
         
-        # Parse trade message using simplified processor
-        trade_data = processor.parse_trade_message(text.strip())
+        # Parse trade message using USD processor
+        trade_data = usd_processor.parse_trade_message(text.strip())
         
         if not trade_data:
             error_msg = (
                 "❌ *Invalid Trade Format*\n\n"
-                "Please use the simplified format:\n"
-                "`CONTRACT_ADDRESS ENTRY_PRICE EXIT_PRICE TX_LINK`\n\n"
+                "Please use the USD format:\n"
+                "`CONTRACT_ADDRESS ENTRY_PRICE_USD EXIT_PRICE_USD TX_LINK`\n\n"
                 "Example:\n"
-                "`E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.000002782 0.0003847 https://solscan.io/tx/abc123`\n\n"
+                "`E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.00045 0.062 https://solscan.io/tx/abc123`\n\n"
                 "The system will automatically:\n"
+                "• Convert USD prices to SOL using live exchange rates\n"
                 "• Fetch token symbol and name from DEX Screener\n"
-                "• Calculate market caps at entry and exit\n"
-                "• Generate realistic position sizes for all users\n"
-                "• Create professional position displays"
+                "• Calculate market caps and position sizes\n"
+                "• Generate professional position displays with USD/SOL data"
             )
             bot.send_message(chat_id, error_msg, parse_mode="Markdown")
             return
@@ -5577,9 +5574,10 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         time_msg = (
             f"✅ *Trade Parsed Successfully*\n\n"
             f"📊 *Contract:* {trade_data['contract_address'][:8]}...{trade_data['contract_address'][-8:]}\n"
-            f"📈 *Entry Price:* {trade_data['entry_price']:.8f} SOL\n"
-            f"📉 *Exit Price:* {trade_data['exit_price']:.8f} SOL\n"
-            f"💰 *ROI:* {trade_data['roi_percentage']:+.2f}%\n\n"
+            f"📈 *Entry Price:* ${trade_data['entry_price_usd']:.6f} ({trade_data['entry_price_sol']:.8f} SOL)\n"
+            f"📉 *Exit Price:* ${trade_data['exit_price_usd']:.6f} ({trade_data['exit_price_sol']:.8f} SOL)\n"
+            f"💰 *ROI:* {trade_data['roi_percentage']:+.2f}%\n"
+            f"🪙 *SOL Price:* ${trade_data['sol_price_used']:.2f}\n\n"
             "⏰ *When should this trade appear to have executed?*"
         )
         

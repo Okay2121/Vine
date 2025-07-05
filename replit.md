@@ -98,6 +98,20 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### USD Trade Format Implementation with Automatic SOL Conversion (July 5, 2025)
+- **Implemented USD-based trade broadcast system** replacing SOL prices with more intuitive USD format
+- **Created comprehensive USD trade processor** (`utils/usd_trade_processor.py`) with real-time SOL/USD conversion
+- **Enhanced trade broadcast format** to use USD prices: `CONTRACT_ADDRESS ENTRY_PRICE_USD EXIT_PRICE_USD TX_LINK`
+- **Integrated multiple free APIs** for live SOL price fetching (CoinGecko, Binance, CoinCap) with 30-second caching
+- **Updated trade confirmation interface** to show both USD and SOL prices with current exchange rate
+- **Automatic currency conversion** for all user calculations while maintaining SOL balances
+- **Example format**: `E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.00045 0.062 https://solscan.io/tx/abc123`
+- **Perfect DEX Screener alignment** since both systems now use USD pricing natively
+- **Enhanced user notifications** showing profits in both USD and SOL for maximum clarity
+- **Files created**: `utils/usd_trade_processor.py`, `test_usd_trade_processor.py`
+- **Files updated**: `bot_v20_runner.py` with USD format support and live exchange rate display
+- **Result**: Trade broadcasts now use intuitive USD prices with seamless SOL conversion for calculations
+
 ### Enhanced Trade Broadcast Format Update (July 5, 2025)
 - **Updated trade broadcast page format** to match new automated token processing system from DEX Screener
 - **New input format requires**:
