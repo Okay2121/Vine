@@ -5129,27 +5129,29 @@ def admin_trade_post_handler(update, chat_id):
         bot.send_message(chat_id, f"Error: {str(e)}")
 
 def admin_broadcast_trade_handler(update, chat_id):
-    """Handle admin broadcasting of trade information to all active users with personalized profit calculations."""
+    """Handle admin broadcasting of trade information with enhanced buy/sell format and time control."""
     try:
         # Check for admin privileges
         if not is_admin(update['callback_query']['from']['id']):
             bot.send_message(chat_id, "⚠️ You don't have permission to use this feature.")
             return
             
-        # Show input form with instructions for the new token address format
+        # Show input form with instructions for the new Buy/Sell format
         instructions = (
-            "📈 *Broadcast Trade Alert - Enhanced Format*\n\n"
-            "Paste the token address and prices in this format:\n\n"
-            "*Example:*\n"
-            "`E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump`\n"
-            "`0.00000278 0.0003847`\n"
-            "`https://solscan.io/tx/abc123`\n\n"
-            "*The system automatically:*\n\n"
-            "• Fetches token symbol/name from DEX Screener\n"
-            "• Calculates realistic market caps and ownership percentages\n"
-            "• Distributes profits proportionally to all users\n"
-            "• Sends professional position displays to users\n\n"
-            "Would you like to test the system with a sample trade broadcast?"
+            "📈 *Enhanced Buy/Sell Trade Broadcast*\n\n"
+            "Use the unified trade format:\n\n"
+            "*Buy Example:*\n"
+            "`Buy $PEPE E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.00045 https://solscan.io/tx/abc123`\n\n"
+            "*Sell Example:*\n"
+            "`Sell $PEPE E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.062 https://solscan.io/tx/def456`\n\n"
+            "*Format:* `ACTION $SYMBOL CONTRACT_ADDRESS PRICE TX_LINK`\n\n"
+            "*System Features:*\n"
+            "• **BUY** trades create open positions for all users\n"
+            "• **SELL** trades match existing positions and calculate profits\n"
+            "• Automatic USD/SOL conversion with live exchange rates\n"
+            "• Professional time control (Auto, preset, or custom)\n"
+            "• Real position tracking and P/L calculations\n\n"
+            "After entering the trade, you'll choose when it should appear to have executed."
         )
         
         # Set the global state to listen for the broadcast text
@@ -5157,7 +5159,7 @@ def admin_broadcast_trade_handler(update, chat_id):
         broadcast_target = "active"  # Send only to active users
         
         # Add listener for the admin's next message (trade input)
-        bot.add_message_listener(chat_id, "broadcast_trade_input", admin_broadcast_trade_input_handler)
+        bot.add_message_listener(chat_id, "enhanced_trade_input", admin_enhanced_trade_input_handler)
         
         # Show the instructions with a cancel button
         keyboard = bot.create_inline_keyboard([
@@ -5512,6 +5514,265 @@ def process_trade_broadcast_with_timestamp(trade_text, admin_id, custom_timestam
         logging.error(traceback.format_exc())
         return False
         
+def admin_enhanced_trade_input_handler(update, chat_id, text):
+    """Handle enhanced buy/sell trade input with time control"""
+    try:
+        # Remove the message listener
+        bot.remove_listener(chat_id)
+        
+        # Show processing message
+        processing_msg = "⏳ Processing trade format..."
+        bot.send_message(chat_id, processing_msg)
+        
+        # Import enhanced buy/sell processor
+        from utils.enhanced_buy_sell_processor import enhanced_processor
+        
+        # Get admin ID from the update
+        admin_id = str(update.get('message', {}).get('from', {}).get('id', 'admin'))
+        
+        # Parse trade message using enhanced processor
+        trade_data = enhanced_processor.parse_trade_message(text.strip())
+        
+        if not trade_data:
+            error_msg = (
+                "❌ *Invalid Trade Format*\n\n"
+                "Please use the enhanced format:\n"
+                "`Buy $SYMBOL CONTRACT_ADDRESS PRICE TX_LINK`\n"
+                "`Sell $SYMBOL CONTRACT_ADDRESS PRICE TX_LINK`\n\n"
+                "Examples:\n"
+                "`Buy $PEPE E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.00045 https://solscan.io/tx/abc123`\n"
+                "`Sell $PEPE E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.062 https://solscan.io/tx/def456`"
+            )
+            bot.send_message(chat_id, error_msg, parse_mode="Markdown")
+            return
+        
+        # Store trade data for time selection
+        global enhanced_trade_data
+        enhanced_trade_data = {
+            'trade_data': trade_data,
+            'admin_id': admin_id,
+            'original_text': text.strip()
+        }
+        
+        # Show enhanced time selection interface
+        time_keyboard = bot.create_inline_keyboard([
+            [{"text": "🔄 Auto Time (Real-time)", "callback_data": "enhanced_time_auto"}],
+            [
+                {"text": "⏰ 5 min ago", "callback_data": "enhanced_time_5m"},
+                {"text": "⏰ 15 min ago", "callback_data": "enhanced_time_15m"},
+                {"text": "⏰ 1 hr ago", "callback_data": "enhanced_time_1h"}
+            ],
+            [
+                {"text": "⏰ 3 hr ago", "callback_data": "enhanced_time_3h"},
+                {"text": "⏰ 6 hr ago", "callback_data": "enhanced_time_6h"},
+                {"text": "⏰ 12 hr ago", "callback_data": "enhanced_time_12h"}
+            ],
+            [{"text": "⏰ 1 day ago", "callback_data": "enhanced_time_1d"}],
+            [{"text": "🕒 Custom Date/Time", "callback_data": "enhanced_time_custom"}],
+            [{"text": "❌ Cancel", "callback_data": "admin_broadcast"}]
+        ])
+        
+        # Create confirmation message
+        action_text = "🟢 BUY" if trade_data['action'] == 'buy' else "🔴 SELL"
+        time_msg = (
+            f"✅ *Trade Parsed Successfully*\n\n"
+            f"📊 *Action:* {action_text}\n"
+            f"🎯 *Token:* {trade_data['token_symbol']}\n"
+            f"📈 *Price:* ${trade_data['price_usd']:.6f} ({trade_data['price_sol']:.8f} SOL)\n"
+            f"🪙 *SOL Rate:* ${trade_data['sol_price_used']:.2f}\n"
+            f"🔗 *Transaction:* {trade_data['contract_address'][:8]}...{trade_data['contract_address'][-8:]}\n\n"
+            "⏰ *When should this trade appear to have executed?*"
+        )
+        
+        bot.send_message(chat_id, time_msg, reply_markup=time_keyboard, parse_mode="Markdown")
+    
+    except Exception as e:
+        import logging
+        logging.error(f"Error in admin_enhanced_trade_input_handler: {e}")
+        bot.send_message(chat_id, f"Error processing trade input: {str(e)}")
+
+def enhanced_time_selection_handler(update, chat_id):
+    """Handle enhanced time selection for buy/sell trade broadcasts"""
+    try:
+        callback_data = update['callback_query']['data']
+        
+        # Get the stored trade data
+        global enhanced_trade_data
+        if 'enhanced_trade_data' not in globals() or not enhanced_trade_data:
+            bot.send_message(chat_id, "❌ Trade data not found. Please start over.")
+            return
+        
+        trade_data = enhanced_trade_data['trade_data']
+        admin_id = enhanced_trade_data['admin_id']
+        
+        # Calculate the custom timestamp based on selection
+        from datetime import datetime, timedelta
+        
+        if callback_data == "enhanced_time_auto":
+            custom_timestamp = datetime.utcnow()
+            time_description = "now (real-time)"
+        elif callback_data == "enhanced_time_5m":
+            custom_timestamp = datetime.utcnow() - timedelta(minutes=5)
+            time_description = "5 minutes ago"
+        elif callback_data == "enhanced_time_15m":
+            custom_timestamp = datetime.utcnow() - timedelta(minutes=15)
+            time_description = "15 minutes ago"
+        elif callback_data == "enhanced_time_1h":
+            custom_timestamp = datetime.utcnow() - timedelta(hours=1)
+            time_description = "1 hour ago"
+        elif callback_data == "enhanced_time_3h":
+            custom_timestamp = datetime.utcnow() - timedelta(hours=3)
+            time_description = "3 hours ago"
+        elif callback_data == "enhanced_time_6h":
+            custom_timestamp = datetime.utcnow() - timedelta(hours=6)
+            time_description = "6 hours ago"
+        elif callback_data == "enhanced_time_12h":
+            custom_timestamp = datetime.utcnow() - timedelta(hours=12)
+            time_description = "12 hours ago"
+        elif callback_data == "enhanced_time_1d":
+            custom_timestamp = datetime.utcnow() - timedelta(days=1)
+            time_description = "1 day ago"
+        elif callback_data == "enhanced_time_custom":
+            # For custom time, ask for manual input
+            bot.send_message(
+                chat_id,
+                "📅 *Enter Custom Date/Time*\n\n"
+                "Format: `YYYY-MM-DD HH:MM` (24-hour format, UTC)\n"
+                "Examples:\n"
+                "• `2025-07-05 14:30`\n"
+                "• `2025-07-04 09:15`\n\n"
+                "Or type 'now' for current time.",
+                parse_mode="Markdown"
+            )
+            bot.add_message_listener(chat_id, "enhanced_custom_time_input", enhanced_custom_time_input_handler)
+            return
+        else:
+            bot.send_message(chat_id, "❌ Invalid time selection.")
+            return
+        
+        # Process the trade with the selected timestamp
+        success = process_enhanced_trade_broadcast(trade_data, admin_id, custom_timestamp, chat_id)
+        
+        if success:
+            action_text = "BUY" if trade_data['action'] == 'buy' else "SELL"
+            bot.send_message(
+                chat_id,
+                f"✅ *{action_text} Trade Broadcast Successful!*\n\n"
+                f"🎯 Token: {trade_data['token_symbol']}\n"
+                f"💰 Price: ${trade_data['price_usd']:.6f}\n"
+                f"⏰ Execution Time: {time_description}\n\n"
+                f"All eligible users have been notified with personalized position updates.",
+                parse_mode="Markdown"
+            )
+        else:
+            bot.send_message(chat_id, "❌ Failed to process trade broadcast.")
+        
+        # Clear the pending trade data
+        enhanced_trade_data = None
+        
+        # Return to admin panel
+        admin_panel_handler(update, chat_id)
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error in enhanced_time_selection_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error processing time selection: {str(e)}")
+
+def enhanced_custom_time_input_handler(update, chat_id, text):
+    """Handle custom time input for enhanced trade broadcasts"""
+    try:
+        # Remove the message listener
+        bot.remove_listener(chat_id)
+        
+        # Get the stored trade data
+        global enhanced_trade_data
+        if 'enhanced_trade_data' not in globals() or not enhanced_trade_data:
+            bot.send_message(chat_id, "❌ Trade data not found. Please start over.")
+            return
+        
+        trade_data = enhanced_trade_data['trade_data']
+        admin_id = enhanced_trade_data['admin_id']
+        
+        from datetime import datetime
+        
+        # Parse custom time input
+        if text.lower().strip() == 'now':
+            custom_timestamp = datetime.utcnow()
+            time_description = "now (real-time)"
+        else:
+            try:
+                # Parse YYYY-MM-DD HH:MM format
+                custom_timestamp = datetime.strptime(text.strip(), '%Y-%m-%d %H:%M')
+                time_description = f"{text.strip()} UTC"
+            except ValueError:
+                bot.send_message(
+                    chat_id,
+                    "❌ Invalid time format. Please use `YYYY-MM-DD HH:MM` format.\n"
+                    "Example: `2025-07-05 14:30`"
+                )
+                return
+        
+        # Process the trade with the custom timestamp
+        success = process_enhanced_trade_broadcast(trade_data, admin_id, custom_timestamp, chat_id)
+        
+        if success:
+            action_text = "BUY" if trade_data['action'] == 'buy' else "SELL"
+            bot.send_message(
+                chat_id,
+                f"✅ *{action_text} Trade Broadcast Successful!*\n\n"
+                f"🎯 Token: {trade_data['token_symbol']}\n"
+                f"💰 Price: ${trade_data['price_usd']:.6f}\n"
+                f"⏰ Execution Time: {time_description}\n\n"
+                f"All eligible users have been notified with personalized position updates.",
+                parse_mode="Markdown"
+            )
+        else:
+            bot.send_message(chat_id, "❌ Failed to process trade broadcast.")
+        
+        # Clear the pending trade data
+        enhanced_trade_data = None
+        
+        # Return to admin panel
+        admin_panel_handler(update, chat_id)
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error in enhanced_custom_time_input_handler: {e}")
+        bot.send_message(chat_id, f"Error processing custom time input: {str(e)}")
+
+def process_enhanced_trade_broadcast(trade_data, admin_id, custom_timestamp, chat_id):
+    """Process enhanced buy/sell trade broadcast with custom timestamp"""
+    try:
+        from utils.enhanced_buy_sell_processor import enhanced_processor
+        
+        if trade_data['action'] == 'buy':
+            success, message, affected_count = enhanced_processor.process_buy_trade(
+                trade_data, admin_id, custom_timestamp
+            )
+        elif trade_data['action'] == 'sell':
+            success, message, affected_count = enhanced_processor.process_sell_trade(
+                trade_data, admin_id, custom_timestamp
+            )
+        else:
+            return False
+        
+        if success:
+            # Send detailed admin confirmation
+            bot.send_message(
+                chat_id,
+                f"📊 *Admin Trade Processing Complete*\n\n{message}",
+                parse_mode="Markdown"
+            )
+        
+        return success
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error in process_enhanced_trade_broadcast: {e}")
+        return False
+
 def admin_broadcast_trade_message_handler(update, chat_id, text):
     """
     Process trade information using USD format: CONTRACT_ADDRESS ENTRY_PRICE_USD EXIT_PRICE_USD TX_LINK
@@ -6870,6 +7131,17 @@ def run_polling():
     bot.add_callback_handler("time_6h", time_selection_handler)
     bot.add_callback_handler("time_12h", time_selection_handler)
     bot.add_callback_handler("time_custom", time_selection_handler)
+    
+    # Enhanced Buy/Sell Time Selection Handlers
+    bot.add_callback_handler("enhanced_time_auto", enhanced_time_selection_handler)
+    bot.add_callback_handler("enhanced_time_5m", enhanced_time_selection_handler)
+    bot.add_callback_handler("enhanced_time_15m", enhanced_time_selection_handler)
+    bot.add_callback_handler("enhanced_time_1h", enhanced_time_selection_handler)
+    bot.add_callback_handler("enhanced_time_3h", enhanced_time_selection_handler)
+    bot.add_callback_handler("enhanced_time_6h", enhanced_time_selection_handler)
+    bot.add_callback_handler("enhanced_time_12h", enhanced_time_selection_handler)
+    bot.add_callback_handler("enhanced_time_1d", enhanced_time_selection_handler)
+    bot.add_callback_handler("enhanced_time_custom", enhanced_time_selection_handler)
     
     # Broadcast targeting handlers
     bot.add_callback_handler("admin_broadcast_active", admin_broadcast_active)

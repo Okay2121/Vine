@@ -98,6 +98,20 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Enhanced Buy/Sell Trade Broadcast System with Admin Time Control (July 5, 2025)
+- **Implemented unified Buy/Sell trade format processing** replacing separate entry/exit price system with intuitive action-based format
+- **Created comprehensive enhanced trade processor** (`utils/enhanced_buy_sell_processor.py`) supporting both BUY and SELL trade operations
+- **Enhanced admin interface with flexible time control** including Auto (real-time), preset intervals (5min-1day ago), and custom timestamp input
+- **Unified trade format**: `ACTION $SYMBOL CONTRACT_ADDRESS PRICE TX_LINK` (e.g., "Buy $PEPE E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump 0.00045 https://solscan.io/tx/abc123")
+- **Automatic token processing** with real DEX Screener integration for symbol/name resolution and market data
+- **Professional time selection interface** with buttons for 5min, 15min, 1hr, 3hr, 6hr, 12hr, 1day ago plus custom time input
+- **Smart trade processing**: BUY creates new positions for all users, SELL matches existing positions and calculates profits
+- **Comprehensive audit trail** tracking both broadcast time and claimed execution time for realistic trade timing
+- **Enhanced realism** enabling admins to simulate authentic memecoin trading timelines with historical timestamps
+- **Files created**: `utils/enhanced_buy_sell_processor.py`, `test_enhanced_trade_system.py`
+- **Files updated**: `bot_v20_runner.py` with enhanced trade handlers and time control workflow
+- **Result**: Professional trade broadcast system with unified format and flexible timing control for authentic trading experiences
+
 ### USD Trade Format Implementation with Automatic SOL Conversion (July 5, 2025)
 - **Implemented USD-based trade broadcast system** replacing SOL prices with more intuitive USD format
 - **Created comprehensive USD trade processor** (`utils/usd_trade_processor.py`) with real-time SOL/USD conversion
