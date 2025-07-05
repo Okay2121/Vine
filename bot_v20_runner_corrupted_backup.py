@@ -5624,7 +5624,6 @@ def admin_broadcast_trade_message_handler(update, chat_id, text):
         logging.error(f"Error in admin_broadcast_trade_message_handler: {str(e)}")
         bot.send_message(chat_id, f"❌ Error processing trade: {str(e)}")
 
-
 def time_selection_handler(update, chat_id):
     """
     Handle time selection for admin trade broadcasts with custom timestamp
@@ -5666,9 +5665,15 @@ def time_selection_handler(update, chat_id):
                 )
                 
                 bot.send_message(chat_id, custom_time_msg, parse_mode="Markdown")
+                
+                # Wait for custom time input
+                bot._awaiting_custom_time = True
                 return
             else:
                 selected_time = current_time
+            
+            # Store the selected time for trade processing
+            bot._custom_timestamp = selected_time
             
             # Process the trade with the selected timestamp
             process_trade_broadcast_with_timestamp(chat_id, selected_time)
@@ -5710,6 +5715,8 @@ def process_trade_broadcast_with_timestamp(chat_id, timestamp):
             # Clear the pending trade data
             if hasattr(bot, '_pending_trade_data'):
                 delattr(bot, '_pending_trade_data')
+            if hasattr(bot, '_custom_timestamp'):
+                delattr(bot, '_custom_timestamp')
                 
             # Send success message with return button
             keyboard = bot.create_inline_keyboard([
@@ -5741,6 +5748,10 @@ def custom_time_input_handler(update, chat_id, text):
             # Try to parse YYYY-MM-DD HH:MM format
             custom_time = datetime.strptime(text.strip(), "%Y-%m-%d %H:%M")
             
+            # Store the custom time
+            bot._custom_timestamp = custom_time
+            bot._awaiting_custom_time = False
+            
             # Process the trade with custom timestamp
             process_trade_broadcast_with_timestamp(chat_id, custom_time)
             
@@ -5762,67 +5773,134 @@ def custom_time_input_handler(update, chat_id, text):
         bot.send_message(chat_id, "❌ Error processing custom time.")
 
 def admin_broadcast_announcement_message_handler(update, chat_id, text):
-    """
-    Handle admin announcement broadcasts with enhanced formatting
-    """
-    try:
-        with app.app_context():
-            from models import User, UserStatus, BroadcastMessage
-            from datetime import datetime
-            
-            # Validate text
-            if not text or len(text.strip()) < 5:
-                bot.send_message(chat_id, "❌ Announcement message is too short. Please provide a meaningful message.")
-                return
-            
-            # Query all active users
-            active_users = User.query.filter_by(status=UserStatus.ACTIVE).all()
-            
-            if not active_users:
-                bot.send_message(chat_id, "❌ No active users found to send the announcement.")
-                return
-            
-            broadcast_count = 0
-            
-            # Create broadcast record
-            broadcast_record = BroadcastMessage(
-                admin_id=str(update['message']['from']['id']),
-                message_content=text,
-                recipient_count=len(active_users),
-                broadcast_time=datetime.utcnow(),
-                message_type="announcement"
-            )
-            db.session.add(broadcast_record)
-            
-            # Send to all active users
-            for user in active_users:
-                try:
-                    formatted_message = f"📢 *System Announcement*\n\n{text}"
-                    bot.send_message(user.telegram_id, formatted_message, parse_mode="Markdown")
-                    broadcast_count += 1
-                except Exception as e:
-                    import logging
-                    logging.error(f"Error sending announcement to user {user.id}: {e}")
-                    continue
-            
-            # Commit changes
-            db.session.commit()
-            
-            # Send confirmation to admin
-            success_message = (
-                "✅ *Announcement Broadcast Complete*\n\n"
-                f"• *Users Reached:* {broadcast_count} of {len(active_users)}\n"
-                f"• *Message:* {text[:50]}...\n\n"
-                "*All active users have been notified.*"
+                f"• *Token:* {token}\n"
+                f"• *ROI Applied:* {roi_percent}%\n"
+                f"• *Total Profit Generated:* {total_profit_distributed:.2f} SOL\n\n"
+                f"• *Next Available Broadcast:* {next_available}\n\n"
+                "All user balances and profit metrics have been updated."
             )
             
             bot.send_message(chat_id, success_message, parse_mode="Markdown")
             
     except Exception as e:
         import logging
-        logging.error(f"Error in admin_broadcast_announcement_message_handler: {str(e)}")
-        bot.send_message(chat_id, f"❌ Error sending announcement: {str(e)}")
+        logging.error(f"Error in admin_broadcast_trade_message_handler: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        bot.send_message(chat_id, f"Error: {str(e)}")
 
+def admin_broadcast_announcement_message_handler(update, chat_id, text):
+    """Handle the incoming announcement for broadcast."""
+    try:
+        # Check for cancellation
+        if text.lower() == 'cancel':
+            bot.send_message(
+                chat_id,
+                "Announcement creation cancelled. Returning to broadcast menu.",
+                reply_markup=bot.create_inline_keyboard([
+                    [{"text": "Back to Broadcast Menu", "callback_data": "admin_broadcast"}]
+                ])
+            )
+            bot.remove_listener(chat_id)
+            return
+            
+        # Split the text into title and content
+        lines = text.strip().split('\n')
+        if len(lines) < 2:
+            bot.send_message(
+                chat_id, 
+                "⚠️ Please provide both a title and content following the format shown. Send 'cancel' to abort."
+            )
+            return
+            
+        title = lines[0].strip()
+        content = '\n'.join(lines[1:])
+        
+        # Format the announcement with enhanced styling for user panel
+        formatted_announcement = (
+            f"📢 *{title}*\n\n"
+            f"{content}\n\n"
+            f"_Sent: {datetime.utcnow().strftime('%B %d, %Y')} · Via Admin Panel_"
+        )
+        
+        # Get relevant user counts for better preview
+        with app.app_context():
+            try:
+                from models import User, UserStatus
+                
+                total_users = User.query.count()
+                active_users = User.query.filter_by(status=UserStatus.ACTIVE).count()
+                
+                # Use global variable to show currently selected target
+                global broadcast_target
+                target_text = "Active Users Only" if broadcast_target == "active" else "All Users"
+                target_count = active_users if broadcast_target == "active" else total_users
+                
+                audience_info = f"*{target_text}* ({target_count} users)"
+            except Exception as e:
+                import logging
+                logging.error(f"Error getting user counts: {e}")
+                audience_info = f"*{target_text}*"
+        
+        # Create an enhanced preview with UI simulation of how it will appear to users
+        preview_message = (
+            "🔍 *Announcement Preview*\n\n"
+            "```\n📱 User Device Preview:\n" + "-" * 30 + "```\n\n"
+            f"{formatted_announcement}\n\n"
+            "```\n" + "-" * 30 + "\n```\n"
+            f"This announcement will be sent to {audience_info}.\n\n"
+            "Are you sure you want to continue?"
+        )
+        
+        keyboard = bot.create_inline_keyboard([
+            [
+                {"text": "✅ Send Broadcast", "callback_data": "admin_send_broadcast"},
+                {"text": "❌ Cancel", "callback_data": "admin_broadcast"}
+            ]
+        ])
+        
+        # Store the message for later sending
+        with app.app_context():
+            from models import BroadcastMessage
+            import json
+            
+            # Save the message to the database for sending later
+            message_data = json.dumps({
+                "title": title,
+                "content": content,
+                "formatted_text": formatted_announcement
+            })
+            
+            new_message = BroadcastMessage(
+                content=message_data,
+                message_type="announcement",
+                created_by=chat_id,
+                status="pending"
+            )
+            db.session.add(new_message)
+            db.session.commit()
+            
+            # Store the message ID in a global variable or session
+            global pending_broadcast_id
+            pending_broadcast_id = new_message.id
+        
+        bot.send_message(
+            chat_id,
+            preview_message,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+        
+        # Remove the listener
+        bot.remove_listener(chat_id)
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error in admin_broadcast_announcement_message_handler: {e}")
+        bot.send_message(chat_id, f"Error processing announcement broadcast: {str(e)}")
+        bot.remove_listener(chat_id)
+
+# Direct message handlers
 def admin_dm_text_handler(update, chat_id):
     """Handle the text direct message option."""
     try:

@@ -107,6 +107,24 @@ class TradingPosition(db.Model):
     admin_id = db.Column(db.String(64), nullable=True)  # Admin who created this position
     exit_price = db.Column(db.Float, nullable=True)  # Price at exit (sell)
     
+    # DEX Screener market data fields
+    contract_address = db.Column(db.String(128), nullable=True)  # Token contract address
+    market_cap_entry = db.Column(db.Float, nullable=True)  # Market cap at entry
+    market_cap_exit = db.Column(db.Float, nullable=True)  # Market cap at exit
+    market_cap_avg_exit = db.Column(db.Float, nullable=True)  # Average exit market cap target
+    volume_24h = db.Column(db.Float, nullable=True)  # 24h trading volume
+    liquidity_usd = db.Column(db.Float, nullable=True)  # Liquidity in USD
+    ownership_percentage = db.Column(db.Float, nullable=True)  # User's ownership percentage
+    total_supply = db.Column(db.Float, nullable=True)  # Token total supply
+    buy_count_24h = db.Column(db.Integer, nullable=True)  # 24h buy transaction count
+    sell_count_24h = db.Column(db.Integer, nullable=True)  # 24h sell transaction count
+    execution_speed = db.Column(db.Float, nullable=True)  # Trade execution speed in seconds
+    gas_cost = db.Column(db.Float, nullable=True)  # Gas cost in SOL
+    entry_reason = db.Column(db.String(100), nullable=True)  # Entry reason
+    exit_reason = db.Column(db.String(100), nullable=True)  # Exit reason
+    price_usd_entry = db.Column(db.Float, nullable=True)  # USD price at entry
+    price_usd_exit = db.Column(db.Float, nullable=True)  # USD price at exit
+    
     def __repr__(self):
         return f'<TradingPosition {self.token_name} {self.amount}>'
 
