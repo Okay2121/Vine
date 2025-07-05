@@ -5136,26 +5136,20 @@ def admin_broadcast_trade_handler(update, chat_id):
             bot.send_message(chat_id, "⚠️ You don't have permission to use this feature.")
             return
             
-        # Show input form with instructions for new BUY/SELL format
+        # Show input form with instructions for the new token address format
         instructions = (
-            "📈 *Broadcast Trade Alert - New Format*\n\n"
-            "Send the trade details in one of these formats:\n\n"
-            "`Buy $TOKEN PRICE AMOUNT TX_LINK`\n"
-            "`Sell $TOKEN PRICE AMOUNT TX_LINK`\n\n"
-            "Examples:\n"
-            "`Buy $ZING 0.004107 812345 https://solscan.io/tx/abc123`\n"
-            "`Sell $ZING 0.006834 812345 https://solscan.io/tx/def456`\n\n"
-            "*Format Breakdown:*\n"
-            "• Buy/Sell — trade type\n"
-            "• $ZING — token symbol\n"
-            "• 812345 — amount of tokens\n"
-            "• 0.0041 / 0.0068 — token price (entry or exit)\n"
-            "• Transaction Link — proof of trade (Solscan)\n\n"
-            "For Buy orders: Records the transaction for future matching\n"
-            "For Sell orders: Matches with previous Buy and calculates ROI\n\n"
-            "✅ ROI calculated automatically when matching Buy/Sell pairs\n"
-            "✅ Timestamps recorded for entry/exit timing analysis\n\n"
-            "After entering trade details, you'll choose the broadcast time (auto or custom)."
+            "📈 *Broadcast Trade Alert - Enhanced Format*\n\n"
+            "Paste the token address and prices in this format:\n\n"
+            "*Example:*\n"
+            "`E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump`\n"
+            "`0.00000278 0.0003847`\n"
+            "`https://solscan.io/tx/abc123`\n\n"
+            "*The system automatically:*\n\n"
+            "• Fetches token symbol/name from DEX Screener\n"
+            "• Calculates realistic market caps and ownership percentages\n"
+            "• Distributes profits proportionally to all users\n"
+            "• Sends professional position displays to users\n\n"
+            "Would you like to test the system with a sample trade broadcast?"
         )
         
         # Set the global state to listen for the broadcast text

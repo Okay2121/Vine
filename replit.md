@@ -98,6 +98,21 @@ This is a sophisticated Telegram-based Solana memecoin trading bot that provides
 
 ## Recent Changes
 
+### Enhanced Trade Broadcast Format Update (July 5, 2025)
+- **Updated trade broadcast page format** to match new automated token processing system from DEX Screener
+- **New input format requires**:
+  - Token address (e.g., E2NEYtNToYjoytGUzgp8Yd7Rz2WAroMZ1QRkLESypump)
+  - Entry and exit prices (e.g., 0.00000278 0.0003847)
+  - Transaction link (e.g., https://solscan.io/tx/abc123)
+- **Enhanced automation features**:
+  - Automatic token symbol/name fetching from DEX Screener
+  - Realistic market cap and ownership percentage calculations
+  - Proportional profit distribution to all users
+  - Professional position displays sent to users
+- **Streamlined interface** removing manual token input requirements and complex format instructions
+- **Files updated**: `bot_v20_runner.py` with simplified trade broadcast format and enhanced automation description
+- **Result**: Trade broadcast page now matches the enhanced system capabilities with automatic token processing
+
 ### Admin Time Control System for Trade Broadcasts (July 5, 2025)
 - **Implemented comprehensive admin time control system** allowing administrators to set custom timestamps for trade broadcasts
 - **Enhanced trade broadcast workflow** with multi-step time selection process including Auto Time, Quick Select, and Custom Time options
